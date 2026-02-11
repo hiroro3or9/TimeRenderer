@@ -1,28 +1,13 @@
 <Window x:Class="TimeRenderer.ScheduleEditDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="スケジュール編集" Height="540" Width="420"
+        Title="スケジュール編集" Height="640" Width="420"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
-        Background="#F5F5F5">
+        Background="{StaticResource BackgroundBrush}">
 
     <Window.Resources>
-        <!-- テキストボックスのスタイル -->
-        <Style x:Key="InputTextBox" TargetType="TextBox">
-            <Setter Property="Padding" Value="8,6"/>
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="BorderBrush" Value="#CCCCCC"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Background" Value="White"/>
-        </Style>
-
-        <!-- ラベルのスタイル -->
-        <Style x:Key="FieldLabel" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="#444444"/>
-            <Setter Property="Margin" Value="0,0,0,4"/>
-        </Style>
+        <!-- ローカルリソースはThemes/Styles.xamlのものを使用するため削除 -->
     </Window.Resources>
 
     <Grid Margin="20">
@@ -39,51 +24,51 @@
         </Grid.RowDefinitions>
 
         <!-- タイトル -->
-        <StackPanel Grid.Row="0" Margin="0,0,0,12">
-            <TextBlock Text="タイトル" Style="{StaticResource FieldLabel}"/>
-            <TextBox x:Name="TitleTextBox" Style="{StaticResource InputTextBox}"/>
+        <StackPanel Grid.Row="0" Margin="0,0,0,16">
+            <TextBlock Text="タイトル" Style="{StaticResource FieldLabelStyle}"/>
+            <TextBox x:Name="TitleTextBox" Style="{StaticResource InputTextBoxStyle}"/>
         </StackPanel>
 
         <!-- 内容 -->
-        <StackPanel Grid.Row="1" Margin="0,0,0,12">
-            <TextBlock Text="内容" Style="{StaticResource FieldLabel}"/>
-            <TextBox x:Name="ContentTextBox" Style="{StaticResource InputTextBox}" Height="60"
+        <StackPanel Grid.Row="1" Margin="0,0,0,16">
+            <TextBlock Text="内容" Style="{StaticResource FieldLabelStyle}"/>
+            <TextBox x:Name="ContentTextBox" Style="{StaticResource InputTextBoxStyle}" Height="80"
                      TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto"/>
         </StackPanel>
 
         <!-- 日付 -->
-        <StackPanel Grid.Row="2" Margin="0,0,0,12">
-            <TextBlock Text="日付" Style="{StaticResource FieldLabel}"/>
-            <DatePicker x:Name="DatePicker" Width="140" HorizontalAlignment="Left" Padding="4,2"/>
+        <StackPanel Grid.Row="2" Margin="0,0,0,16">
+            <TextBlock Text="日付" Style="{StaticResource FieldLabelStyle}"/>
+            <DatePicker x:Name="DatePicker" Width="160" HorizontalAlignment="Left" Padding="4,4" VerticalContentAlignment="Center"/>
         </StackPanel>
 
         <!-- 終日チェックボックス -->
-        <CheckBox Grid.Row="3" x:Name="AllDayCheckBox" Content="終日" Margin="0,0,0,12" Checked="AllDayCheckBox_Changed" Unchecked="AllDayCheckBox_Changed"/>
+        <CheckBox Grid.Row="3" x:Name="AllDayCheckBox" Content="終日" Margin="0,0,0,16" Checked="AllDayCheckBox_Changed" Unchecked="AllDayCheckBox_Changed" VerticalContentAlignment="Center"/>
 
         <!-- 開始時刻 -->
-        <StackPanel x:Name="StartTimePanel" Grid.Row="4" Margin="0,0,0,12">
-            <TextBlock Text="開始時刻" Style="{StaticResource FieldLabel}"/>
+        <StackPanel x:Name="StartTimePanel" Grid.Row="4" Margin="0,0,0,16">
+            <TextBlock Text="開始時刻" Style="{StaticResource FieldLabelStyle}"/>
             <StackPanel Orientation="Horizontal">
-                <ComboBox x:Name="StartHourCombo" Width="70" FontSize="14" Padding="6,4"/>
-                <TextBlock Text=":" VerticalAlignment="Center" Margin="4,0" FontSize="16"/>
-                <ComboBox x:Name="StartMinuteCombo" Width="70" FontSize="14" Padding="6,4"/>
+                <ComboBox x:Name="StartHourCombo" Width="80" FontSize="14" Padding="6,6"/>
+                <TextBlock Text=":" VerticalAlignment="Center" Margin="6,0" FontSize="16" FontWeight="Bold"/>
+                <ComboBox x:Name="StartMinuteCombo" Width="80" FontSize="14" Padding="6,6"/>
             </StackPanel>
         </StackPanel>
 
         <!-- 終了時刻 -->
-        <StackPanel x:Name="EndTimePanel" Grid.Row="5" Margin="0,0,0,12">
-            <TextBlock Text="終了時刻" Style="{StaticResource FieldLabel}"/>
+        <StackPanel x:Name="EndTimePanel" Grid.Row="5" Margin="0,0,0,16">
+            <TextBlock Text="終了時刻" Style="{StaticResource FieldLabelStyle}"/>
             <StackPanel Orientation="Horizontal">
-                <ComboBox x:Name="EndHourCombo" Width="70" FontSize="14" Padding="6,4"/>
-                <TextBlock Text=":" VerticalAlignment="Center" Margin="4,0" FontSize="16"/>
-                <ComboBox x:Name="EndMinuteCombo" Width="70" FontSize="14" Padding="6,4"/>
+                <ComboBox x:Name="EndHourCombo" Width="80" FontSize="14" Padding="6,6"/>
+                <TextBlock Text=":" VerticalAlignment="Center" Margin="6,0" FontSize="16" FontWeight="Bold"/>
+                <ComboBox x:Name="EndMinuteCombo" Width="80" FontSize="14" Padding="6,6"/>
             </StackPanel>
         </StackPanel>
 
         <!-- 色 -->
-        <StackPanel Grid.Row="6" Margin="0,0,0,12">
-            <TextBlock Text="色" Style="{StaticResource FieldLabel}"/>
-            <ComboBox x:Name="ColorCombo" Width="200" HorizontalAlignment="Left" FontSize="14" Padding="6,4">
+        <StackPanel Grid.Row="6" Margin="0,0,0,16">
+            <TextBlock Text="色" Style="{StaticResource FieldLabelStyle}"/>
+            <ComboBox x:Name="ColorCombo" Width="200" HorizontalAlignment="Left" FontSize="14" Padding="6,6">
                 <ComboBox.ItemTemplate>
                     <DataTemplate>
                         <StackPanel Orientation="Horizontal">
@@ -96,13 +81,11 @@
         </StackPanel>
 
         <!-- ボタン -->
-        <StackPanel Grid.Row="8" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
-            <Button Content="キャンセル" Width="100" Height="34" Margin="0,0,10,0"
-                    Click="CancelButton_Click" FontSize="13"
-                    Background="White" BorderBrush="#CCCCCC"/>
-            <Button Content="OK" Width="100" Height="34"
-                    Click="OkButton_Click" FontSize="13" FontWeight="SemiBold"
-                    Background="#4A90D9" Foreground="White" BorderBrush="#3A7BC8"/>
+        <StackPanel Grid.Row="8" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button Content="キャンセル" Width="100" Height="36" Margin="0,0,12,0"
+                    Click="CancelButton_Click" Style="{StaticResource BaseButtonStyle}"/>
+            <Button Content="OK" Width="100" Height="36"
+                    Click="OkButton_Click" Style="{StaticResource PrimaryButtonStyle}"/>
         </StackPanel>
     </Grid>
 </Window>
