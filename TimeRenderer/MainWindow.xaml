@@ -4,9 +4,481 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:TimeRenderer"
+        xmlns:markdig="clr-namespace:Markdig.Wpf;assembly=Markdig.Wpf"
+        xmlns:sys="clr-namespace:System;assembly=mscorlib"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
-    <Grid>
+        Title="TimeRenderer" Height="600" Width="800">
+    <Window.Resources>
+        <local:TimeToPositionConverter x:Key="TimeToPositionConverter" PixelsPerHour="60"/>
+        <local:DurationToHeightConverter x:Key="DurationToHeightConverter" PixelsPerHour="60"/>
+        <local:DateToPagePositionConverter x:Key="DateToPagePositionConverter"/>
+        <local:IndexToTopMarginConverter x:Key="IndexToTopMarginConverter" ItemHeight="24"/>
+        <sys:Int32 x:Key="Zero">0</sys:Int32>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        <local:InvertedBooleanToVisibilityConverter x:Key="InvertedBooleanToVisibilityConverter"/>
+        <local:InverseBooleanConverter x:Key="InverseBooleanConverter"/>
+        <local:LShapeGeometryConverter x:Key="LShapeGeometryConverter"/>
+        
+        <Style TargetType="ListBoxItem" x:Key="TimeLabelStyle">
+            <Setter Property="Height" Value="60"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="VerticalContentAlignment" Value="Top"/>
+            <Setter Property="HorizontalContentAlignment" Value="Right"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border Height="{TemplateBinding Height}" BorderBrush="LightGray" BorderThickness="0,1,0,0">
+                            <ContentPresenter Margin="0,5,5,0" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
 
+        <!-- Segmented Control RadioButton Style -->
+        <Style x:Key="SegmentedRadioButtonBase" TargetType="RadioButton">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#3B82F6"/>
+            <Setter Property="Foreground" Value="#3B82F6"/>
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="border" 
+                                Background="{TemplateBinding Background}" 
+                                BorderBrush="{TemplateBinding BorderBrush}" 
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="{TemplateBinding Tag}"> <!-- TagプロパティをCornerRadiusとして悪用 -->
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#3B82F6"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#EBF5FF"/>
+                            </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsChecked" Value="True"/>
+                                    <Condition Property="IsMouseOver" Value="True"/>
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="border" Property="Background" Value="#2563EB"/>
+                            </MultiTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SegmentedLeftStyle" TargetType="RadioButton" BasedOn="{StaticResource SegmentedRadioButtonBase}">
+            <Setter Property="Tag" Value="4,0,0,4"/> <!-- Left Corner -->
+            <Setter Property="BorderThickness" Value="1,1,0,1"/>
+        </Style>
+
+        <Style x:Key="SegmentedRightStyle" TargetType="RadioButton" BasedOn="{StaticResource SegmentedRadioButtonBase}">
+            <Setter Property="Tag" Value="0,4,4,0"/> <!-- Right Corner -->
+            <Setter Property="BorderThickness" Value="1,1,1,1"/> <!-- 境界線が太くなるのを防ぐため左側も描画し、重なりを考慮するか、0,1,1,1にするか。ここでは左ボーダーありにして、並べたときに重なるようにマージン調整する手もあるが、シンプルに 1,1,1,1 で左隣のボーダーと重なるように Margin="-1,0,0,0" するのが綺麗に見える。 -->
+            <Setter Property="Margin" Value="-1,0,0,0"/>
+        </Style>
+    </Window.Resources>
+    
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/> <!-- Memo Panel -->
+        </Grid.ColumnDefinitions>
+
+        <!-- ツールバー -->
+        <Border Grid.Row="0" Grid.ColumnSpan="2" Background="#F0F0F0" BorderBrush="#DDDDDD" BorderThickness="0,0,0,1" Padding="8,6">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- 左側：操作ボタン -->
+                <StackPanel Orientation="Horizontal" Grid.Column="0">
+                    <Button Content="＋ 追加" Click="AddButton_Click" Padding="12,6" FontSize="13" FontWeight="SemiBold"
+                            Background="#4A90D9" Foreground="White" BorderBrush="#3A7BC8" Cursor="Hand" Margin="0,0,20,0">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="border" Background="{TemplateBinding Background}" 
+                                        BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1"
+                                        CornerRadius="4" Padding="{TemplateBinding Padding}">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#5A9FE8"/>
+                                    </Trigger>
+                                    <Trigger Property="IsPressed" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#3A7BC8"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+
+                    <Button Content="今日" Command="{Binding TodayCommand}" Margin="0,0,8,0" Padding="8,4"/>
+                    <Button Content="＜" Command="{Binding PreviousCommand}" Width="30" Margin="0,0,4,0"/>
+                    <Button Content="＞" Command="{Binding NextCommand}" Width="30" Margin="0,0,12,0"/>
+                    
+                    <TextBlock Text="{Binding DateDisplay}" VerticalAlignment="Center" FontSize="16" FontWeight="Bold" Foreground="#333"/>
+                </StackPanel>
+
+                <!-- 右側：モード切替 -->
+                <StackPanel Orientation="Horizontal" Grid.Column="2" HorizontalAlignment="Right">
+                    <!-- 記録ボタン -->
+                    <Button Command="{Binding ToggleRecordingCommand}" Margin="0,0,15,0" Cursor="Hand" BorderThickness="1" BorderBrush="#EF4444">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Background" Value="White"/>
+                                <Setter Property="Foreground" Value="#EF4444"/> <!-- Red -->
+                                <Setter Property="Padding" Value="10,4"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter Property="Content" Value="{Binding RecordingDurationText}"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsRecording}" Value="True">
+                                        <Setter Property="Background" Value="#EF4444"/>
+                                        <Setter Property="Foreground" Value="White"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+
+                    <ToggleButton Content="📝 メモ" IsChecked="{Binding IsMemoPanelVisible}"
+                                  Height="26" Padding="8,2" Margin="0,0,10,0" VerticalAlignment="Center"
+                                  BorderThickness="1" BorderBrush="#BBB" Background="White" Cursor="Hand"/>
+                    <RadioButton Content="日" Command="{Binding ChangeViewModeCommand}" CommandParameter="Day" 
+                                 IsChecked="{Binding IsDayMode, Mode=OneWay}" GroupName="ViewMode"
+                                 Style="{StaticResource SegmentedLeftStyle}"/>
+                    <RadioButton Content="週" Command="{Binding ChangeViewModeCommand}" CommandParameter="Week" 
+                                 IsChecked="{Binding IsWeekMode, Mode=OneWay}" GroupName="ViewMode"
+                                 Style="{StaticResource SegmentedRightStyle}"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ヘッダー行（曜日） + 終日イベントエリア -->
+        <StackPanel Grid.Row="1" Background="White">
+            <Border BorderBrush="#E0E0E0" BorderThickness="0,0,0,1">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="60"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    
+                    <!-- 日付ヘッダー -->
+                    <ItemsControl Grid.Column="1" ItemsSource="{Binding VisibleDays}"
+                                  Width="{Binding ElementName=ScheduleItemsControl, Path=ActualWidth}"
+                                  HorizontalAlignment="Left"
+                                  Height="30">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <UniformGrid Rows="1"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border BorderBrush="#E0E0E0" BorderThickness="0,0,1,0">
+                                    <TextBlock Text="{Binding StringFormat='MM/dd (ddd)'}" 
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               FontWeight="Bold"/>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Grid>
+            </Border>
+
+            <!-- 終日イベントエリア -->
+            <Grid MinHeight="0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="60"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Border Grid.Column="0" BorderBrush="#E0E0E0" BorderThickness="0,0,1,0" Background="#F5F5F5">
+                    <TextBlock Text="終日" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,4,8,4" FontSize="11" Foreground="#666"/>
+                </Border>
+                <ItemsControl Grid.Column="1" ItemsSource="{Binding AllDayItems}" 
+                              Width="{Binding ElementName=ScheduleItemsControl, Path=ActualWidth}"
+                              Height="{Binding AllDayPanelHeight}"
+                              HorizontalAlignment="Left"
+                              Margin="0,2">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <Canvas/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="{Binding BackgroundColor}" CornerRadius="4" Padding="4,2" Height="22" Opacity="0.9" BorderBrush="White" BorderThickness="1"
+                                    Cursor="Hand"
+                                    MouseLeftButtonDown="ScheduleItem_MouseLeftButtonDown">
+                                <Border.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="編集" Click="EditMenuItem_Click"/>
+                                        <MenuItem Header="削除" Click="DeleteMenuItem_Click"/>
+                                    </ContextMenu>
+                                </Border.ContextMenu>
+                                <TextBlock Text="{Binding Title}" FontSize="12" Foreground="Black" TextTrimming="CharacterEllipsis"/>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                    <ItemsControl.ItemContainerStyle>
+                        <Style TargetType="ContentPresenter">
+                            <Setter Property="Canvas.Top" Value="{Binding ColumnIndex, Converter={StaticResource IndexToTopMarginConverter}}"/>
+                             <!-- X座標 (Canvas.Left) -->
+                            <Setter Property="Canvas.Left">
+                                <Setter.Value>
+                                    <MultiBinding Converter="{StaticResource DateToPagePositionConverter}">
+                                        <Binding Path="StartTime" />
+                                        <Binding Source="{StaticResource Zero}" /> <!-- ColumnIndex = 0 -->
+                                        <Binding Source="{StaticResource Zero}" /> <!-- MaxColumnIndex = 0 -->
+                                        <Binding Path="DataContext.CurrentDate" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                        <Binding Path="DataContext.CurrentViewMode" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                        <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=Canvas}" />
+                                    </MultiBinding>
+                                </Setter.Value>
+                            </Setter>
+                            <!-- 幅 (Width) -->
+                            <Setter Property="Width">
+                                <Setter.Value>
+                                    <MultiBinding Converter="{StaticResource DateToPagePositionConverter}" ConverterParameter="WIDTH">
+                                        <Binding Path="StartTime" />
+                                        <Binding Source="{StaticResource Zero}" /> <!-- ColumnIndex = 0 -->
+                                        <Binding Source="{StaticResource Zero}" /> <!-- MaxColumnIndex = 0 -->
+                                        <Binding Path="DataContext.CurrentDate" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                        <Binding Path="DataContext.CurrentViewMode" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                        <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=Canvas}" />
+                                    </MultiBinding>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </ItemsControl.ItemContainerStyle>
+                </ItemsControl>
+            </Grid>
+            <Border BorderBrush="#E0E0E0" BorderThickness="0,0,0,1"/>
+        </StackPanel>
+
+        <!-- スケジュール領域 -->
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+            <Grid Height="1440" Background="White"> <!-- 24 hours * 60px -->
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="60"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- 時刻ラベル -->
+                <ItemsControl ItemsSource="{Binding TimeLabels}" Grid.Column="0">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Height="60" BorderBrush="#EEEEEE" BorderThickness="0,1,0,0">
+                                <TextBlock Text="{Binding}" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="0,0,5,0" Foreground="Gray" FontSize="12"/>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Vertical"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                </ItemsControl>
+
+                <!-- 背景グリッド（縦：日付区切り） -->
+                <ItemsControl ItemsSource="{Binding VisibleDays}" Grid.Column="1">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <UniformGrid Rows="1"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <!-- 縦線 -->
+                            <Border BorderBrush="#F0F0F0" BorderThickness="0,0,1,0"/>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <!-- 背景グリッド（横：時間区切り） -->
+                <ItemsControl ItemsSource="{Binding TimeLabels}" Grid.Column="1">
+                     <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Height="60" BorderBrush="#EEEEEE" BorderThickness="0,1,0,0"/>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                     <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Vertical"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                </ItemsControl>
+
+                <!-- スケジュールアイテム -->
+                <ItemsControl x:Name="ScheduleItemsControl" ItemsSource="{Binding StandardItems}" Grid.Column="1">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <Canvas x:Name="ScheduleCanvas"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemContainerStyle>
+                        <Style TargetType="ContentPresenter">
+                            <Setter Property="Canvas.Top" Value="{Binding StartTime, Converter={StaticResource TimeToPositionConverter}}"/>
+                            
+                            <!-- X座標 (Canvas.Left) -->
+                            <Setter Property="Canvas.Left">
+                                <Setter.Value>
+                                    <MultiBinding Converter="{StaticResource DateToPagePositionConverter}">
+                                        <Binding Path="StartTime" />
+                                        <Binding Path="ColumnIndex" />
+                                        <Binding Path="MaxColumnIndex" />
+                                        <Binding Path="DataContext.CurrentDate" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                        <Binding Path="DataContext.CurrentViewMode" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                        <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=Canvas}" />
+                                    </MultiBinding>
+                                </Setter.Value>
+                            </Setter>
+                            <!-- 幅 (Width) -->
+                            <Setter Property="Width">
+                                <Setter.Value>
+                                    <MultiBinding Converter="{StaticResource DateToPagePositionConverter}" ConverterParameter="WIDTH">
+                                        <Binding Path="StartTime" />
+                                        <Binding Path="ColumnIndex" />
+                                        <Binding Path="MaxColumnIndex" />
+                                        <Binding Path="DataContext.CurrentDate" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                        <Binding Path="DataContext.CurrentViewMode" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                        <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=Canvas}" />
+                                    </MultiBinding>
+                                </Setter.Value>
+                            </Setter>
+
+                        </Style>
+                    </ItemsControl.ItemContainerStyle>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Cursor="Hand" MouseLeftButtonDown="ScheduleItem_MouseLeftButtonDown" Margin="1,0,1,0"
+                                  Height="{Binding DurationHours, Converter={StaticResource DurationToHeightConverter}, ConverterParameter=ADD_EXTENSION}">
+                                <Grid.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="編集" Click="EditMenuItem_Click"/>
+                                        <MenuItem Header="削除" Click="DeleteMenuItem_Click"/>
+                                    </ContextMenu>
+                                </Grid.ContextMenu>
+                                
+                                <!-- 背景と形状 -->
+                                <Path Fill="{Binding BackgroundColor}" Stroke="Gray" StrokeThickness="1" Opacity="0.8">
+                                    <Path.Data>
+                                        <MultiBinding Converter="{StaticResource LShapeGeometryConverter}">
+                                            <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=Grid}"/>
+                                            <Binding Path="ActualHeight" RelativeSource="{RelativeSource AncestorType=Grid}"/>
+                                        </MultiBinding>
+                                    </Path.Data>
+                                </Path>
+
+                                <!-- コンテンツ (下の15分部分(約15px)にはテキストが被らないようにマージン設定) -->
+                                <Border Padding="5" Margin="0,0,0,15" VerticalAlignment="Top"> 
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Title}" FontWeight="Bold" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Text="{Binding Content}" TextWrapping="Wrap" FontSize="11" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock FontSize="10">
+                                            <Run Text="{Binding StartTime, StringFormat=HH:mm}"/>
+                                            <Run Text=" - "/>
+                                            <Run Text="{Binding EndTime, StringFormat=HH:mm}"/>
+                                        </TextBlock>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <!-- 現在時刻インジケーター -->
+                <Canvas Grid.Column="1" ClipToBounds="True">
+                    <Border BorderBrush="Red" BorderThickness="0,2,0,0" Height="2" 
+                            Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=Canvas}}"
+                            Canvas.Top="{Binding CurrentTime, Converter={StaticResource TimeToPositionConverter}}">
+                        <Border.Effect>
+                            <DropShadowEffect Color="Red" BlurRadius="4" ShadowDepth="0" Opacity="0.5"/>
+                        </Border.Effect>
+                    </Border>
+                    <!-- 現在時刻の赤丸 -->
+                    <Ellipse Fill="Red" Width="8" Height="8" Canvas.Left="-4"
+                             Canvas.Top="{Binding CurrentTime, Converter={StaticResource TimeToPositionConverter}, ConverterParameter=OFFSET_CENTER}"
+                             RenderTransformOrigin="0.5,0.5">
+                        <Ellipse.RenderTransform>
+                            <TranslateTransform Y="-4"/> <!-- ライン上に中心を合わせる -->
+                        </Ellipse.RenderTransform>
+                    </Ellipse>
+                </Canvas>
+                
+            </Grid>
+        </ScrollViewer>
+
+        <!-- メモパネル -->
+        <Border Grid.Row="1" Grid.RowSpan="2" Grid.Column="1" 
+                Width="400" Background="White" BorderBrush="#E0E0E0" BorderThickness="1,0,0,0"
+                Visibility="{Binding IsMemoPanelVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/> <!-- Header -->
+                    <RowDefinition Height="*"/>    <!-- Content -->
+                </Grid.RowDefinitions>
+                
+                <!-- ヘッダー -->
+                <Border Grid.Row="0" Background="#F8F9FA" Padding="10" BorderBrush="#E0E0E0" BorderThickness="0,0,0,1">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        
+                        <TextBlock Text="メモ (Markdown)" FontWeight="Bold" Foreground="#333" VerticalAlignment="Center" Grid.Column="0"/>
+                        
+                        <!-- モード切替 -->
+                        <StackPanel Orientation="Horizontal" Grid.Column="1" HorizontalAlignment="Right" Margin="0,0,20,0">
+                             <RadioButton Content="編集" IsChecked="{Binding IsMemoEditMode}" GroupName="MemoMode"
+                                          Style="{StaticResource SegmentedLeftStyle}"/>
+                             <RadioButton Content="表示" IsChecked="{Binding IsMemoEditMode, Converter={StaticResource InverseBooleanConverter}}" GroupName="MemoMode"
+                                          Style="{StaticResource SegmentedRightStyle}"/>
+                        </StackPanel>
+
+                        <Button Grid.Column="2" Content="×" Command="{Binding ToggleMemoPanelCommand}" 
+                                Background="Transparent" BorderThickness="0" Foreground="#64748B" Cursor="Hand" Width="20" Height="20"/>
+                    </Grid>
+                </Border>
+                
+                <!-- エディタ -->
+                <TextBox Grid.Row="1" Text="{Binding MemoText, UpdateSourceTrigger=PropertyChanged}" 
+                         AcceptsReturn="True" TextWrapping="Wrap" Padding="10" BorderThickness="0"
+                         FontFamily="Consolas, Meiryo UI" FontSize="14" VerticalScrollBarVisibility="Auto"
+                         Visibility="{Binding IsMemoEditMode, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
+                <!-- プレビュー -->
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="10" Background="#FAFAFA"
+                              Visibility="{Binding IsMemoEditMode, Converter={StaticResource InvertedBooleanToVisibilityConverter}}">
+                    <markdig:MarkdownViewer Markdown="{Binding MemoText}"/>
+                </ScrollViewer>
+            </Grid>
+        </Border>
     </Grid>
 </Window>
