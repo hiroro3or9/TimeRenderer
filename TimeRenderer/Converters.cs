@@ -65,10 +65,10 @@ namespace TimeRenderer
             // values[4]: ViewMode (Day/Week)
             // values[5]: Canvas ActualWidth (double)
 
-            if (values.Length < 6 || !(values[5] is double actualWidth))
+            if (values.Length < 6 || values[5] is not double actualWidth)
                 return 0.0;
 
-            if (!(values[0] is DateTime itemStartTime)) return 0.0;
+            if (values[0] is not DateTime itemStartTime) return 0.0;
             var itemDate = itemStartTime.Date;
 
             bool isAllDay = false;
