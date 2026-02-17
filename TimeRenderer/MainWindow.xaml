@@ -8,7 +8,8 @@
         xmlns:sys="clr-namespace:System;assembly=mscorlib"
         mc:Ignorable="d"
         Background="{StaticResource BackgroundBrush}"
-        Title="TimeRenderer" Height="700" Width="1000">
+        Title="TimeRenderer" Height="700" Width="1000"
+        Loaded="Window_Loaded">
     <Window.Resources>
         <local:TimeToPositionConverter x:Key="TimeToPositionConverter" PixelsPerHour="60"/>
         <local:DurationToHeightConverter x:Key="DurationToHeightConverter" PixelsPerHour="60"/>
@@ -89,6 +90,9 @@
                                          SaturdayBrush="{StaticResource PrimaryBrush}"
                                          SundayBrush="{StaticResource DangerBrush}"
                                          DefaultBrush="{StaticResource TextPrimaryBrush}"/>
+        <local:DateToBackgroundBrushConverter x:Key="DateToBackgroundBrushConverter"
+                                              TodayBrush="{StaticResource PrimarySubtleBrush}"
+                                              DefaultBrush="Transparent"/>
     </Window.Resources>
     
     <Grid>
@@ -193,7 +197,8 @@
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,0">
+                                <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,0"
+                                        Background="{Binding Converter={StaticResource DateToBackgroundBrushConverter}}">
                                     <TextBlock Text="{Binding StringFormat='MM/dd (ddd)'}" 
                                                HorizontalAlignment="Center" VerticalAlignment="Center"
                                                FontWeight="SemiBold" 
@@ -280,7 +285,7 @@
         </StackPanel>
 
         <!-- スケジュール領域 -->
-        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+        <ScrollViewer x:Name="MainScrollViewer" Grid.Row="2" VerticalScrollBarVisibility="Auto">
             <Grid Height="1440" Background="{StaticResource SurfaceBrush}"> <!-- 24 hours * 60px -->
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="60"/>
@@ -313,7 +318,8 @@
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <!-- 縦線 -->
-                            <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,0"/>
+                            <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,0"
+                                    Background="{Binding Converter={StaticResource DateToBackgroundBrushConverter}}"/>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
@@ -369,6 +375,8 @@
                                     </MultiBinding>
                                 </Setter.Value>
                             </Setter>
+                            
+                            <!-- アニメーション用 -->
 
                         </Style>
                     </ItemsControl.ItemContainerStyle>
@@ -437,9 +445,40 @@
 
         <!-- メモパネル -->
         <Border Grid.Row="1" Grid.RowSpan="2" Grid.Column="1" 
-                Width="400" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1,0,0,0"
-                Visibility="{Binding IsMemoPanelVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
-            <Grid>
+                Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1,0,0,0"
+                ClipToBounds="True">
+            <Border.Style>
+                <Style TargetType="Border">
+                    <Setter Property="Width" Value="400"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsMemoPanelVisible}" Value="False">
+                            <DataTrigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetProperty="Width" To="0" Duration="0:0:0.1">
+                                            <DoubleAnimation.EasingFunction>
+                                                <QuadraticEase EasingMode="EaseOut"/>
+                                            </DoubleAnimation.EasingFunction>
+                                        </DoubleAnimation>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </DataTrigger.EnterActions>
+                            <DataTrigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetProperty="Width" To="400" Duration="0:0:0.1">
+                                            <DoubleAnimation.EasingFunction>
+                                                <QuadraticEase EasingMode="EaseOut"/>
+                                            </DoubleAnimation.EasingFunction>
+                                        </DoubleAnimation>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </DataTrigger.ExitActions>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
+            <Grid Width="400">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/> <!-- Header -->
                     <RowDefinition Height="*"/>    <!-- Content -->

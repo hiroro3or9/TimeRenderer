@@ -224,5 +224,26 @@ namespace TimeRenderer
                 item.BackgroundColor = dialog.ResultItem.BackgroundColor;
             }
         }
+
+
+
+        private void Window_Loaded(object sender, RoutedEventArgs e)
+        {
+             // 起動時に現在時刻までスクロール
+             var now = DateTime.Now;
+             
+             // 1時間 = 60px
+             // 現在のY座標 = (時 * 60) + 分
+             double pixelsPerHour = 60.0;
+             double currentY = (now.Hour * pixelsPerHour) + (now.Minute * (pixelsPerHour / 60.0));
+             
+             // 画面の中央に持ってくるために、ViewportHeight / 2 を引く
+             // ただし、少し上（過去）が見えた方が文脈がわかりやすいので、さらに -60px (1時間分) くらいしてもいい
+             double targetOffset = currentY - (MainScrollViewer.ViewportHeight / 2);
+             
+             if (targetOffset < 0) targetOffset = 0;
+             
+             MainScrollViewer.ScrollToVerticalOffset(targetOffset);
+        }
     }
 }
