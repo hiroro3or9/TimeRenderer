@@ -92,12 +92,13 @@ namespace TimeRenderer
             if (mode == MainViewModel.ViewMode.Day)
             {
                 // 1日表示モード：日付が一致しない場合は非表示
+                // baseDateにはCurrentDateが入ってくる
                 if (itemDate.Date != baseDate.Date)
                 {
                     return isWidth ? 0.0 : -10000.0;
                 }
 
-                double columnWidth = actualWidth / totalColumns;
+                double columnWidth = actualWidth / totalColumns; // totalColumns is usually 1 unless overlapping
 
                 if (isWidth) return columnWidth;
                 return columnIndex * columnWidth;
@@ -105,21 +106,30 @@ namespace TimeRenderer
             else // Week Mode
             {
                 // baseDate は CurrentDate なので、週の開始日（月曜日）を計算する
+                // VMのCurrentWeekStartと同じロジックを使用
                 var diff = (7 + (baseDate.DayOfWeek - DayOfWeek.Monday)) % 7;
                 var weekStart = baseDate.AddDays(-1 * diff).Date;
+                var weekEnd = weekStart.AddDays(7);
                 
-                var dayDiff = (itemDate - weekStart).TotalDays;
-                
-                // 週の範囲外なら表示しない（幅0）
-                if (dayDiff < 0 || dayDiff >= 7)
+                // 週の範囲外なら表示しない
+                if (itemDate < weekStart || itemDate >= weekEnd)
                 {
                     return isWidth ? 0.0 : -10000.0; // 画面外へ
                 }
 
+                var dayDiff = (itemDate - weekStart).TotalDays;
+
                 double dayColumnWidth = actualWidth / 7.0;
-                double itemWidth = dayColumnWidth / totalColumns;
+                // itemWidth は 1日の幅 / 重なり数
+                // しかし Week View での重なり (MaxColumnIndex) は 0 前提の簡易実装か？
+                // もし重なりがあれば dayColumnWidth を割る
+                
+                // MaxColumnIndex が 0 の場合 totalColumns=1
+                double itemWidth = dayColumnWidth / Math.Max(1, totalColumns);
 
                 if (isWidth) return itemWidth;
+                
+                // X座標 = (何日目 * 1日の幅) + (カラムインデックス * アイテム幅)
                 return (dayDiff * dayColumnWidth) + (columnIndex * itemWidth);
             }
         }

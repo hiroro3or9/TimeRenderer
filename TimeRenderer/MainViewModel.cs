@@ -7,8 +7,8 @@ using Brushes = System.Windows.Media.Brushes;
 using System.Windows.Threading;
 using System.Linq;
 using System.Collections.Generic;
-using System.IO;
-using System.Text.Json;
+using TimeRenderer.Services;
+using TimeRenderer.Helpers;
 
 namespace TimeRenderer
 {
@@ -51,6 +51,8 @@ namespace TimeRenderer
             }
         }
 
+        private Dictionary<DateTime, string> _weeklyMemos = [];
+
         private string _memoText = "";
         public string MemoText
         {
@@ -61,7 +63,9 @@ namespace TimeRenderer
                 {
                     _memoText = value;
                     OnPropertyChanged();
-                    SaveSettings(); // 変更ごとに保存（頻度が高い場合はデバウンス検討）
+                    // 週ごとのメモを更新して保存
+                    _weeklyMemos[CurrentWeekStart] = value;
+                    SaveMemos(); 
                 }
             }
         }
@@ -75,7 +79,7 @@ namespace TimeRenderer
         // 表示中の日付リスト（ヘッダー用）
         public ObservableCollection<DateTime> VisibleDays { get; set; }
 
-        private static readonly JsonSerializerOptions _jsonOptions = new() { WriteIndented = true };
+
 
         // UIバインディング用：通常イベント（時刻指定あり）
         public ObservableCollection<ScheduleItem> StandardItems { get; set; }
@@ -104,11 +108,18 @@ namespace TimeRenderer
             {
                 if (_currentDate != value)
                 {
+                    var oldWeekStart = CurrentWeekStart;
                     _currentDate = value;
                     OnPropertyChanged();
                     UpdateVisibleDays();
                     OnPropertyChanged(nameof(CurrentWeekStart));
                     OnPropertyChanged(nameof(DateDisplay));
+
+                    // 週が変わったらメモを読み込む
+                    if (CurrentWeekStart != oldWeekStart)
+                    {
+                        UpdateMemoTextForCurrentWeek();
+                    }
                 }
             }
         }
@@ -189,6 +200,7 @@ namespace TimeRenderer
                     OnPropertyChanged(nameof(DateDisplay));
                     OnPropertyChanged(nameof(IsDayMode));
                     OnPropertyChanged(nameof(IsWeekMode));
+                    SaveSettings(); 
                 }
             }
         }
@@ -204,6 +216,19 @@ namespace TimeRenderer
                 var diff = (7 + (CurrentDate.DayOfWeek - DayOfWeek.Monday)) % 7;
                 return CurrentDate.AddDays(-1 * diff).Date;
             }
+        }
+
+        private void UpdateMemoTextForCurrentWeek()
+        {
+            if (_weeklyMemos.TryGetValue(CurrentWeekStart, out var memo))
+            {
+                _memoText = memo;
+            }
+            else
+            {
+                _memoText = "";
+            }
+            OnPropertyChanged(nameof(MemoText));
         }
 
         // 画面上部に表示する日付文字列
@@ -261,12 +286,14 @@ namespace TimeRenderer
         public ICommand TodayCommand { get; }
         public ICommand ChangeViewModeCommand { get; }
 
+        private readonly FilePersistenceService _fileService;
+        private readonly SettingsService _settingsService;
+
         public MainViewModel()
         {
+            _fileService = new FilePersistenceService();
+            _settingsService = new SettingsService();
             ToggleMemoPanelCommand = new RelayCommand(_ => IsMemoPanelVisible = !IsMemoPanelVisible);
-            LoadSettings();
-
-
 
             ScheduleItems = [];
             ScheduleItems.CollectionChanged += OnScheduleItemsChanged;
@@ -278,7 +305,7 @@ namespace TimeRenderer
             VisibleDays = [];
 
             CurrentDate = DateTime.Today;
-            CurrentViewMode = ViewMode.Day; // 初期は日表示
+            // CurrentViewMode = ViewMode.Day; // Remove this as it overwrites loaded settings
 
             // コマンドの初期化
             DeleteCommand = new RelayCommand(
@@ -310,8 +337,13 @@ namespace TimeRenderer
 
             InitializeTimeLabels();
             UpdateVisibleDays();
-            LoadData();
+            LoadData(); // Generate sample data first if needed
+            LoadSettings(); // Add this missing call!
+            LoadMemos(); // Load memos after data loading (though independent)
+            UpdateMemoTextForCurrentWeek(); // Set initial memo text
             StartClock();
+
+            _isInitialized = true;
         }
 
         private void Navigate(int amount)
@@ -369,61 +401,7 @@ namespace TimeRenderer
             }
         }
 
-        private void LoadSampleData()
-        {
-            // 今日を基準にサンプルデータを作成
-            var baseDate = DateTime.Today;
-            var baseTime = baseDate.AddHours(9); 
 
-            ScheduleItems.Add(new ScheduleItem
-            {
-                Title = "朝会",
-                StartTime = baseTime,
-                EndTime = baseTime.AddMinutes(30),
-                Content = "定例",
-                BackgroundColor = Brushes.LightBlue
-            });
-
-            // 明日の予定（週間表示確認用）
-            var tomorrowBase = baseDate.AddDays(1).AddHours(14);
-            ScheduleItems.Add(new ScheduleItem
-            {
-                Title = "週次レビュー",
-                StartTime = tomorrowBase,
-                EndTime = tomorrowBase.AddHours(1.5),
-                Content = "進捗確認",
-                BackgroundColor = Brushes.LightGreen
-            });
-            
-            // 昨日の予定
-            var yesterdayBase = baseDate.AddDays(-1).AddHours(10);
-            ScheduleItems.Add(new ScheduleItem
-            {
-                Title = "顧客訪問",
-                StartTime = yesterdayBase,
-                EndTime = yesterdayBase.AddHours(2),
-                Content = "直行",
-                BackgroundColor = Brushes.LightPink
-            });
-
-            // 重なりテスト用
-            ScheduleItems.Add(new ScheduleItem
-            {
-                Title = "重複会議A",
-                StartTime = baseTime.AddHours(1),
-                EndTime = baseTime.AddHours(2),
-                Content = "重複テスト",
-                BackgroundColor = Brushes.Orange
-            });
-            ScheduleItems.Add(new ScheduleItem
-            {
-                Title = "重複会議B",
-                StartTime = baseTime.AddHours(1.5),
-                EndTime = baseTime.AddHours(2.5),
-                Content = "重複テスト",
-                BackgroundColor = Brushes.Purple
-            });
-        }
 
         private void OnScheduleItemsChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
         {
@@ -462,24 +440,20 @@ namespace TimeRenderer
             }
         }
 
+        private bool _isInitialized = false;
+
         private void SaveSettings()
         {
-            try
+            if (!_isInitialized) return;
+
+            var settings = new AppSettings
             {
-                var settings = new AppSettings
-                {
-                    IsMemoPanelVisible = IsMemoPanelVisible,
-                    IsMemoEditMode = IsMemoEditMode,
-                    MemoText = MemoText
-                };
-                var jsonString = JsonSerializer.Serialize(settings, _jsonOptions);
-                 File.WriteAllText("appsettings.json", jsonString);
-             }
-             catch (Exception ex)
-             {
-                 System.Diagnostics.Debug.WriteLine($"Save settings failed: {ex.Message}");
-             }
-         }
+                IsMemoPanelVisible = IsMemoPanelVisible,
+                IsMemoEditMode = IsMemoEditMode,
+                ViewMode = (int)CurrentViewMode
+            };
+            _settingsService.SaveSettings(settings);
+        }
 
         private void ToggleRecording()
         {
@@ -541,31 +515,25 @@ namespace TimeRenderer
 
         private void LoadSettings()
         {
-            if (File.Exists("appsettings.json"))
+            var settings = _settingsService.LoadSettings();
+            if (settings != null)
             {
-                try
-                {
-                    var jsonString = File.ReadAllText("appsettings.json");
-                    var settings = JsonSerializer.Deserialize<AppSettings>(jsonString);
-                    if (settings != null)
-                    {
-                        // プロパティセット時にSaveSettingsが走らないようにフィールドにセットするか、ロード中はフラグを立てる等の対策が必要だが、
-                        // ここでは簡易的にプロパティを通してセットし、即保存されても問題ないとする（無駄だが害はない）。
-                        // より良くするならバッキングフィールドにセットしてOnPropertyChangedだけ呼ぶ。
-                        _isMemoPanelVisible = settings.IsMemoPanelVisible;
-                        OnPropertyChanged(nameof(IsMemoPanelVisible));
+                _isMemoPanelVisible = settings.IsMemoPanelVisible;
+                OnPropertyChanged(nameof(IsMemoPanelVisible));
 
-                        _memoText = settings.MemoText;
-                        OnPropertyChanged(nameof(MemoText));
+                _isMemoEditMode = settings.IsMemoEditMode;
+                OnPropertyChanged(nameof(IsMemoEditMode));
 
-                        _isMemoEditMode = settings.IsMemoEditMode;
-                        OnPropertyChanged(nameof(IsMemoEditMode));
-                    }
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Load settings failed: {ex.Message}");
-                }
+                // ViewModeの反映
+                var newMode = (ViewMode)settings.ViewMode;
+                _currentViewMode = newMode;
+                OnPropertyChanged(nameof(CurrentViewMode));
+                OnPropertyChanged(nameof(IsDayMode));
+                OnPropertyChanged(nameof(IsWeekMode));
+                OnPropertyChanged(nameof(DateDisplay));
+                
+                // ビューモード変更に伴い、表示日付を更新する
+                UpdateVisibleDays();
             }
         }
 
@@ -573,47 +541,30 @@ namespace TimeRenderer
 
         private void SaveData()
         {
-            try
-            {
-                var jsonString = JsonSerializer.Serialize(ScheduleItems, _jsonOptions);
-                File.WriteAllText("schedules.json", jsonString);
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Save failed: {ex.Message}");
-            }
+            _fileService.SaveData(ScheduleItems);
         }
 
         private void LoadData()
         {
-            if (File.Exists("schedules.json"))
+            var items = _fileService.LoadData();
+            ScheduleItems.Clear();
+            foreach (var item in items)
             {
-                try
-                {
-                    var jsonString = File.ReadAllText("schedules.json");
-                    var items = JsonSerializer.Deserialize<ObservableCollection<ScheduleItem>>(jsonString);
-                    if (items != null)
-                    {
-                        ScheduleItems.Clear();
-                        foreach (var item in items)
-                        {
-                            ScheduleItems.Add(item);
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Load failed: {ex.Message}");
-                    LoadSampleData(); // 読み込み失敗時はサンプルデータ
-                }
-            }
-            else
-            {
-                LoadSampleData();
+                ScheduleItems.Add(item);
             }
             
             // レイアウト再計算（読み込み後）
             RecalculateLayout();
+        }
+
+        private void SaveMemos()
+        {
+            _fileService.SaveMemos(_weeklyMemos);
+        }
+
+        private void LoadMemos()
+        {
+            _weeklyMemos = _fileService.LoadMemos();
         }
 
         private void RecalculateLayout()
@@ -666,75 +617,7 @@ namespace TimeRenderer
             foreach (var group in grouped)
             {
                 var sortedItems = group.OrderBy(x => x.StartTime).ThenByDescending(x => x.EndTime).ToList();
-                CalculateClustersAndAssignColumns(sortedItems);
-            }
-        }
-
-        private static void CalculateClustersAndAssignColumns(List<ScheduleItem> sortedItems)
-        {
-            if (sortedItems.Count == 0) return;
-
-            var clusters = new List<List<ScheduleItem>>();
-            var currentCluster = new List<ScheduleItem>();
-            DateTime clusterEndTime = DateTime.MinValue;
-
-            foreach (var item in sortedItems)
-            {
-                if (currentCluster.Count == 0)
-                {
-                    currentCluster.Add(item);
-                    clusterEndTime = item.EndTime;
-                }
-                else
-                {
-                    if (item.StartTime < clusterEndTime)
-                    {
-                        currentCluster.Add(item);
-                        if (item.EndTime > clusterEndTime) clusterEndTime = item.EndTime;
-                    }
-                    else
-                    {
-                        clusters.Add(currentCluster);
-                        currentCluster = [item];
-                        clusterEndTime = item.EndTime;
-                    }
-                }
-            }
-            if (currentCluster.Count > 0) clusters.Add(currentCluster);
-
-            foreach (var cluster in clusters)
-            {
-                AssignColumnsToCluster(cluster);
-            }
-        }
-
-        private static void AssignColumnsToCluster(List<ScheduleItem> cluster)
-        {
-            var columnEndTimes = new List<DateTime>();
-            foreach (var item in cluster)
-            {
-                int assignedColumn = -1;
-                for (int i = 0; i < columnEndTimes.Count; i++)
-                {
-                    if (columnEndTimes[i] <= item.StartTime)
-                    {
-                        assignedColumn = i;
-                        columnEndTimes[i] = item.EndTime;
-                        break;
-                    }
-                }
-                if (assignedColumn == -1)
-                {
-                    assignedColumn = columnEndTimes.Count;
-                    columnEndTimes.Add(item.EndTime);
-                }
-                item.ColumnIndex = assignedColumn;
-            }
-
-            int maxColIndex = columnEndTimes.Count - 1;
-            foreach (var item in cluster)
-            {
-                item.MaxColumnIndex = maxColIndex;
+                ScheduleLayoutHelper.CalculateClustersAndAssignColumns(sortedItems);
             }
         }
         public event PropertyChangedEventHandler? PropertyChanged;
