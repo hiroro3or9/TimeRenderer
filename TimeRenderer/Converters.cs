@@ -159,4 +159,38 @@ namespace TimeRenderer
             throw new NotImplementedException();
         }
     }
+    public class DateToVisibleDaysConverter : IMultiValueConverter
+    {
+        public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
+        {
+            // values[0]: CurrentDate (DateTime)
+            // values[1]: ViewMode (Day/Week)
+
+            if (values.Length < 2 || values[0] is not DateTime date)
+                return new List<DateTime>();
+
+            var mode = values[1] is MainViewModel.ViewMode m ? m : MainViewModel.ViewMode.Day;
+            var list = new List<DateTime>();
+
+            if (mode == MainViewModel.ViewMode.Day)
+            {
+                list.Add(date);
+            }
+            else
+            {
+                var diff = (7 + (date.DayOfWeek - DayOfWeek.Monday)) % 7;
+                var start = date.AddDays(-1 * diff).Date;
+                for (int i = 0; i < 7; i++)
+                {
+                    list.Add(start.AddDays(i));
+                }
+            }
+            return list;
+        }
+
+        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
 }
