@@ -48,6 +48,12 @@ namespace TimeRenderer.Controls
         {
             base.OnContentChanged(oldContent, newContent);
 
+            // 値が実質的に同じ場合、または初回描画(old=null)の場合はアニメーションをスキップ
+            // WPF がテンプレートバインディングで自動更新するため、手動セットは不要
+            // ※初回アニメーション中はCanvasのActualWidthが0になりアイテム位置の計算が狂うため
+            if (Equals(oldContent, newContent) || oldContent == null)
+                return;
+
             StartTransition(oldContent, newContent);
         }
 

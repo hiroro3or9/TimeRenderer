@@ -67,10 +67,12 @@ namespace TimeRenderer.Helpers
                 item.ColumnIndex = assignedColumn;
             }
 
-            int maxColumn = columnEndTimes.Count;
+            // MaxColumnIndex = 最大列インデックス（0始まり）
+            // コンバーター側は maxColumnIndex + 1 で totalColumns を計算する
+            int maxColumnIndex = columnEndTimes.Count - 1;
             foreach (var item in cluster)
             {
-                item.MaxColumnIndex = maxColumn;
+                item.MaxColumnIndex = maxColumnIndex;
             }
         }
     }
