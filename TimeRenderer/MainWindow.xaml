@@ -15,6 +15,7 @@
         <local:TimeToPositionConverter x:Key="TimeToPositionConverter" PixelsPerHour="60"/>
         <local:DurationToHeightConverter x:Key="DurationToHeightConverter" PixelsPerHour="60"/>
         <local:DateToPagePositionConverter x:Key="DateToPagePositionConverter"/>
+        <local:DateToPageVisibilityConverter x:Key="DateToPageVisibilityConverter"/>
         <local:IndexToTopMarginConverter x:Key="IndexToTopMarginConverter" ItemHeight="24"/>
         <local:DateToVisibleDaysConverter x:Key="DateToVisibleDaysConverter"/>
         <sys:Int32 x:Key="Zero">0</sys:Int32>
@@ -282,6 +283,15 @@
                                 </ItemsControl.ItemTemplate>
                                 <ItemsControl.ItemContainerStyle>
                                     <Style TargetType="ContentPresenter">
+                                        <Setter Property="Visibility">
+                                            <Setter.Value>
+                                                <MultiBinding Converter="{StaticResource DateToPageVisibilityConverter}" FallbackValue="Collapsed">
+                                                    <Binding Path="StartTime" />
+                                                    <Binding Path="DataContext" RelativeSource="{RelativeSource AncestorType=ItemsControl}"/> <!-- CurrentDate from ItemsControl DataContext -->
+                                                    <Binding Path="DataContext.CurrentViewMode" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                </MultiBinding>
+                                            </Setter.Value>
+                                        </Setter>
                                         <Setter Property="Canvas.Top" Value="{Binding ColumnIndex, Converter={StaticResource IndexToTopMarginConverter}}"/>
                                          <!-- X座標 (Canvas.Left) -->
                                         <Setter Property="Canvas.Left">
@@ -397,6 +407,15 @@
                                     </ItemsControl.ItemsPanel>
                                     <ItemsControl.ItemContainerStyle>
                                         <Style TargetType="ContentPresenter">
+                                            <Setter Property="Visibility">
+                                                <Setter.Value>
+                                                    <MultiBinding Converter="{StaticResource DateToPageVisibilityConverter}" FallbackValue="Collapsed">
+                                                        <Binding Path="StartTime" />
+                                                        <Binding Path="DataContext" RelativeSource="{RelativeSource AncestorType=ItemsControl}"/> <!-- CurrentDate from ItemsControl DataContext -->
+                                                        <Binding Path="DataContext.CurrentViewMode" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                    </MultiBinding>
+                                                </Setter.Value>
+                                            </Setter>
                                             <Setter Property="Canvas.Top">
                                                 <Setter.Value>
                                                     <MultiBinding Converter="{StaticResource TimeToPositionConverter}">

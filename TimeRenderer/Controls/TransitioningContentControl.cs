@@ -1,8 +1,10 @@
 using System;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Threading;
 
 namespace TimeRenderer.Controls
 {
@@ -57,14 +59,22 @@ namespace TimeRenderer.Controls
             StartTransition(oldContent, newContent);
         }
 
+        private long _currentTransitionId = 0;
+
         private void StartTransition(object oldContent, object newContent)
         {
             if (_currentContentPresentationSite != null && _previousContentPresentationSite != null)
             {
+                // 現在進行中の遷移IDを更新
+                long transitionId = ++_currentTransitionId;
+
+                _previousContentPresentationSite.Visibility = Visibility.Visible;
+                _currentContentPresentationSite.Visibility = Visibility.Visible;
+
                 _currentContentPresentationSite.Content = newContent;
                 _previousContentPresentationSite.Content = oldContent;
 
-                // Stop any running animations
+                // Stop any running animations and clear properties
                 _currentContentPresentationSite.BeginAnimation(RenderTransformProperty, null);
                 _previousContentPresentationSite.BeginAnimation(RenderTransformProperty, null);
 
@@ -90,29 +100,34 @@ namespace TimeRenderer.Controls
                     };
                 }
 
-                if (TransitionDirection == TransitionDirection.Forward)
-                {
-                    // Forward: Old moves Left, New comes from Right
-                    // Old: 0 -> -width
-                    // New: width -> 0
-                    var prevAnim = CreateAnimation(0, -width);
-                    // アニメーション完了後に古いコンテンツをクリア（リサイズ時のはみ出し防止）
-                    prevAnim.Completed += (s, e) => { _previousContentPresentationSite!.Content = null; };
-                    previousTransform.BeginAnimation(TranslateTransform.XProperty, prevAnim);
-                    currentTransform.BeginAnimation(TranslateTransform.XProperty, CreateAnimation(width, 0));
-                }
-                else
-                {
-                    // Backward: Old moves Right, New comes from Left
-                    // Old: 0 -> width
-                    // New: -width -> 0
-                    var prevAnim = CreateAnimation(0, width);
-                    // アニメーション完了後に古いコンテンツをクリア（リサイズ時のはみ出し防止）
-                    prevAnim.Completed += (s, e) => { _previousContentPresentationSite!.Content = null; };
-                    previousTransform.BeginAnimation(TranslateTransform.XProperty, prevAnim);
-                    currentTransform.BeginAnimation(TranslateTransform.XProperty, CreateAnimation(-width, 0));
-                }
+                // アニメーションのパラメータを方向に応じて設定
+                bool isForward = TransitionDirection == TransitionDirection.Forward;
+                double oldContentTargetX = isForward ? -width : width;
+                double newContentStartX = isForward ? width : -width;
+
+                var prevAnim = CreateAnimation(0, oldContentTargetX);
+                previousTransform.BeginAnimation(TranslateTransform.XProperty, prevAnim);
+
+                var currAnim = CreateAnimation(newContentStartX, 0);
+                currentTransform.BeginAnimation(TranslateTransform.XProperty, currAnim);
+
+                ClearPreviousContentAsync(transitionId);
             }
+        }
+
+        private void ClearPreviousContentAsync(long transitionId)
+        {
+            var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(350) };
+            timer.Tick += (s, e) =>
+            {
+                timer.Stop();
+                if (_currentTransitionId == transitionId && _previousContentPresentationSite != null)
+                {
+                    _previousContentPresentationSite.Content = null;
+                    _previousContentPresentationSite.Visibility = Visibility.Collapsed;
+                }
+            };
+            timer.Start();
         }
     }
 }
