@@ -131,8 +131,8 @@ namespace TimeRenderer
         public double ScheduleGridHeight => (_displayEndHour - _displayStartHour) * 60.0;
 
         // 時間選択肢（ComboBox用）
-        public List<int> StartHourOptions => Enumerable.Range(0, 24).ToList();
-        public List<int> EndHourOptions => Enumerable.Range(1, 24).ToList();
+        public static List<int> StartHourOptions => [.. Enumerable.Range(0, 24)];
+        public static List<int> EndHourOptions => [.. Enumerable.Range(1, 24)];
 
         public ObservableCollection<ScheduleItem> ScheduleItems { get; set; }
         public ObservableCollection<string> TimeLabels { get; set; }
@@ -513,7 +513,7 @@ namespace TimeRenderer
             }
         }
 
-        private bool _isInitialized = false;
+        private readonly bool _isInitialized = false;
 
         private void SaveSettings()
         {
@@ -527,7 +527,7 @@ namespace TimeRenderer
                 DisplayStartHour = _displayStartHour,
                 DisplayEndHour = _displayEndHour
             };
-            _settingsService.SaveSettings(settings);
+            SettingsService.SaveSettings(settings);
         }
 
         private void ToggleRecording()
@@ -590,7 +590,7 @@ namespace TimeRenderer
 
         private void LoadSettings()
         {
-            var settings = _settingsService.LoadSettings();
+            var settings = SettingsService.LoadSettings();
             if (settings != null)
             {
                 _isMemoPanelVisible = settings.IsMemoPanelVisible;
@@ -624,12 +624,12 @@ namespace TimeRenderer
 
         private void SaveData()
         {
-            _fileService.SaveData(ScheduleItems);
+            FilePersistenceService.SaveData(ScheduleItems);
         }
 
         private void LoadData()
         {
-            var items = _fileService.LoadData();
+            var items = FilePersistenceService.LoadData();
             ScheduleItems.Clear();
             foreach (var item in items)
             {
@@ -642,12 +642,12 @@ namespace TimeRenderer
 
         private void SaveMemos()
         {
-            _fileService.SaveMemos(_weeklyMemos);
+            FilePersistenceService.SaveMemos(_weeklyMemos);
         }
 
         private void LoadMemos()
         {
-            _weeklyMemos = _fileService.LoadMemos();
+            _weeklyMemos = FilePersistenceService.LoadMemos();
         }
 
         private void RecalculateLayout()

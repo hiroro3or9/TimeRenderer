@@ -3,7 +3,7 @@ using System.Globalization;
 using System.Windows.Data;
 using Media = System.Windows.Media;
 
-namespace TimeRenderer
+namespace TimeRenderer.Converters
 {
     public class DayOfWeekToBrushConverter : IValueConverter
     {
@@ -15,14 +15,12 @@ namespace TimeRenderer
         {
             if (value is DateTime date)
             {
-                if (date.DayOfWeek == DayOfWeek.Saturday)
+                return date.DayOfWeek switch
                 {
-                    return SaturdayBrush;
-                }
-                if (date.DayOfWeek == DayOfWeek.Sunday)
-                {
-                    return SundayBrush;
-                }
+                    DayOfWeek.Saturday => SaturdayBrush,
+                    DayOfWeek.Sunday => SundayBrush,
+                    _ => DefaultBrush
+                };
             }
             return DefaultBrush;
         }

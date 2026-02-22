@@ -7,14 +7,8 @@ namespace TimeRenderer.Services
     {
         private const string SettingsFilePath = "appsettings.json";
 
-        public void SaveSettings(AppSettings settings)
-        {
-            SaveToFileSync(SettingsFilePath, settings);
-        }
+        public static void SaveSettings(AppSettings settings) => SaveToFileSync(SettingsFilePath, settings);
 
-        public AppSettings? LoadSettings()
-        {
-            return LoadFromFileSync<AppSettings>(SettingsFilePath);
-        }
+        public static AppSettings? LoadSettings() => LoadFromFileSync<AppSettings>(SettingsFilePath);
     }
 }
