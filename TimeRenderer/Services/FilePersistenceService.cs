@@ -1,47 +1,29 @@
+using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.IO;
-using System.Text.Json;
+using System.Linq;
 using System.Windows.Media;
 using Brushes = System.Windows.Media.Brushes;
+using TimeRenderer.Services;
 
 namespace TimeRenderer.Services
 {
-    public class FilePersistenceService
+    public class FilePersistenceService : JsonFileRepositoryBase
     {
-        private static readonly JsonSerializerOptions _jsonOptions = new() { WriteIndented = true };
         private const string ScheduleFilePath = "schedules.json";
         private const string MemosFilePath = "memos.json";
 
         public void SaveData(IEnumerable<ScheduleItem> items)
         {
-            try
-            {
-                var jsonString = JsonSerializer.Serialize(items, _jsonOptions);
-                File.WriteAllText(ScheduleFilePath, jsonString);
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Save failed: {ex.Message}");
-            }
+            SaveToFileSync(ScheduleFilePath, items);
         }
 
         public ObservableCollection<ScheduleItem> LoadData()
         {
-            if (File.Exists(ScheduleFilePath))
+            var items = LoadFromFileSync<ObservableCollection<ScheduleItem>>(ScheduleFilePath);
+            if (items != null)
             {
-                try
-                {
-                    var jsonString = File.ReadAllText(ScheduleFilePath);
-                    var items = JsonSerializer.Deserialize<ObservableCollection<ScheduleItem>>(jsonString);
-                    if (items != null)
-                    {
-                        return items;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Load failed: {ex.Message}");
-                }
+                return items;
             }
             // Load failed or file doesn't exist, return sample data
             return LoadSampleData();
@@ -49,36 +31,18 @@ namespace TimeRenderer.Services
 
         public void SaveMemos(Dictionary<DateTime, string> memos)
         {
-            try
-            {
-                var serializableDict = memos.ToDictionary(k => k.Key.ToString("yyyy-MM-dd"), v => v.Value);
-                var jsonString = JsonSerializer.Serialize(serializableDict, _jsonOptions);
-                File.WriteAllText(MemosFilePath, jsonString);
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Save memos failed: {ex.Message}");
-            }
+            var serializableDict = memos.ToDictionary(k => k.Key.ToString("yyyy-MM-dd"), v => v.Value);
+            SaveToFileSync(MemosFilePath, serializableDict);
         }
 
         public Dictionary<DateTime, string> LoadMemos()
         {
-            if (File.Exists(MemosFilePath))
+            var serializableDict = LoadFromFileSync<Dictionary<string, string>>(MemosFilePath);
+            if (serializableDict != null)
             {
-                try
-                {
-                    var jsonString = File.ReadAllText(MemosFilePath);
-                    var serializableDict = JsonSerializer.Deserialize<Dictionary<string, string>>(jsonString);
-                    if (serializableDict != null)
-                    {
-                        return serializableDict.ToDictionary(k => DateTime.Parse(k.Key), v => v.Value);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Load memos failed: {ex.Message}");
-                }
+                return serializableDict.ToDictionary(k => DateTime.Parse(k.Key), v => v.Value);
             }
+            
             return [];
         }
 

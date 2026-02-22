@@ -80,7 +80,10 @@ namespace TimeRenderer
                     try
                     {
                         var converter = new BrushConverter();
-                        BackgroundColor = (Brush)converter.ConvertFromString(value);
+                        if (converter.ConvertFromString(value) is Brush brush)
+                        {
+                            BackgroundColor = brush;
+                        }
                     }
                     catch { } // 無効なカラーコードは無視
                 }

@@ -1,41 +1,20 @@
-using System.IO;
-using System.Text.Json;
+using System;
+using TimeRenderer.Services;
 
 namespace TimeRenderer.Services
 {
-    public class SettingsService
+    public class SettingsService : JsonFileRepositoryBase
     {
-        private static readonly JsonSerializerOptions _jsonOptions = new() { WriteIndented = true };
-        private static string SettingsFilePath => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "appsettings.json");
+        private const string SettingsFilePath = "appsettings.json";
 
         public void SaveSettings(AppSettings settings)
         {
-            try
-            {
-                var jsonString = JsonSerializer.Serialize(settings, _jsonOptions);
-                File.WriteAllText(SettingsFilePath, jsonString);
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Save settings failed: {ex.Message}");
-            }
+            SaveToFileSync(SettingsFilePath, settings);
         }
 
         public AppSettings? LoadSettings()
         {
-            if (File.Exists(SettingsFilePath))
-            {
-                try
-                {
-                    var jsonString = File.ReadAllText(SettingsFilePath);
-                    return JsonSerializer.Deserialize<AppSettings>(jsonString);
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Load settings failed: {ex.Message}");
-                }
-            }
-            return null;
+            return LoadFromFileSync<AppSettings>(SettingsFilePath);
         }
     }
 }
