@@ -41,8 +41,6 @@ namespace TimeRenderer.Controls
             _currentContentPresentationSite = GetTemplateChild("PART_CurrentContentPresentationSite") as ContentPresenter;
             _previousContentPresentationSite = GetTemplateChild("PART_PreviousContentPresentationSite") as ContentPresenter;
 
-            _currentContentPresentationSite?.Content = Content;
-
             base.OnApplyTemplate();
         }
 
@@ -111,23 +109,18 @@ namespace TimeRenderer.Controls
                 var currAnim = CreateAnimation(newContentStartX, 0);
                 currentTransform.BeginAnimation(TranslateTransform.XProperty, currAnim);
 
-                ClearPreviousContentAsync(transitionId);
+                _ = ClearPreviousContentAsync(transitionId);
             }
         }
 
-        private void ClearPreviousContentAsync(long transitionId)
+        private async Task ClearPreviousContentAsync(long transitionId)
         {
-            var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(350) };
-            timer.Tick += (s, e) =>
+            await Task.Delay(350);
+            if (_currentTransitionId == transitionId && _previousContentPresentationSite != null)
             {
-                timer.Stop();
-                if (_currentTransitionId == transitionId && _previousContentPresentationSite != null)
-                {
-                    _previousContentPresentationSite.Content = null;
-                    _previousContentPresentationSite.Visibility = Visibility.Collapsed;
-                }
-            };
-            timer.Start();
+                _previousContentPresentationSite.Content = null;
+                _previousContentPresentationSite.Visibility = Visibility.Collapsed;
+            }
         }
     }
 }
