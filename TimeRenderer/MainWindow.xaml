@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:TimeRenderer"
+        xmlns:controls="clr-namespace:TimeRenderer.Controls"
         xmlns:markdig="clr-namespace:Markdig.Wpf;assembly=Markdig.Wpf"
         xmlns:sys="clr-namespace:System;assembly=mscorlib"
         mc:Ignorable="d"
@@ -15,6 +16,7 @@
         <local:DurationToHeightConverter x:Key="DurationToHeightConverter" PixelsPerHour="60"/>
         <local:DateToPagePositionConverter x:Key="DateToPagePositionConverter"/>
         <local:IndexToTopMarginConverter x:Key="IndexToTopMarginConverter" ItemHeight="24"/>
+        <local:DateToVisibleDaysConverter x:Key="DateToVisibleDaysConverter"/>
         <sys:Int32 x:Key="Zero">0</sys:Int32>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         <local:InvertedBooleanToVisibilityConverter x:Key="InvertedBooleanToVisibilityConverter"/>
@@ -183,31 +185,46 @@
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="60"/>
                         <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
+                    <!-- スクロールバー幅分のスペーサー（スケジュール領域との列幅整合用） -->
+                    <Border Grid.Column="2" Width="{x:Static SystemParameters.VerticalScrollBarWidth}"/>
                     
                     <!-- 日付ヘッダー -->
-                    <ItemsControl Grid.Column="1" ItemsSource="{Binding VisibleDays}"
-                                  Width="{Binding ElementName=ScheduleItemsControl, Path=ActualWidth}"
-                                  HorizontalAlignment="Left"
-                                  Height="30">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <UniformGrid Rows="1"/>
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
+                    <controls:TransitioningContentControl Grid.Column="1" 
+                                                          Content="{Binding CurrentDate}" 
+                                                          TransitionDirection="{Binding TransitionDirection}"
+                                                          HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
+                        <controls:TransitioningContentControl.ContentTemplate>
                             <DataTemplate>
-                                <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,0"
-                                        Background="{Binding Converter={StaticResource DateToBackgroundBrushConverter}}">
-                                    <TextBlock Text="{Binding StringFormat='MM/dd (ddd)'}" 
-                                               HorizontalAlignment="Center" VerticalAlignment="Center"
-                                               FontWeight="SemiBold" 
-                                               Foreground="{Binding Converter={StaticResource DayOfWeekToBrushConverter}}"
-                                               Language="ja-JP"/>
-                                </Border>
+                                <ItemsControl Height="30">
+                                    <ItemsControl.ItemsSource>
+                                        <MultiBinding Converter="{StaticResource DateToVisibleDaysConverter}">
+                                            <Binding />
+                                            <Binding Path="DataContext.CurrentViewMode" RelativeSource="{RelativeSource AncestorType=Window}"/>
+                                        </MultiBinding>
+                                    </ItemsControl.ItemsSource>
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <UniformGrid Rows="1"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,0"
+                                                    Background="{Binding Converter={StaticResource DateToBackgroundBrushConverter}}">
+                                                <TextBlock Text="{Binding StringFormat='MM/dd (ddd)'}" 
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                           FontWeight="SemiBold" 
+                                                           Foreground="{Binding Converter={StaticResource DayOfWeekToBrushConverter}}"
+                                                           Language="ja-JP"/>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
                             </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                        </controls:TransitioningContentControl.ContentTemplate>
+                    </controls:TransitioningContentControl>
                 </Grid>
             </Border>
 
@@ -216,70 +233,82 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="60"/>
                     <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
+                <!-- スクロールバー幅分のスペーサー（スケジュール領域との列幅整合用） -->
+                <Border Grid.Column="2" Width="{x:Static SystemParameters.VerticalScrollBarWidth}"/>
                 <Border Grid.Column="0" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,0" Background="{StaticResource BackgroundBrush}">
                     <TextBlock Text="終日" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,4,8,4" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
                 </Border>
-                <ItemsControl Grid.Column="1" ItemsSource="{Binding AllDayItems}" 
-                              Width="{Binding ElementName=ScheduleItemsControl, Path=ActualWidth}"
-                              Height="{Binding AllDayPanelHeight}"
-                              HorizontalAlignment="Left"
-                              Margin="0,2">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <Canvas/>
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
+                <controls:TransitioningContentControl Grid.Column="1" 
+                                                      Content="{Binding CurrentDate}" 
+                                                      TransitionDirection="{Binding TransitionDirection}"
+                                                      Height="{Binding AllDayPanelHeight}"
+                                                      HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
+                    <controls:TransitioningContentControl.ContentTemplate>
                         <DataTemplate>
-                            <Border Background="{Binding BackgroundColor}" CornerRadius="6" Padding="6,2" Height="24" Opacity="0.95" BorderBrush="White" BorderThickness="1"
-                                    Cursor="Hand"
-                                    MouseLeftButtonDown="ScheduleItem_MouseLeftButtonDown">
-                                <Border.Effect>
-                                    <DropShadowEffect Color="Black" BlurRadius="4" ShadowDepth="1" Opacity="0.1"/>
-                                </Border.Effect>
-                                <Border.ContextMenu>
-                                    <ContextMenu>
-                                        <MenuItem Header="編集" Click="EditMenuItem_Click"/>
-                                        <MenuItem Header="削除" Click="DeleteMenuItem_Click"/>
-                                    </ContextMenu>
-                                </Border.ContextMenu>
-                                <TextBlock Text="{Binding Title}" FontSize="12" Foreground="{StaticResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis"/>
-                            </Border>
+                            <ItemsControl ItemsSource="{Binding DataContext.AllDayItems, RelativeSource={RelativeSource AncestorType=Window}}" 
+                                          Margin="0,2">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <Canvas/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="{Binding BackgroundColor}" CornerRadius="6" Padding="6,2" Height="24" Opacity="0.95" BorderBrush="White" BorderThickness="1"
+                                                Cursor="Hand"
+                                                MouseLeftButtonDown="ScheduleItem_MouseLeftButtonDown">
+                                            <Border.Effect>
+                                                <DropShadowEffect Color="Black" BlurRadius="4" ShadowDepth="1" Opacity="0.1"/>
+                                            </Border.Effect>
+                                            <Border.ContextMenu>
+                                                <ContextMenu>
+                                                    <MenuItem Header="編集" Click="EditMenuItem_Click"/>
+                                                    <MenuItem Header="削除" Click="DeleteMenuItem_Click"/>
+                                                </ContextMenu>
+                                            </Border.ContextMenu>
+                                            <TextBlock Text="{Binding Title}" FontSize="12" Foreground="{StaticResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis"/>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                                <ItemsControl.ItemContainerStyle>
+                                    <Style TargetType="ContentPresenter">
+                                        <Setter Property="Canvas.Top" Value="{Binding ColumnIndex, Converter={StaticResource IndexToTopMarginConverter}}"/>
+                                         <!-- X座標 (Canvas.Left) -->
+                                        <Setter Property="Canvas.Left">
+                                            <Setter.Value>
+                                                <MultiBinding Converter="{StaticResource DateToPagePositionConverter}">
+                                                    <Binding Path="StartTime" />
+                                                    <Binding Source="{StaticResource Zero}" /> <!-- ColumnIndex = 0 -->
+                                                    <Binding Source="{StaticResource Zero}" /> <!-- MaxColumnIndex = 0 -->
+                                                    <Binding Path="DataContext" RelativeSource="{RelativeSource AncestorType=ItemsControl}"/> <!-- CurrentDate from ItemsControl DataContext -->
+                                                    <Binding Path="DataContext.CurrentViewMode" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                    <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=Canvas}" />
+                                                    <Binding Path="IsAllDay" />
+                                                </MultiBinding>
+                                            </Setter.Value>
+                                        </Setter>
+                                        <!-- 幅 (Width) -->
+                                        <Setter Property="Width">
+                                            <Setter.Value>
+                                                <MultiBinding Converter="{StaticResource DateToPagePositionConverter}" ConverterParameter="WIDTH">
+                                                    <Binding Path="StartTime" />
+                                                    <Binding Source="{StaticResource Zero}" /> <!-- ColumnIndex = 0 -->
+                                                    <Binding Source="{StaticResource Zero}" /> <!-- MaxColumnIndex = 0 -->
+                                                    <Binding Path="DataContext" RelativeSource="{RelativeSource AncestorType=ItemsControl}"/> <!-- CurrentDate from ItemsControl DataContext -->
+                                                    <Binding Path="DataContext.CurrentViewMode" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                    <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=Canvas}" />
+                                                    <Binding Path="IsAllDay" />
+                                                </MultiBinding>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </ItemsControl.ItemContainerStyle>
+                            </ItemsControl>
                         </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                    <ItemsControl.ItemContainerStyle>
-                        <Style TargetType="ContentPresenter">
-                            <Setter Property="Canvas.Top" Value="{Binding ColumnIndex, Converter={StaticResource IndexToTopMarginConverter}}"/>
-                             <!-- X座標 (Canvas.Left) -->
-                            <Setter Property="Canvas.Left">
-                                <Setter.Value>
-                                    <MultiBinding Converter="{StaticResource DateToPagePositionConverter}">
-                                        <Binding Path="StartTime" />
-                                        <Binding Source="{StaticResource Zero}" /> <!-- ColumnIndex = 0 -->
-                                        <Binding Source="{StaticResource Zero}" /> <!-- MaxColumnIndex = 0 -->
-                                        <Binding Path="DataContext.CurrentDate" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                        <Binding Path="DataContext.CurrentViewMode" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                        <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=Canvas}" />
-                                    </MultiBinding>
-                                </Setter.Value>
-                            </Setter>
-                            <!-- 幅 (Width) -->
-                            <Setter Property="Width">
-                                <Setter.Value>
-                                    <MultiBinding Converter="{StaticResource DateToPagePositionConverter}" ConverterParameter="WIDTH">
-                                        <Binding Path="StartTime" />
-                                        <Binding Source="{StaticResource Zero}" /> <!-- ColumnIndex = 0 -->
-                                        <Binding Source="{StaticResource Zero}" /> <!-- MaxColumnIndex = 0 -->
-                                        <Binding Path="DataContext.CurrentDate" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                        <Binding Path="DataContext.CurrentViewMode" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                        <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=Canvas}" />
-                                    </MultiBinding>
-                                </Setter.Value>
-                            </Setter>
-                        </Style>
-                    </ItemsControl.ItemContainerStyle>
-                </ItemsControl>
+                    </controls:TransitioningContentControl.ContentTemplate>
+                </controls:TransitioningContentControl>
             </Grid>
             <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1"/>
         </StackPanel>
@@ -308,137 +337,155 @@
                     </ItemsControl.ItemsPanel>
                 </ItemsControl>
 
-                <!-- 背景グリッド（縦：日付区切り） -->
-                <ItemsControl ItemsSource="{Binding VisibleDays}" Grid.Column="1">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <UniformGrid Rows="1"/>
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
+                <controls:TransitioningContentControl Grid.Column="1" 
+                                                      Content="{Binding CurrentDate}" 
+                                                      TransitionDirection="{Binding TransitionDirection}"
+                                                      HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
+                    <controls:TransitioningContentControl.ContentTemplate>
                         <DataTemplate>
-                            <!-- 縦線 -->
-                            <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,0"
-                                    Background="{Binding Converter={StaticResource DateToBackgroundBrushConverter}}"/>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-
-                <!-- 背景グリッド（横：時間区切り） -->
-                <ItemsControl ItemsSource="{Binding TimeLabels}" Grid.Column="1">
-                     <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Border Height="60" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0"/>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                     <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <StackPanel Orientation="Vertical"/>
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                </ItemsControl>
-
-                <!-- スケジュールアイテム -->
-                <ItemsControl x:Name="ScheduleItemsControl" ItemsSource="{Binding StandardItems}" Grid.Column="1">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <Canvas x:Name="ScheduleCanvas"/>
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemContainerStyle>
-                        <Style TargetType="ContentPresenter">
-                            <Setter Property="Canvas.Top" Value="{Binding StartTime, Converter={StaticResource TimeToPositionConverter}}"/>
-                            
-                            <!-- X座標 (Canvas.Left) -->
-                            <Setter Property="Canvas.Left">
-                                <Setter.Value>
-                                    <MultiBinding Converter="{StaticResource DateToPagePositionConverter}">
-                                        <Binding Path="StartTime" />
-                                        <Binding Path="ColumnIndex" />
-                                        <Binding Path="MaxColumnIndex" />
-                                        <Binding Path="DataContext.CurrentDate" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                        <Binding Path="DataContext.CurrentViewMode" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                        <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=Canvas}" />
-                                    </MultiBinding>
-                                </Setter.Value>
-                            </Setter>
-                            <!-- 幅 (Width) -->
-                            <Setter Property="Width">
-                                <Setter.Value>
-                                    <MultiBinding Converter="{StaticResource DateToPagePositionConverter}" ConverterParameter="WIDTH">
-                                        <Binding Path="StartTime" />
-                                        <Binding Path="ColumnIndex" />
-                                        <Binding Path="MaxColumnIndex" />
-                                        <Binding Path="DataContext.CurrentDate" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                        <Binding Path="DataContext.CurrentViewMode" RelativeSource="{RelativeSource AncestorType=Window}" />
-                                        <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=Canvas}" />
-                                    </MultiBinding>
-                                </Setter.Value>
-                            </Setter>
-                            
-                            <!-- アニメーション用 -->
-
-                        </Style>
-                    </ItemsControl.ItemContainerStyle>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Grid Cursor="Hand" MouseLeftButtonDown="ScheduleItem_MouseLeftButtonDown" Margin="1,0,1,0"
-                                  Height="{Binding DurationHours, Converter={StaticResource DurationToHeightConverter}, ConverterParameter=ADD_EXTENSION}">
-                                <Grid.ContextMenu>
-                                    <ContextMenu>
-                                        <MenuItem Header="編集" Click="EditMenuItem_Click"/>
-                                        <MenuItem Header="削除" Click="DeleteMenuItem_Click"/>
-                                    </ContextMenu>
-                                </Grid.ContextMenu>
-                                
-                                <!-- 背景と形状 -->
-                                <Path Fill="{Binding BackgroundColor}" Stroke="{StaticResource BorderBrush}" StrokeThickness="1" Opacity="0.9">
-                                    <Path.Effect>
-                                         <DropShadowEffect Color="Black" BlurRadius="6" ShadowDepth="2" Opacity="0.1"/>
-                                    </Path.Effect>
-                                    <Path.Data>
-                                        <MultiBinding Converter="{StaticResource LShapeGeometryConverter}">
-                                            <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=Grid}"/>
-                                            <Binding Path="ActualHeight" RelativeSource="{RelativeSource AncestorType=Grid}"/>
+                            <Grid>
+                                <!-- 背景グリッド（縦：日付区切り） -->
+                                <ItemsControl>
+                                    <ItemsControl.ItemsSource>
+                                        <MultiBinding Converter="{StaticResource DateToVisibleDaysConverter}">
+                                            <Binding />
+                                            <Binding Path="DataContext.CurrentViewMode" RelativeSource="{RelativeSource AncestorType=Window}"/>
                                         </MultiBinding>
-                                    </Path.Data>
-                                </Path>
+                                    </ItemsControl.ItemsSource>
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <UniformGrid Rows="1"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <!-- 縦線 -->
+                                            <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,0"
+                                                    Background="{Binding Converter={StaticResource DateToBackgroundBrushConverter}}"/>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
 
-                                <!-- コンテンツ (下の15分部分(約15px)にはテキストが被らないようにマージン設定) -->
-                                <Border Padding="8,6" Margin="0,0,0,15" VerticalAlignment="Top"> 
-                                    <StackPanel>
-                                        <TextBlock Text="{Binding Title}" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis"/>
-                                        <TextBlock Text="{Binding Content}" TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
-                                        <TextBlock FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" Opacity="0.8" Margin="0,2,0,0">
-                                            <Run Text="{Binding StartTime, StringFormat=HH:mm}"/>
-                                            <Run Text=" - "/>
-                                            <Run Text="{Binding EndTime, StringFormat=HH:mm}"/>
-                                        </TextBlock>
-                                    </StackPanel>
-                                </Border>
+                                <!-- 背景グリッド（横：時間区切り） -->
+                                <ItemsControl ItemsSource="{Binding DataContext.TimeLabels, RelativeSource={RelativeSource AncestorType=Window}}">
+                                     <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Height="60" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0"/>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                     <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Orientation="Vertical"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                </ItemsControl>
+
+                                <!-- スケジュールアイテム -->
+                                <ItemsControl x:Name="ScheduleItemsControl" ItemsSource="{Binding DataContext.StandardItems, RelativeSource={RelativeSource AncestorType=Window}}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <Canvas x:Name="ScheduleCanvas"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemContainerStyle>
+                                        <Style TargetType="ContentPresenter">
+                                            <Setter Property="Canvas.Top" Value="{Binding StartTime, Converter={StaticResource TimeToPositionConverter}}"/>
+                                            
+                                            <!-- X座標 (Canvas.Left) -->
+                                            <Setter Property="Canvas.Left">
+                                                <Setter.Value>
+                                                    <MultiBinding Converter="{StaticResource DateToPagePositionConverter}">
+                                                        <Binding Path="StartTime" />
+                                                        <Binding Path="ColumnIndex" />
+                                                        <Binding Path="MaxColumnIndex" />
+                                                        <Binding Path="DataContext" RelativeSource="{RelativeSource AncestorType=ItemsControl}"/> <!-- CurrentDate from ItemsControl DataContext -->
+                                                        <Binding Path="DataContext.CurrentViewMode" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                        <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=Canvas}" />
+                                                    </MultiBinding>
+                                                </Setter.Value>
+                                            </Setter>
+                                            <!-- 幅 (Width) -->
+                                            <Setter Property="Width">
+                                                <Setter.Value>
+                                                    <MultiBinding Converter="{StaticResource DateToPagePositionConverter}" ConverterParameter="WIDTH">
+                                                        <Binding Path="StartTime" />
+                                                        <Binding Path="ColumnIndex" />
+                                                        <Binding Path="MaxColumnIndex" />
+                                                        <Binding Path="DataContext" RelativeSource="{RelativeSource AncestorType=ItemsControl}"/> <!-- CurrentDate from ItemsControl DataContext -->
+                                                        <Binding Path="DataContext.CurrentViewMode" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                        <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=Canvas}" />
+                                                    </MultiBinding>
+                                                </Setter.Value>
+                                            </Setter>
+                                            
+                                            <!-- アニメーション用 -->
+                
+                                        </Style>
+                                    </ItemsControl.ItemContainerStyle>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid Cursor="Hand" MouseLeftButtonDown="ScheduleItem_MouseLeftButtonDown" Margin="1,0,1,0"
+                                                  Height="{Binding DurationHours, Converter={StaticResource DurationToHeightConverter}, ConverterParameter=ADD_EXTENSION}">
+                                                <Grid.ContextMenu>
+                                                    <ContextMenu>
+                                                        <MenuItem Header="編集" Click="EditMenuItem_Click"/>
+                                                        <MenuItem Header="削除" Click="DeleteMenuItem_Click"/>
+                                                    </ContextMenu>
+                                                </Grid.ContextMenu>
+                                                
+                                                <!-- 背景と形状 -->
+                                                <Path Fill="{Binding BackgroundColor}" Stroke="{StaticResource BorderBrush}" StrokeThickness="1" Opacity="0.9">
+                                                    <Path.Effect>
+                                                         <DropShadowEffect Color="Black" BlurRadius="6" ShadowDepth="2" Opacity="0.1"/>
+                                                    </Path.Effect>
+                                                    <Path.Data>
+                                                        <MultiBinding Converter="{StaticResource LShapeGeometryConverter}">
+                                                            <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=Grid}"/>
+                                                            <Binding Path="ActualHeight" RelativeSource="{RelativeSource AncestorType=Grid}"/>
+                                                        </MultiBinding>
+                                                    </Path.Data>
+                                                </Path>
+                
+                                                <!-- コンテンツ (下の15分部分(約15px)にはテキストが被らないようにマージン設定) -->
+                                                <Border Padding="8,6" Margin="0,0,0,15" VerticalAlignment="Top"> 
+                                                    <StackPanel>
+                                                        <TextBlock Text="{Binding Title}" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis"/>
+                                                        <TextBlock Text="{Binding Content}" TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
+                                                        <TextBlock FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" Opacity="0.8" Margin="0,2,0,0">
+                                                            <Run Text="{Binding StartTime, StringFormat=HH:mm}"/>
+                                                            <Run Text=" - "/>
+                                                            <Run Text="{Binding EndTime, StringFormat=HH:mm}"/>
+                                                        </TextBlock>
+                                                    </StackPanel>
+                                                </Border>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <!-- 現在時刻インジケーター -->
+                                <Canvas ClipToBounds="True">
+                                    <Border BorderBrush="{StaticResource DangerBrush}" BorderThickness="0,2,0,0" Height="2" 
+                                            Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=Canvas}}"
+                                            Canvas.Top="{Binding DataContext.CurrentTime, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource TimeToPositionConverter}}">
+                                        <Border.Effect>
+                                            <DropShadowEffect Color="{StaticResource DangerColor}" BlurRadius="4" ShadowDepth="0" Opacity="0.5"/>
+                                        </Border.Effect>
+                                    </Border>
+                                    <!-- 現在時刻の赤丸 -->
+                                    <Ellipse Fill="{StaticResource DangerBrush}" Width="8" Height="8" Canvas.Left="-4"
+                                             Canvas.Top="{Binding DataContext.CurrentTime, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource TimeToPositionConverter}, ConverterParameter=OFFSET_CENTER}"
+                                             RenderTransformOrigin="0.5,0.5">
+                                        <Ellipse.RenderTransform>
+                                            <TranslateTransform Y="-4"/> <!-- ライン上に中心を合わせる -->
+                                        </Ellipse.RenderTransform>
+                                    </Ellipse>
+                                </Canvas>
+                                
                             </Grid>
                         </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-
-                <!-- 現在時刻インジケーター -->
-                <Canvas Grid.Column="1" ClipToBounds="True">
-                    <Border BorderBrush="{StaticResource DangerBrush}" BorderThickness="0,2,0,0" Height="2" 
-                            Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=Canvas}}"
-                            Canvas.Top="{Binding CurrentTime, Converter={StaticResource TimeToPositionConverter}}">
-                        <Border.Effect>
-                            <DropShadowEffect Color="{StaticResource DangerColor}" BlurRadius="4" ShadowDepth="0" Opacity="0.5"/>
-                        </Border.Effect>
-                    </Border>
-                    <!-- 現在時刻の赤丸 -->
-                    <Ellipse Fill="{StaticResource DangerBrush}" Width="8" Height="8" Canvas.Left="-4"
-                             Canvas.Top="{Binding CurrentTime, Converter={StaticResource TimeToPositionConverter}, ConverterParameter=OFFSET_CENTER}"
-                             RenderTransformOrigin="0.5,0.5">
-                        <Ellipse.RenderTransform>
-                            <TranslateTransform Y="-4"/> <!-- ライン上に中心を合わせる -->
-                        </Ellipse.RenderTransform>
-                    </Ellipse>
-                </Canvas>
+                    </controls:TransitioningContentControl.ContentTemplate>
+                </controls:TransitioningContentControl>
                 
             </Grid>
         </ScrollViewer>

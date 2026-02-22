@@ -9,11 +9,26 @@ using System.Linq;
 using System.Collections.Generic;
 using TimeRenderer.Services;
 using TimeRenderer.Helpers;
+using TimeRenderer.Controls;
 
 namespace TimeRenderer
 {
     public class MainViewModel : INotifyPropertyChanged
     {
+        private TransitionDirection _transitionDirection = TransitionDirection.Forward;
+        public TransitionDirection TransitionDirection
+        {
+            get => _transitionDirection;
+            set
+            {
+                if (_transitionDirection != value)
+                {
+                    _transitionDirection = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
         public enum ViewMode
         {
             Day,
@@ -348,6 +363,8 @@ namespace TimeRenderer
 
         private void Navigate(int amount)
         {
+            TransitionDirection = amount > 0 ? TransitionDirection.Forward : TransitionDirection.Backward;
+
             if (CurrentViewMode == ViewMode.Day)
             {
                 CurrentDate = CurrentDate.AddDays(amount);
