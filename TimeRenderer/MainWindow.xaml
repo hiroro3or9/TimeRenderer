@@ -167,6 +167,14 @@
                     <ToggleButton Content="📝 メモ" IsChecked="{Binding IsMemoPanelVisible}"
                                   Style="{StaticResource BaseToggleButtonStyle}"
                                   Margin="0,0,16,0" VerticalAlignment="Center"/>
+
+                    <!-- 表示時間範囲設定 -->
+                    <TextBlock Text="⚔" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" FontSize="13" Margin="0,0,4,0"/>
+                    <ComboBox ItemsSource="{Binding StartHourOptions}" SelectedItem="{Binding DisplayStartHour}"
+                              Width="52" Margin="0,0,2,0" VerticalAlignment="Center" FontSize="12"/>
+                    <TextBlock Text="～" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,2,0"/>
+                    <ComboBox ItemsSource="{Binding EndHourOptions}" SelectedItem="{Binding DisplayEndHour}"
+                              Width="52" Margin="0,0,16,0" VerticalAlignment="Center" FontSize="12"/>
                                   
                     <RadioButton Content="日" Command="{Binding ChangeViewModeCommand}" CommandParameter="Day" 
                                  IsChecked="{Binding IsDayMode, Mode=OneWay}" GroupName="ViewMode"
@@ -315,7 +323,7 @@
 
         <!-- スケジュール領域 -->
         <ScrollViewer x:Name="MainScrollViewer" Grid.Row="2" VerticalScrollBarVisibility="Auto">
-            <Grid Height="1440" Background="{StaticResource SurfaceBrush}"> <!-- 24 hours * 60px -->
+            <Grid Height="{Binding ScheduleGridHeight}" Background="{StaticResource SurfaceBrush}">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="60"/>
                     <ColumnDefinition Width="*"/>
@@ -389,7 +397,14 @@
                                     </ItemsControl.ItemsPanel>
                                     <ItemsControl.ItemContainerStyle>
                                         <Style TargetType="ContentPresenter">
-                                            <Setter Property="Canvas.Top" Value="{Binding StartTime, Converter={StaticResource TimeToPositionConverter}}"/>
+                                            <Setter Property="Canvas.Top">
+                                                <Setter.Value>
+                                                    <MultiBinding Converter="{StaticResource TimeToPositionConverter}">
+                                                        <Binding Path="StartTime"/>
+                                                        <Binding Path="DataContext.DisplayStartHour" RelativeSource="{RelativeSource AncestorType=Window}"/>
+                                                    </MultiBinding>
+                                                </Setter.Value>
+                                            </Setter>
                                             
                                             <!-- X座標 (Canvas.Left) -->
                                             <Setter Property="Canvas.Left">
@@ -466,16 +481,26 @@
                                 <!-- 現在時刻インジケーター -->
                                 <Canvas ClipToBounds="True">
                                     <Border BorderBrush="{StaticResource DangerBrush}" BorderThickness="0,2,0,0" Height="2" 
-                                            Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=Canvas}}"
-                                            Canvas.Top="{Binding DataContext.CurrentTime, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource TimeToPositionConverter}}">
+                                            Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=Canvas}}">
+                                        <Canvas.Top>
+                                            <MultiBinding Converter="{StaticResource TimeToPositionConverter}">
+                                                <Binding Path="DataContext.CurrentTime" RelativeSource="{RelativeSource AncestorType=Window}"/>
+                                                <Binding Path="DataContext.DisplayStartHour" RelativeSource="{RelativeSource AncestorType=Window}"/>
+                                            </MultiBinding>
+                                        </Canvas.Top>
                                         <Border.Effect>
                                             <DropShadowEffect Color="{StaticResource DangerColor}" BlurRadius="4" ShadowDepth="0" Opacity="0.5"/>
                                         </Border.Effect>
                                     </Border>
                                     <!-- 現在時刻の赤丸 -->
                                     <Ellipse Fill="{StaticResource DangerBrush}" Width="8" Height="8" Canvas.Left="-4"
-                                             Canvas.Top="{Binding DataContext.CurrentTime, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource TimeToPositionConverter}, ConverterParameter=OFFSET_CENTER}"
                                              RenderTransformOrigin="0.5,0.5">
+                                        <Canvas.Top>
+                                            <MultiBinding Converter="{StaticResource TimeToPositionConverter}">
+                                                <Binding Path="DataContext.CurrentTime" RelativeSource="{RelativeSource AncestorType=Window}"/>
+                                                <Binding Path="DataContext.DisplayStartHour" RelativeSource="{RelativeSource AncestorType=Window}"/>
+                                            </MultiBinding>
+                                        </Canvas.Top>
                                         <Ellipse.RenderTransform>
                                             <TranslateTransform Y="-4"/> <!-- ライン上に中心を合わせる -->
                                         </Ellipse.RenderTransform>

@@ -88,6 +88,52 @@ namespace TimeRenderer
         public ICommand ToggleMemoPanelCommand { get; }
         public ICommand ToggleRecordingCommand { get; }
 
+        // 表示時間範囲の設定
+        private int _displayStartHour = 0;
+        public int DisplayStartHour
+        {
+            get => _displayStartHour;
+            set
+            {
+                // 値の範囲制限（0～EndHour-1）
+                var clamped = Math.Clamp(value, 0, _displayEndHour - 1);
+                if (_displayStartHour != clamped)
+                {
+                    _displayStartHour = clamped;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(ScheduleGridHeight));
+                    InitializeTimeLabels();
+                    SaveSettings();
+                }
+            }
+        }
+
+        private int _displayEndHour = 24;
+        public int DisplayEndHour
+        {
+            get => _displayEndHour;
+            set
+            {
+                // 値の範囲制限（StartHour+1～24）
+                var clamped = Math.Clamp(value, _displayStartHour + 1, 24);
+                if (_displayEndHour != clamped)
+                {
+                    _displayEndHour = clamped;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(ScheduleGridHeight));
+                    InitializeTimeLabels();
+                    SaveSettings();
+                }
+            }
+        }
+
+        // 表示時間数に基づくグリッド高さ（1時間=60px）
+        public double ScheduleGridHeight => (_displayEndHour - _displayStartHour) * 60.0;
+
+        // 時間選択肢（ComboBox用）
+        public List<int> StartHourOptions => Enumerable.Range(0, 24).ToList();
+        public List<int> EndHourOptions => Enumerable.Range(1, 24).ToList();
+
         public ObservableCollection<ScheduleItem> ScheduleItems { get; set; }
         public ObservableCollection<string> TimeLabels { get; set; }
         
@@ -336,7 +382,16 @@ namespace TimeRenderer
 
             PreviousCommand = new RelayCommand(_ => Navigate(-1));
             NextCommand = new RelayCommand(_ => Navigate(1));
-            TodayCommand = new RelayCommand(_ => CurrentDate = DateTime.Today);
+            TodayCommand = new RelayCommand(_ =>
+            {
+                // 現在表示中の日付と今日を比較してアニメーション方向を決定
+                if (CurrentDate < DateTime.Today)
+                    TransitionDirection = TransitionDirection.Forward;
+                else if (CurrentDate > DateTime.Today)
+                    TransitionDirection = TransitionDirection.Backward;
+
+                CurrentDate = DateTime.Today;
+            });
             ChangeViewModeCommand = new RelayCommand(param =>
             {
                 if (param is ViewMode mode)
@@ -412,7 +467,8 @@ namespace TimeRenderer
 
         private void InitializeTimeLabels()
         {
-            for (int i = 0; i <= 24; i++)
+            TimeLabels.Clear();
+            for (int i = _displayStartHour; i <= _displayEndHour; i++)
             {
                 TimeLabels.Add($"{i}:00");
             }
@@ -467,7 +523,9 @@ namespace TimeRenderer
             {
                 IsMemoPanelVisible = IsMemoPanelVisible,
                 IsMemoEditMode = IsMemoEditMode,
-                ViewMode = (int)CurrentViewMode
+                ViewMode = (int)CurrentViewMode,
+                DisplayStartHour = _displayStartHour,
+                DisplayEndHour = _displayEndHour
             };
             _settingsService.SaveSettings(settings);
         }
@@ -548,6 +606,14 @@ namespace TimeRenderer
                 OnPropertyChanged(nameof(IsDayMode));
                 OnPropertyChanged(nameof(IsWeekMode));
                 OnPropertyChanged(nameof(DateDisplay));
+
+                // 表示時間範囲の反映
+                _displayStartHour = Math.Clamp(settings.DisplayStartHour, 0, 23);
+                _displayEndHour = Math.Clamp(settings.DisplayEndHour, _displayStartHour + 1, 24);
+                OnPropertyChanged(nameof(DisplayStartHour));
+                OnPropertyChanged(nameof(DisplayEndHour));
+                OnPropertyChanged(nameof(ScheduleGridHeight));
+                InitializeTimeLabels();
                 
                 // ビューモード変更に伴い、表示日付を更新する
                 UpdateVisibleDays();
@@ -637,6 +703,7 @@ namespace TimeRenderer
                 ScheduleLayoutHelper.CalculateClustersAndAssignColumns(sortedItems);
             }
         }
+
         public event PropertyChangedEventHandler? PropertyChanged;
         protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         {

@@ -4,23 +4,24 @@ using System.Windows.Data;
 
 namespace TimeRenderer
 {
-    public class TimeToPositionConverter : IValueConverter
+    public class TimeToPositionConverter : IMultiValueConverter
     {
         public double PixelsPerHour { get; set; } = 60.0;
+        // 後方互換のためプロパティは残すが、バインディング優先
+        public double StartHour { get; set; } = 0.0;
 
-        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
         {
-            if (value is DateTime time)
-            {
-                // Assuming the schedule shows one day, from 0:00 to 24:00
-                // We'll map the time of day to the position.
-                var timeOfDay = time.TimeOfDay;
-                return timeOfDay.TotalHours * PixelsPerHour;
-            }
-            return 0.0;
+            if (values.Length < 1 || values[0] is not DateTime time)
+                return 0.0;
+
+            // values[1]: DisplayStartHour（バインドなければフィールドの値を使用）
+            double startHour = (values.Length > 1 && values[1] is int sh) ? sh : StartHour;
+
+            return (time.TimeOfDay.TotalHours - startHour) * PixelsPerHour;
         }
 
-        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
         {
             throw new NotImplementedException();
         }

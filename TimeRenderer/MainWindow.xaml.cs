@@ -83,6 +83,7 @@ namespace TimeRenderer
             }
         }
 
+
         private void UpdateContextMenu()
         {
             if (_recordMenuItem != null)
@@ -232,13 +233,11 @@ namespace TimeRenderer
              // 起動時に現在時刻までスクロール
              var now = DateTime.Now;
              
-             // 1時間 = 60px
-             // 現在のY座標 = (時 * 60) + 分
+             // 1時間 = 60px、表示開始時刻を基準にオフセット計算
              double pixelsPerHour = 60.0;
-             double currentY = (now.Hour * pixelsPerHour) + (now.Minute * (pixelsPerHour / 60.0));
+             double currentY = ((now.Hour - ViewModel.DisplayStartHour) * pixelsPerHour) + (now.Minute * (pixelsPerHour / 60.0));
              
-             // 画面の中央に持ってくるために、ViewportHeight / 2 を引く
-             // ただし、少し上（過去）が見えた方が文脈がわかりやすいので、さらに -60px (1時間分) くらいしてもいい
+             // 画面の中央に持ってくる
              double targetOffset = currentY - (MainScrollViewer.ViewportHeight / 2);
              
              if (targetOffset < 0) targetOffset = 0;
