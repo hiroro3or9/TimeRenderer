@@ -3,7 +3,7 @@ using System.Globalization;
 using System.Windows.Data;
 using System.Windows.Media;
 
-namespace TimeRenderer
+namespace TimeRenderer.Converters
 {
     public class DateToBackgroundBrushConverter : IValueConverter
     {
@@ -12,11 +12,7 @@ namespace TimeRenderer
 
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            if (value is DateTime date && date.Date == DateTime.Today)
-            {
-                return TodayBrush;
-            }
-            return DefaultBrush;
+            return value is DateTime date && date.Date == DateTime.Today ? TodayBrush : DefaultBrush;
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

@@ -9,12 +9,9 @@ namespace TimeRenderer.Services
     {
         protected static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
-        protected string GetFullPath(string fileName)
-        {
-            return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, fileName);
-        }
+        protected static string GetFullPath(string fileName) => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, fileName);
 
-        protected async Task SaveToFileAsync<T>(string filePath, T data)
+        protected static async Task SaveToFileAsync<T>(string filePath, T data)
         {
             try
             {
@@ -28,7 +25,7 @@ namespace TimeRenderer.Services
             }
         }
 
-        protected async Task<T?> LoadFromFileAsync<T>(string filePath)
+        protected static async Task<T?> LoadFromFileAsync<T>(string filePath)
         {
             var fullPath = GetFullPath(filePath);
             if (File.Exists(fullPath))
@@ -47,7 +44,7 @@ namespace TimeRenderer.Services
         }
 
         // 同期版（念のため後方互換や、コンストラクタ内でどうしても必要な場合）
-        protected void SaveToFileSync<T>(string filePath, T data)
+        protected static void SaveToFileSync<T>(string filePath, T data)
         {
             try
             {
@@ -61,7 +58,7 @@ namespace TimeRenderer.Services
             }
         }
 
-        protected T? LoadFromFileSync<T>(string filePath)
+        protected static T? LoadFromFileSync<T>(string filePath)
         {
             var fullPath = GetFullPath(filePath);
             if (File.Exists(fullPath))

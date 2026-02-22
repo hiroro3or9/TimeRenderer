@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:TimeRenderer"
+        xmlns:conv="clr-namespace:TimeRenderer.Converters"
         xmlns:controls="clr-namespace:TimeRenderer.Controls"
         xmlns:markdig="clr-namespace:Markdig.Wpf;assembly=Markdig.Wpf"
         xmlns:sys="clr-namespace:System;assembly=mscorlib"
@@ -12,17 +13,17 @@
         Title="TimeRenderer" Height="700" Width="1000"
         Loaded="Window_Loaded">
     <Window.Resources>
-        <local:TimeToPositionConverter x:Key="TimeToPositionConverter" PixelsPerHour="60"/>
-        <local:DurationToHeightConverter x:Key="DurationToHeightConverter" PixelsPerHour="60"/>
-        <local:DateToPagePositionConverter x:Key="DateToPagePositionConverter"/>
-        <local:DateToPageVisibilityConverter x:Key="DateToPageVisibilityConverter"/>
-        <local:IndexToTopMarginConverter x:Key="IndexToTopMarginConverter" ItemHeight="24"/>
-        <local:DateToVisibleDaysConverter x:Key="DateToVisibleDaysConverter"/>
+        <conv:TimeToPositionConverter x:Key="TimeToPositionConverter" PixelsPerHour="60"/>
+        <conv:DurationToHeightConverter x:Key="DurationToHeightConverter" PixelsPerHour="60"/>
+        <conv:DateToPagePositionConverter x:Key="DateToPagePositionConverter"/>
+        <conv:DateToPageVisibilityConverter x:Key="DateToPageVisibilityConverter"/>
+        <conv:IndexToTopMarginConverter x:Key="IndexToTopMarginConverter" ItemHeight="24"/>
+        <conv:DateToVisibleDaysConverter x:Key="DateToVisibleDaysConverter"/>
         <sys:Int32 x:Key="Zero">0</sys:Int32>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
-        <local:InvertedBooleanToVisibilityConverter x:Key="InvertedBooleanToVisibilityConverter"/>
-        <local:InverseBooleanConverter x:Key="InverseBooleanConverter"/>
-        <local:LShapeGeometryConverter x:Key="LShapeGeometryConverter"/>
+        <conv:InvertedBooleanToVisibilityConverter x:Key="InvertedBooleanToVisibilityConverter"/>
+        <conv:InverseBooleanConverter x:Key="InverseBooleanConverter"/>
+        <conv:LShapeGeometryConverter x:Key="LShapeGeometryConverter"/>
         
         <Style TargetType="ListBoxItem" x:Key="TimeLabelStyle">
             <Setter Property="Height" Value="60"/>
@@ -89,11 +90,11 @@
             <Setter Property="BorderThickness" Value="1,1,1,1"/> <!-- 境界線が太くなるのを防ぐため左側も描画し、重なりを考慮するか、0,1,1,1にするか。ここでは左ボーダーありにして、並べたときに重なるようにマージン調整する手もあるが、シンプルに 1,1,1,1 で左隣のボーダーと重なるように Margin="-1,0,0,0" するのが綺麗に見える。 -->
             <Setter Property="Margin" Value="-1,0,0,0"/>
         </Style>
-        <local:DayOfWeekToBrushConverter x:Key="DayOfWeekToBrushConverter"
+        <conv:DayOfWeekToBrushConverter x:Key="DayOfWeekToBrushConverter"
                                          SaturdayBrush="{StaticResource PrimaryBrush}"
                                          SundayBrush="{StaticResource DangerBrush}"
                                          DefaultBrush="{StaticResource TextPrimaryBrush}"/>
-        <local:DateToBackgroundBrushConverter x:Key="DateToBackgroundBrushConverter"
+        <conv:DateToBackgroundBrushConverter x:Key="DateToBackgroundBrushConverter"
                                               TodayBrush="{StaticResource PrimarySubtleBrush}"
                                               DefaultBrush="Transparent"/>
     </Window.Resources>

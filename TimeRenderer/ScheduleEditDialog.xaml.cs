@@ -35,8 +35,8 @@ namespace TimeRenderer
             InitializeComponent();
 
             // 色の選択肢を初期化
-            _colorOptions = new List<ColorOption>
-            {
+            _colorOptions =
+            [
                 new() { Name = "ライトブルー", Brush = Brushes.LightBlue },
                 new() { Name = "ライトグリーン", Brush = Brushes.LightGreen },
                 new() { Name = "ライトピンク", Brush = Brushes.LightPink },
@@ -45,7 +45,7 @@ namespace TimeRenderer
                 new() { Name = "ライトコーラル", Brush = Brushes.LightCoral },
                 new() { Name = "ラベンダー", Brush = Brushes.Lavender },
                 new() { Name = "ライトシアン", Brush = Brushes.LightCyan },
-            };
+            ];
             ColorCombo.ItemsSource = _colorOptions;
 
             // 時間コンボボックスを初期化（0〜23時、0〜55分を5分刻み）
@@ -173,8 +173,8 @@ namespace TimeRenderer
         {
             // チェックボックスの状態に応じて時刻入力パネルの有効/無効を切り替え
             bool isTimeEnabled = !(AllDayCheckBox.IsChecked ?? false);
-            if (StartTimePanel != null) StartTimePanel.IsEnabled = isTimeEnabled;
-            if (EndTimePanel != null) EndTimePanel.IsEnabled = isTimeEnabled;
+            StartTimePanel?.IsEnabled = isTimeEnabled;
+            EndTimePanel?.IsEnabled = isTimeEnabled;
         }
     }
 }

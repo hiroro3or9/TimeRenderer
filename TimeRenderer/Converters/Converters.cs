@@ -1,9 +1,23 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Windows.Data;
 
-namespace TimeRenderer
+namespace TimeRenderer.Converters
 {
+    internal static class DateTimeHelper
+    {
+        /// <summary>
+        /// 指定された日付を含む週の開始日（月曜日）を取得します
+        /// </summary>
+        public static DateTime GetStartOfWeek(this DateTime date)
+        {
+            int diff = (7 + (date.DayOfWeek - DayOfWeek.Monday)) % 7;
+            return date.AddDays(-1 * diff).Date;
+        }
+    }
+
     public class TimeToPositionConverter : IMultiValueConverter
     {
         public double PixelsPerHour { get; set; } = 60.0;
@@ -12,11 +26,10 @@ namespace TimeRenderer
 
         public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
         {
-            if (values.Length < 1 || values[0] is not DateTime time)
+            if (values.Length < ConverterIndices.TimeToPosition.RequiredCount || values[ConverterIndices.TimeToPosition.Time] is not DateTime time)
                 return 0.0;
 
-            // values[1]: DisplayStartHour（バインドなければフィールドの値を使用）
-            double startHour = (values.Length > 1 && values[1] is int sh) ? sh : StartHour;
+            double startHour = (values.Length > ConverterIndices.TimeToPosition.DisplayStartHour && values[ConverterIndices.TimeToPosition.DisplayStartHour] is int sh) ? sh : StartHour;
 
             return (time.TimeOfDay.TotalHours - startHour) * PixelsPerHour;
         }
@@ -29,19 +42,23 @@ namespace TimeRenderer
 
     public class DurationToHeightConverter : IValueConverter
     {
+        private const string ParameterAddExtension = "ADD_EXTENSION";
         public double PixelsPerHour { get; set; } = 60.0;
 
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            double hours = 0.0;
-            if (value is double h) hours = h;
-            else if (value is ScheduleItem item) hours = item.DurationHours;
-            else if (value is TimeSpan span) hours = span.TotalHours;
+            double hours = value switch
+            {
+                double h => h,
+                ScheduleItem item => item.DurationHours,
+                TimeSpan span => span.TotalHours,
+                _ => 0.0
+            };
 
             double pixels = hours * PixelsPerHour;
 
             // L字型の足の部分を追加するためのパラメータ
-            if (parameter is string p && p == "ADD_EXTENSION")
+            if (parameter as string == ParameterAddExtension)
             {
                 pixels += 15.0; // 15分相当 (60px/h * 0.25h)
             }
@@ -57,81 +74,56 @@ namespace TimeRenderer
 
     public class DateToPagePositionConverter : IMultiValueConverter
     {
+        private const string ParameterWidth = "WIDTH";
+        private const double HiddenOutPosition = -10000.0;
+
         public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
         {
-            // values[0]: StartTime (DateTime)
-            // values[1]: ColumnIndex (int)
-            // values[2]: MaxColumnIndex (int)
-            // values[3]: CurrentDate (DateTime)
-            // values[4]: ViewMode (Day/Week)
-            // values[5]: Canvas ActualWidth (double)
-
-            if (values.Length < 6 || values[5] is not double actualWidth)
+            if (values.Length < ConverterIndices.DateToPagePosition.RequiredCount || 
+                values[ConverterIndices.DateToPagePosition.CanvasActualWidth] is not double actualWidth || 
+                values[ConverterIndices.DateToPagePosition.StartTime] is not DateTime itemStartTime)
                 return 0.0;
 
-            if (values[0] is not DateTime itemStartTime) return 0.0;
             var itemDate = itemStartTime.Date;
-
-            bool isAllDay = false;
-            // 7番目のパラメータ(IsAllDay)があれば取得
-            if (values.Length > 6 && values[6] is bool b)
-            {
-                isAllDay = b;
-            }
+            bool isAllDay = values.Length > ConverterIndices.DateToPagePosition.IsAllDay && values[ConverterIndices.DateToPagePosition.IsAllDay] is bool b && b;
             
             // 終日イベントの場合は、ColumnIndex は縦位置用なので横位置計算には使わない（常に0扱い）
-            int columnIndex = (values[1] is int c && !isAllDay) ? c : 0;
-            int maxColumnIndex = (values[2] is int m && !isAllDay) ? m : 0;
+            int columnIndex = (values[ConverterIndices.DateToPagePosition.ColumnIndex] is int c && !isAllDay) ? c : 0;
+            int maxColumnIndex = (values[ConverterIndices.DateToPagePosition.MaxColumnIndex] is int m && !isAllDay) ? m : 0;
             int totalColumns = maxColumnIndex + 1;
 
-            var baseDate = values[3] is DateTime d ? d.Date : DateTime.Today;
-            var mode = values[4] is MainViewModel.ViewMode viewMode ? viewMode : MainViewModel.ViewMode.Day;
+            var baseDate = values[ConverterIndices.DateToPagePosition.CurrentDate] is DateTime d ? d.Date : DateTime.Today;
+            var mode = values[ConverterIndices.DateToPagePosition.ViewMode] is MainViewModel.ViewMode viewMode ? viewMode : MainViewModel.ViewMode.Day;
             
             // パラメータが "WIDTH" の場合は幅を返す、それ以外はX座標を返す
-            bool isWidth = parameter as string == "WIDTH";
+            bool isWidth = parameter as string == ParameterWidth;
 
             if (mode == MainViewModel.ViewMode.Day)
             {
                 // 1日表示モード：日付が一致しない場合は非表示
-                // baseDateにはCurrentDateが入ってくる
-                if (itemDate.Date != baseDate.Date)
-                {
-                    return isWidth ? 0.0 : -10000.0;
-                }
+                if (itemDate != baseDate.Date)
+                    return isWidth ? 0.0 : HiddenOutPosition;
 
-                double columnWidth = actualWidth / totalColumns; // totalColumns is usually 1 unless overlapping
-
-                if (isWidth) return columnWidth;
-                return columnIndex * columnWidth;
+                double columnWidth = actualWidth / totalColumns;
+                return isWidth ? columnWidth : columnIndex * columnWidth;
             }
             else // Week Mode
             {
-                // baseDate は CurrentDate なので、週の開始日（月曜日）を計算する
-                // VMのCurrentWeekStartと同じロジックを使用
-                var diff = (7 + (baseDate.DayOfWeek - DayOfWeek.Monday)) % 7;
-                var weekStart = baseDate.AddDays(-1 * diff).Date;
+                // 週の開始日（月曜日）を計算
+                var weekStart = baseDate.GetStartOfWeek();
                 var weekEnd = weekStart.AddDays(7);
                 
                 // 週の範囲外なら表示しない
                 if (itemDate < weekStart || itemDate >= weekEnd)
-                {
-                    return isWidth ? 0.0 : -10000.0; // 画面外へ
-                }
+                    return isWidth ? 0.0 : HiddenOutPosition;
 
                 var dayDiff = (itemDate - weekStart).TotalDays;
-
                 double dayColumnWidth = actualWidth / 7.0;
-                // itemWidth は 1日の幅 / 重なり数
-                // しかし Week View での重なり (MaxColumnIndex) は 0 前提の簡易実装か？
-                // もし重なりがあれば dayColumnWidth を割る
                 
-                // MaxColumnIndex が 0 の場合 totalColumns=1
+                // itemWidth は 1日の幅 / 重なり数
                 double itemWidth = dayColumnWidth / Math.Max(1, totalColumns);
 
-                if (isWidth) return itemWidth;
-                
-                // X座標 = (何日目 * 1日の幅) + (カラムインデックス * アイテム幅)
-                return (dayDiff * dayColumnWidth) + (columnIndex * itemWidth);
+                return isWidth ? itemWidth : (dayDiff * dayColumnWidth) + (columnIndex * itemWidth);
             }
         }
 
@@ -164,29 +156,20 @@ namespace TimeRenderer
     {
         public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
         {
-            // values[0]: CurrentDate (DateTime)
-            // values[1]: ViewMode (Day/Week)
-
-            if (values.Length < 2 || values[0] is not DateTime date)
+            if (values.Length < ConverterIndices.DateToVisibleDays.RequiredCount || values[ConverterIndices.DateToVisibleDays.CurrentDate] is not DateTime date)
                 return new List<DateTime>();
 
-            var mode = values[1] is MainViewModel.ViewMode m ? m : MainViewModel.ViewMode.Day;
-            var list = new List<DateTime>();
+            var mode = values[ConverterIndices.DateToVisibleDays.ViewMode] is MainViewModel.ViewMode m ? m : MainViewModel.ViewMode.Day;
 
             if (mode == MainViewModel.ViewMode.Day)
             {
-                list.Add(date);
+                return new List<DateTime> { date.Date };
             }
             else
             {
-                var diff = (7 + (date.DayOfWeek - DayOfWeek.Monday)) % 7;
-                var start = date.AddDays(-1 * diff).Date;
-                for (int i = 0; i < 7; i++)
-                {
-                    list.Add(start.AddDays(i));
-                }
+                var start = date.GetStartOfWeek();
+                return Enumerable.Range(0, 7).Select(i => start.AddDays(i)).ToList();
             }
-            return list;
         }
 
         public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
