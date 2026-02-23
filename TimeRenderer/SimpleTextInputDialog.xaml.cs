@@ -16,9 +16,6 @@ namespace TimeRenderer
             Loaded += (s, e) => InputTextBox.Focus();
         }
 
-        private void OkButton_Click(object sender, RoutedEventArgs e)
-        {
-            DialogResult = true;
-        }
+        private void OkButton_Click(object sender, RoutedEventArgs e) => DialogResult = true;
     }
 }

@@ -3,77 +3,76 @@ using System.IO;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-namespace TimeRenderer.Services
+namespace TimeRenderer.Services;
+
+public abstract class JsonFileRepositoryBase
 {
-    public abstract class JsonFileRepositoryBase
+    protected static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
+
+    protected static string GetFullPath(string fileName) => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, fileName);
+
+    protected static async Task SaveToFileAsync<T>(string filePath, T data)
     {
-        protected static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
+        try
+        {
+            var fullPath = GetFullPath(filePath);
+            var jsonString = JsonSerializer.Serialize(data, JsonOptions);
+            await File.WriteAllTextAsync(fullPath, jsonString);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Save failed for {filePath}: {ex.Message}");
+        }
+    }
 
-        protected static string GetFullPath(string fileName) => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, fileName);
-
-        protected static async Task SaveToFileAsync<T>(string filePath, T data)
+    protected static async Task<T?> LoadFromFileAsync<T>(string filePath)
+    {
+        var fullPath = GetFullPath(filePath);
+        if (File.Exists(fullPath))
         {
             try
             {
-                var fullPath = GetFullPath(filePath);
-                var jsonString = JsonSerializer.Serialize(data, JsonOptions);
-                await File.WriteAllTextAsync(fullPath, jsonString);
+                var jsonString = await File.ReadAllTextAsync(fullPath);
+                return JsonSerializer.Deserialize<T>(jsonString, JsonOptions);
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Save failed for {filePath}: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Load failed for {filePath}: {ex.Message}");
             }
         }
+        return default;
+    }
 
-        protected static async Task<T?> LoadFromFileAsync<T>(string filePath)
+    // 同期版（念のため後方互換や、コンストラクタ内でどうしても必要な場合）
+    protected static void SaveToFileSync<T>(string filePath, T data)
+    {
+        try
         {
             var fullPath = GetFullPath(filePath);
-            if (File.Exists(fullPath))
-            {
-                try
-                {
-                    var jsonString = await File.ReadAllTextAsync(fullPath);
-                    return JsonSerializer.Deserialize<T>(jsonString, JsonOptions);
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Load failed for {filePath}: {ex.Message}");
-                }
-            }
-            return default;
+            var jsonString = JsonSerializer.Serialize(data, JsonOptions);
+            File.WriteAllText(fullPath, jsonString);
         }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Save failed for {filePath}: {ex.Message}");
+        }
+    }
 
-        // 同期版（念のため後方互換や、コンストラクタ内でどうしても必要な場合）
-        protected static void SaveToFileSync<T>(string filePath, T data)
+    protected static T? LoadFromFileSync<T>(string filePath)
+    {
+        var fullPath = GetFullPath(filePath);
+        if (File.Exists(fullPath))
         {
             try
             {
-                var fullPath = GetFullPath(filePath);
-                var jsonString = JsonSerializer.Serialize(data, JsonOptions);
-                File.WriteAllText(fullPath, jsonString);
+                var jsonString = File.ReadAllText(fullPath);
+                return JsonSerializer.Deserialize<T>(jsonString, JsonOptions);
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Save failed for {filePath}: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Load failed for {filePath}: {ex.Message}");
             }
         }
-
-        protected static T? LoadFromFileSync<T>(string filePath)
-        {
-            var fullPath = GetFullPath(filePath);
-            if (File.Exists(fullPath))
-            {
-                try
-                {
-                    var jsonString = File.ReadAllText(fullPath);
-                    return JsonSerializer.Deserialize<T>(jsonString, JsonOptions);
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Load failed for {filePath}: {ex.Message}");
-                }
-            }
-            return default;
-        }
+        return default;
     }
 }

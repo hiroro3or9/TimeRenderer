@@ -14,11 +14,7 @@ namespace TimeRenderer
         /// <summary>
         /// 色選択肢を表すヘルパークラス
         /// </summary>
-        public class ColorOption
-        {
-            public string Name { get; set; } = string.Empty;
-            public Brush Brush { get; set; } = Brushes.White;
-        }
+        public record ColorOption(string Name, Brush Brush);
 
         /// <summary>
         /// 編集対象のスケジュールアイテム（ダイアログ結果）
@@ -37,14 +33,14 @@ namespace TimeRenderer
             // 色の選択肢を初期化
             _colorOptions =
             [
-                new() { Name = "ライトブルー", Brush = Brushes.LightBlue },
-                new() { Name = "ライトグリーン", Brush = Brushes.LightGreen },
-                new() { Name = "ライトピンク", Brush = Brushes.LightPink },
-                new() { Name = "ライトイエロー", Brush = Brushes.LightYellow },
-                new() { Name = "ライトグレー", Brush = Brushes.LightGray },
-                new() { Name = "ライトコーラル", Brush = Brushes.LightCoral },
-                new() { Name = "ラベンダー", Brush = Brushes.Lavender },
-                new() { Name = "ライトシアン", Brush = Brushes.LightCyan },
+                new("ライトブルー", Brushes.LightBlue),
+                new("ライトグリーン", Brushes.LightGreen),
+                new("ライトピンク", Brushes.LightPink),
+                new("ライトイエロー", Brushes.LightYellow),
+                new("ライトグレー", Brushes.LightGray),
+                new("ライトコーラル", Brushes.LightCoral),
+                new("ラベンダー", Brushes.Lavender),
+                new("ライトシアン", Brushes.LightCyan),
             ];
             ColorCombo.ItemsSource = _colorOptions;
 
@@ -158,16 +154,9 @@ namespace TimeRenderer
             Close();
         }
 
-        private void CancelButton_Click(object sender, RoutedEventArgs e)
-        {
-            DialogResult = false;
-            Close();
-        }
+        private void CancelButton_Click(object sender, RoutedEventArgs e) => DialogResult = false; // Close() is automatic when DialogResult is set in a dialog
 
-        private void AllDayCheckBox_Changed(object sender, RoutedEventArgs e)
-        {
-            UpdateTimePanelState();
-        }
+        private void AllDayCheckBox_Changed(object sender, RoutedEventArgs e) => UpdateTimePanelState();
 
         private void UpdateTimePanelState()
         {
