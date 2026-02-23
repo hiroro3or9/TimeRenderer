@@ -23,7 +23,8 @@ namespace TimeRenderer
         public MainWindow()
         {
             InitializeComponent();
-            var viewModel = new MainViewModel();
+            var dialogService = new Services.DefaultDialogService(this);
+            MainViewModel viewModel = new(dialogService);
             DataContext = viewModel;
             
             // ViewModelのプロパティ変更監視
@@ -34,7 +35,7 @@ namespace TimeRenderer
 
         private void SetupNotifyIcon()
         {
-            _notifyIcon = new WinForms.NotifyIcon
+            _notifyIcon = new()
             {
                 // アイコンはアプリケーションのアイコンがあればそれを使う、なければシステムアイコン
                 Icon = Drawing.SystemIcons.Application,
@@ -43,17 +44,17 @@ namespace TimeRenderer
             };
 
             // ダブルクリックでウィンドウ表示
-            _notifyIcon.DoubleClick += (s, e) => ShowWindow();
+            _notifyIcon.DoubleClick += (_, _) => ShowWindow();
 
             // コンテキストメニュー
-            var contextMenu = new WinForms.ContextMenuStrip();
+            WinForms.ContextMenuStrip contextMenu = new();
             
             // 表示
-            contextMenu.Items.Add("表示", null, (s, e) => ShowWindow());
+            contextMenu.Items.Add("表示", null, (_, _) => ShowWindow());
             
             // 記録開始/停止
-            _recordMenuItem = new WinForms.ToolStripMenuItem("記録開始");
-            _recordMenuItem.Click += (s, e) =>
+            _recordMenuItem = new("記録開始");
+            _recordMenuItem.Click += (_, _) =>
             {
                 if (ViewModel.ToggleRecordingCommand.CanExecute(null))
                 {
@@ -66,7 +67,7 @@ namespace TimeRenderer
             contextMenu.Items.Add(new WinForms.ToolStripSeparator());
 
             // 終了
-            contextMenu.Items.Add("終了", null, (s, e) => 
+            contextMenu.Items.Add("終了", null, (_, _) => 
             {
                 _notifyIcon.Visible = false; // アイコンを消してから終了
                 System.Windows.Application.Current.Shutdown(); 
@@ -139,30 +140,27 @@ namespace TimeRenderer
         }
 
         /// <summary>
-        /// 「＋追加」ボタンのクリックイベント。新規追加ダイアログを開く。
+        /// 「＋追加」ボタンのクリックイベント。
         /// </summary>
         private void AddButton_Click(object sender, RoutedEventArgs e)
         {
-            var dialog = new ScheduleEditDialog()
+            if (ViewModel.AddCommand.CanExecute(null))
             {
-                Owner = this
-            };
-
-            if (dialog.ShowDialog() == true && dialog.ResultItem != null)
-            {
-                ViewModel.ScheduleItems.Add(dialog.ResultItem);
+                ViewModel.AddCommand.Execute(null);
             }
         }
 
         /// <summary>
-        /// スケジュールアイテムのダブルクリックイベント。編集ダイアログを開く。
+        /// スケジュールアイテムのダブルクリックイベント。
         /// </summary>
         private void ScheduleItem_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            // ダブルクリックの場合のみ編集ダイアログを開く
             if (e.ClickCount == 2 && sender is FrameworkElement element && element.DataContext is ScheduleItem item)
             {
-                OpenEditDialog(item);
+                if (ViewModel.EditCommand.CanExecute(item))
+                {
+                    ViewModel.EditCommand.Execute(item);
+                }
                 e.Handled = true;
             }
         }
@@ -177,7 +175,10 @@ namespace TimeRenderer
                 contextMenu.PlacementTarget is FrameworkElement element &&
                 element.DataContext is ScheduleItem item)
             {
-                OpenEditDialog(item);
+                if (ViewModel.EditCommand.CanExecute(item))
+                {
+                    ViewModel.EditCommand.Execute(item);
+                }
             }
         }
 
@@ -191,42 +192,12 @@ namespace TimeRenderer
                 contextMenu.PlacementTarget is FrameworkElement element &&
                 element.DataContext is ScheduleItem item)
             {
-                var result = MessageBox.Show(
-                    $"「{item.Title}」を削除しますか？",
-                    "削除確認",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Question);
-
-                if (result == MessageBoxResult.Yes)
+                if (ViewModel.DeleteCommand.CanExecute(item))
                 {
-                    ViewModel.ScheduleItems.Remove(item);
+                    ViewModel.DeleteCommand.Execute(item);
                 }
             }
         }
-
-        /// <summary>
-        /// 編集ダイアログを開き、結果を既存アイテムに反映する
-        /// </summary>
-        private void OpenEditDialog(ScheduleItem item)
-        {
-            var dialog = new ScheduleEditDialog(item)
-            {
-                Owner = this
-            };
-
-            if (dialog.ShowDialog() == true && dialog.ResultItem != null)
-            {
-                // 既存アイテムのプロパティを更新（INotifyPropertyChanged により自動反映）
-                item.Title = dialog.ResultItem.Title;
-                item.Content = dialog.ResultItem.Content;
-                item.StartTime = dialog.ResultItem.StartTime;
-                item.EndTime = dialog.ResultItem.EndTime;
-                item.IsAllDay = dialog.ResultItem.IsAllDay;
-                item.BackgroundColor = dialog.ResultItem.BackgroundColor;
-            }
-        }
-
-
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {

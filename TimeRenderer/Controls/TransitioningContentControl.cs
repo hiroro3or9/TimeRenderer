@@ -51,7 +51,7 @@ namespace TimeRenderer.Controls
             // 値が実質的に同じ場合、または初回描画(old=null)の場合はアニメーションをスキップ
             // WPF がテンプレートバインディングで自動更新するため、手動セットは不要
             // ※初回アニメーション中はCanvasのActualWidthが0になりアイテム位置の計算が狂うため
-            if (Equals(oldContent, newContent) || oldContent == null)
+            if (Equals(oldContent, newContent) || oldContent is null)
                 return;
 
             StartTransition(oldContent, newContent);
@@ -77,8 +77,8 @@ namespace TimeRenderer.Controls
                 _previousContentPresentationSite.BeginAnimation(RenderTransformProperty, null);
 
                 // Setup Transforms
-                var currentTransform = new TranslateTransform();
-                var previousTransform = new TranslateTransform();
+                TranslateTransform currentTransform = new();
+                TranslateTransform previousTransform = new();
 
                 _currentContentPresentationSite.RenderTransform = currentTransform;
                 _previousContentPresentationSite.RenderTransform = previousTransform;
@@ -87,16 +87,13 @@ namespace TimeRenderer.Controls
                 if (width <= 0) width = 500; // Fallback
 
                 // Helper to create animation
-                static DoubleAnimation CreateAnimation(double from, double to)
+                static DoubleAnimation CreateAnimation(double from, double to) => new()
                 {
-                    return new DoubleAnimation
-                    {
-                        From = from,
-                        To = to,
-                        Duration = new Duration(TimeSpan.FromMilliseconds(300)),
-                        EasingFunction = new QuarticEase { EasingMode = EasingMode.EaseOut }
-                    };
-                }
+                    From = from,
+                    To = to,
+                    Duration = new Duration(TimeSpan.FromMilliseconds(300)),
+                    EasingFunction = new QuarticEase { EasingMode = EasingMode.EaseOut }
+                };
 
                 // アニメーションのパラメータを方向に応じて設定
                 bool isForward = TransitionDirection == TransitionDirection.Forward;

@@ -1,69 +1,68 @@
 using System.Collections.ObjectModel;
 
-namespace TimeRenderer.Helpers
+namespace TimeRenderer.Helpers;
+
+public static class ScheduleLayoutHelper
 {
-    public static class ScheduleLayoutHelper
+    public static void CalculateClustersAndAssignColumns(List<ScheduleItem> sortedItems)
     {
-        public static void CalculateClustersAndAssignColumns(List<ScheduleItem> sortedItems)
+        if (sortedItems.Count == 0) return;
+
+        var clusters = new List<List<ScheduleItem>>();
+        List<ScheduleItem> currentCluster = [sortedItems[0]];
+        var clusterEndTime = sortedItems[0].EndTime;
+
+        foreach (var item in sortedItems.Skip(1))
         {
-            if (sortedItems.Count == 0) return;
-
-            var clusters = new List<List<ScheduleItem>>();
-            var currentCluster = new List<ScheduleItem> { sortedItems[0] };
-            var clusterEndTime = sortedItems[0].EndTime;
-
-            foreach (var item in sortedItems.Skip(1))
+            if (item.StartTime < clusterEndTime)
             {
-                if (item.StartTime < clusterEndTime)
+                currentCluster.Add(item);
+                if (item.EndTime > clusterEndTime)
                 {
-                    currentCluster.Add(item);
-                    if (item.EndTime > clusterEndTime)
-                    {
-                        clusterEndTime = item.EndTime;
-                    }
-                }
-                else
-                {
-                    clusters.Add(currentCluster);
-                    currentCluster = [item];
                     clusterEndTime = item.EndTime;
                 }
             }
-            clusters.Add(currentCluster);
-
-            foreach (var cluster in clusters)
+            else
             {
-                AssignColumnsToCluster(cluster);
+                clusters.Add(currentCluster);
+                currentCluster = [item];
+                clusterEndTime = item.EndTime;
             }
         }
+        clusters.Add(currentCluster);
 
-        private static void AssignColumnsToCluster(List<ScheduleItem> cluster)
+        foreach (var cluster in clusters)
         {
-            var columnEndTimes = new List<DateTime>();
+            AssignColumnsToCluster(cluster);
+        }
+    }
 
-            foreach (var item in cluster)
+    private static void AssignColumnsToCluster(List<ScheduleItem> cluster)
+    {
+        var columnEndTimes = new List<DateTime>();
+
+        foreach (var item in cluster)
+        {
+            int assignedColumn = columnEndTimes.FindIndex(endTime => endTime <= item.StartTime);
+
+            if (assignedColumn == -1)
             {
-                int assignedColumn = columnEndTimes.FindIndex(endTime => endTime <= item.StartTime);
-
-                if (assignedColumn == -1)
-                {
-                    assignedColumn = columnEndTimes.Count;
-                    columnEndTimes.Add(item.EndTime);
-                }
-                else
-                {
-                    columnEndTimes[assignedColumn] = item.EndTime;
-                }
-
-                item.ColumnIndex = assignedColumn;
+                assignedColumn = columnEndTimes.Count;
+                columnEndTimes.Add(item.EndTime);
+            }
+            else
+            {
+                columnEndTimes[assignedColumn] = item.EndTime;
             }
 
-            // MaxColumnIndex = 最大列インデックス（0始まり）
-            int maxColumnIndex = columnEndTimes.Count - 1;
-            foreach (var item in cluster)
-            {
-                item.MaxColumnIndex = maxColumnIndex;
-            }
+            item.ColumnIndex = assignedColumn;
+        }
+
+        // MaxColumnIndex = 最大列インデックス（0始まり）
+        int maxColumnIndex = columnEndTimes.Count - 1;
+        foreach (var item in cluster)
+        {
+            item.MaxColumnIndex = maxColumnIndex;
         }
     }
 }
