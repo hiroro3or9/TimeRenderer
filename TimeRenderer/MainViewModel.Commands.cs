@@ -11,6 +11,7 @@ public partial class MainViewModel
     private readonly IDialogService _dialogService;
 
     public ICommand ToggleMemoPanelCommand { get; private set; } = null!;
+    public ICommand ToggleSettingsPanelCommand { get; private set; } = null!;
     public ICommand ToggleRecordingCommand { get; private set; } = null!;
     public ICommand DeleteCommand { get; private set; } = null!;
     public ICommand AddCommand { get; private set; } = null!;
@@ -23,6 +24,7 @@ public partial class MainViewModel
     private void InitializeCommands()
     {
         ToggleMemoPanelCommand = new RelayCommand(_ => IsMemoPanelVisible = !IsMemoPanelVisible);
+        ToggleSettingsPanelCommand = new RelayCommand(_ => IsSettingsPanelVisible = !IsSettingsPanelVisible);
 
         DeleteCommand = new RelayCommand(
             param =>
@@ -129,16 +131,30 @@ public partial class MainViewModel
             RecordingStartTime = null;
             RecordingDuration = TimeSpan.Zero;
             RecordingTitle = "";
+            IsCountdownMode = false;
+            CountdownRemaining = null;
         }
         else
         {
-            var inputText = _dialogService.ShowTextInputDialog();
-            if (!string.IsNullOrWhiteSpace(inputText))
+            string defaultTitle = $"作業ログ {DateTime.Now:HH:mm}";
+            var inputText = _dialogService.ShowTextInputDialog(defaultTitle);
+            if (inputText != null) // Cancel以外（OK押下時）は開始
             {
-                RecordingTitle = inputText;
+                RecordingTitle = string.IsNullOrWhiteSpace(inputText) ? defaultTitle : inputText;
                 IsRecording = true;
                 RecordingStartTime = DateTime.Now;
                 RecordingDuration = TimeSpan.Zero;
+                
+                if (SelectedTimerOption != null && SelectedTimerOption.Minutes > 0)
+                {
+                    IsCountdownMode = true;
+                    CountdownRemaining = TimeSpan.FromMinutes(SelectedTimerOption.Minutes);
+                }
+                else
+                {
+                    IsCountdownMode = false;
+                    CountdownRemaining = null;
+                }
             }
         }
     }

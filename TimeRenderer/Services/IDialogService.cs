@@ -14,8 +14,9 @@ public interface IDialogService
     /// テキスト入力ダイアログを開き、入力されたテキストを返します。
     /// キャンセルされた場合はnullを返します。
     /// </summary>
+    /// <param name="defaultText">テキストボックスに初期表示する文字列</param>
     /// <returns>入力テキスト。キャンセルされたり空の場合はnull</returns>
-    string? ShowTextInputDialog();
+    string? ShowTextInputDialog(string? defaultText = null);
     
     /// <summary>
     /// 確認メッセージダイアログを表示し、Yes(true)またはNo(false)を返します。
