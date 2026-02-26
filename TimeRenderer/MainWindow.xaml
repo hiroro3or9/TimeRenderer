@@ -132,6 +132,13 @@
 
                 <!-- 右側：モード切替 -->
                 <StackPanel Orientation="Horizontal" Grid.Column="2" HorizontalAlignment="Right">
+                    <!-- カウントダウン設定 -->
+                    <ComboBox ItemsSource="{Binding TimerOptions}" 
+                              SelectedItem="{Binding SelectedTimerOption}"
+                              DisplayMemberPath="Name"
+                              Width="120" Margin="0,0,8,0" VerticalAlignment="Center" FontSize="12"
+                              Visibility="{Binding IsRecording, Converter={StaticResource InvertedBooleanToVisibilityConverter}}"/>
+
                     <!-- 記録ボタン -->
                     <Button Command="{Binding ToggleRecordingCommand}" Margin="0,0,15,0" BorderBrush="{StaticResource DangerBrush}">
                         <Button.Style>
@@ -170,13 +177,9 @@
                                   Style="{StaticResource BaseToggleButtonStyle}"
                                   Margin="0,0,16,0" VerticalAlignment="Center"/>
 
-                    <!-- 表示時間範囲設定 -->
-                    <TextBlock Text="⚔" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" FontSize="13" Margin="0,0,4,0"/>
-                    <ComboBox ItemsSource="{Binding StartHourOptions}" SelectedItem="{Binding DisplayStartHour}"
-                              Width="52" Margin="0,0,2,0" VerticalAlignment="Center" FontSize="12"/>
-                    <TextBlock Text="～" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,2,0"/>
-                    <ComboBox ItemsSource="{Binding EndHourOptions}" SelectedItem="{Binding DisplayEndHour}"
-                              Width="52" Margin="0,0,16,0" VerticalAlignment="Center" FontSize="12"/>
+                    <ToggleButton Content="⚙ 設定" IsChecked="{Binding IsSettingsPanelVisible}"
+                                  Style="{StaticResource BaseToggleButtonStyle}"
+                                  Margin="0,0,16,0" VerticalAlignment="Center"/>
                                   
                     <RadioButton Content="日" Command="{Binding ChangeViewModeCommand}" CommandParameter="Day" 
                                  IsChecked="{Binding IsDayMode, Mode=OneWay}" GroupName="ViewMode"
@@ -614,5 +617,82 @@
                 </ScrollViewer>
             </Grid>
         </Border>
+
+        <!-- 設定パネル (右スライドイン・オーバーレイ) -->
+        <Border Grid.Row="1" Grid.RowSpan="2" Grid.ColumnSpan="2" HorizontalAlignment="Right"
+                Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1,0,0,0"
+                Panel.ZIndex="100" ClipToBounds="True">
+            <Border.Effect>
+                <DropShadowEffect Color="Black" BlurRadius="10" ShadowDepth="-4" Opacity="0.1"/>
+            </Border.Effect>
+            <Border.Style>
+                <Style TargetType="Border">
+                    <Setter Property="Width" Value="320"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsSettingsPanelVisible}" Value="False">
+                            <DataTrigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetProperty="Width" To="0" Duration="0:0:0.15">
+                                            <DoubleAnimation.EasingFunction>
+                                                <QuadraticEase EasingMode="EaseOut"/>
+                                            </DoubleAnimation.EasingFunction>
+                                        </DoubleAnimation>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </DataTrigger.EnterActions>
+                            <DataTrigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetProperty="Width" To="320" Duration="0:0:0.15">
+                                            <DoubleAnimation.EasingFunction>
+                                                <QuadraticEase EasingMode="EaseOut"/>
+                                            </DoubleAnimation.EasingFunction>
+                                        </DoubleAnimation>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </DataTrigger.ExitActions>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
+            <Grid Width="320">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/> <!-- Header -->
+                    <RowDefinition Height="*"/>    <!-- Content -->
+                </Grid.RowDefinitions>
+                
+                <!-- ヘッダー -->
+                <Border Grid.Row="0" Background="{StaticResource BackgroundBrush}" Padding="16,12" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1">
+                    <Grid>
+                        <TextBlock Text="設定" FontWeight="SemiBold" FontSize="16" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                        <Button Content="✕" Command="{Binding ToggleSettingsPanelCommand}" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                Style="{StaticResource IconButtonStyle}" Foreground="{StaticResource TextSecondaryBrush}"/>
+                    </Grid>
+                </Border>
+                
+                <!-- コンテンツ -->
+                <StackPanel Grid.Row="1" Margin="24" Background="{StaticResource SurfaceBrush}">
+                    <TextBlock Text="表示設定" FontWeight="SemiBold" FontSize="14" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,12"/>
+                    <Grid Margin="0,0,0,16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelG" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        
+                        <TextBlock Grid.Column="0" Text="表示時間範囲" Style="{StaticResource FieldLabelStyle}" VerticalAlignment="Center" Margin="0,0,16,0" />
+                        
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <ComboBox ItemsSource="{Binding StartHourOptions}" SelectedItem="{Binding DisplayStartHour, UpdateSourceTrigger=PropertyChanged}"
+                                      Width="70" FontSize="13" />
+                            <TextBlock Text="～" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" Margin="8,0" />
+                            <ComboBox ItemsSource="{Binding EndHourOptions}" SelectedItem="{Binding DisplayEndHour, UpdateSourceTrigger=PropertyChanged}"
+                                      Width="70" FontSize="13" />
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Grid>
+        </Border>
+
     </Grid>
 </Window>

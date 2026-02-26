@@ -19,6 +19,7 @@ namespace TimeRenderer
         private MainViewModel ViewModel => (MainViewModel)DataContext;
         private WinForms.NotifyIcon _notifyIcon = null!;
         private WinForms.ToolStripMenuItem _recordMenuItem = null!;
+        private bool _isExiting = false;
 
         public MainWindow()
         {
@@ -69,6 +70,7 @@ namespace TimeRenderer
             // 終了
             contextMenu.Items.Add("終了", null, (_, _) => 
             {
+                _isExiting = true;
                 _notifyIcon.Visible = false; // アイコンを消してから終了
                 System.Windows.Application.Current.Shutdown(); 
             });
@@ -95,7 +97,14 @@ namespace TimeRenderer
                     if (ViewModel.IsRecording)
                     {
                         _recordMenuItem.Text = "■ 停止";
-                        _notifyIcon.Text = $"TimeRenderer - 素早く記録中 ({ViewModel.RecordingDuration:hh\\:mm\\:ss})"; 
+                        if (ViewModel.IsCountdownMode && ViewModel.CountdownRemaining.HasValue)
+                        {
+                            _notifyIcon.Text = $"TimeRenderer - 作業中 (残り {ViewModel.CountdownRemaining.Value:hh\\:mm\\:ss})"; 
+                        }
+                        else
+                        {
+                            _notifyIcon.Text = $"TimeRenderer - 素早く記録中 ({ViewModel.RecordingDuration:hh\\:mm\\:ss})"; 
+                        }
                     }
                     else
                     {
@@ -121,6 +130,17 @@ namespace TimeRenderer
                 Hide();
             }
             base.OnStateChanged(e);
+        }
+
+        protected override void OnClosing(CancelEventArgs e)
+        {
+            if (!_isExiting)
+            {
+                e.Cancel = true;
+                Hide();
+                return;
+            }
+            base.OnClosing(e);
         }
 
         protected override void OnClosed(EventArgs e)

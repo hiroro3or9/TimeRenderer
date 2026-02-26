@@ -20,12 +20,17 @@ public class DefaultDialogService(Window owner) : IDialogService
         return null;
     }
 
-    public string? ShowTextInputDialog()
+    public string? ShowTextInputDialog(string? defaultText = null)
     {
         SimpleTextInputDialog dialog = new()
         {
             Owner = owner
         };
+
+        if (defaultText != null)
+        {
+            dialog.InputText = defaultText;
+        }
 
         if (dialog.ShowDialog() == true)
         {

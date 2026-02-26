@@ -23,6 +23,21 @@ public partial class MainViewModel
         }
     }
 
+    private bool _isSettingsPanelVisible = false;
+    public bool IsSettingsPanelVisible
+    {
+        get => _isSettingsPanelVisible;
+        set
+        {
+            if (_isSettingsPanelVisible != value)
+            {
+                _isSettingsPanelVisible = value;
+                OnPropertyChanged();
+                SaveSettings();
+            }
+        }
+    }
+
     private bool _isMemoEditMode = true;
     public bool IsMemoEditMode
     {
@@ -67,6 +82,7 @@ public partial class MainViewModel
         AppSettings settings = new()
         {
             IsMemoPanelVisible = IsMemoPanelVisible,
+            IsSettingsPanelVisible = IsSettingsPanelVisible,
             IsMemoEditMode = IsMemoEditMode,
             ViewMode = (int)CurrentViewMode,
             DisplayStartHour = DisplayStartHour,
@@ -82,6 +98,9 @@ public partial class MainViewModel
         {
             _isMemoPanelVisible = settings.IsMemoPanelVisible;
             OnPropertyChanged(nameof(IsMemoPanelVisible));
+
+            _isSettingsPanelVisible = settings.IsSettingsPanelVisible;
+            OnPropertyChanged(nameof(IsSettingsPanelVisible));
 
             _isMemoEditMode = settings.IsMemoEditMode;
             OnPropertyChanged(nameof(IsMemoEditMode));

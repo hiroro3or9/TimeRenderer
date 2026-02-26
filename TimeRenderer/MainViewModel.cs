@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Threading;
+using System.Media;
 using TimeRenderer.Controls;
 
 namespace TimeRenderer;
@@ -64,6 +65,59 @@ public partial class MainViewModel : INotifyPropertyChanged
         }
     }
 
+    public record TimerOption(string Name, int Minutes);
+
+    public List<TimerOption> TimerOptions { get; } = [
+        new("カウントアップ", 0),
+        new("15分", 15),
+        new("30分", 30),
+        new("45分", 45),
+        new("60分", 60)
+    ];
+
+    private TimerOption _selectedTimerOption = null!;
+    public TimerOption SelectedTimerOption
+    {
+        get => _selectedTimerOption;
+        set
+        {
+            if (_selectedTimerOption != value)
+            {
+                _selectedTimerOption = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    private bool _isCountdownMode;
+    public bool IsCountdownMode
+    {
+        get => _isCountdownMode;
+        set
+        {
+            if (_isCountdownMode != value)
+            {
+                _isCountdownMode = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    private TimeSpan? _countdownRemaining;
+    public TimeSpan? CountdownRemaining
+    {
+        get => _countdownRemaining;
+        set
+        {
+            if (_countdownRemaining != value)
+            {
+                _countdownRemaining = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(RecordingDurationText));
+            }
+        }
+    }
+
     private bool _isRecording;
     public bool IsRecording
     {
@@ -109,7 +163,11 @@ public partial class MainViewModel : INotifyPropertyChanged
         }
     }
 
-    public string RecordingDurationText => IsRecording ? $"■ 停止 ({RecordingDuration:hh\\:mm\\:ss})" : "● 記録開始";
+    public string RecordingDurationText => IsRecording 
+        ? (IsCountdownMode && CountdownRemaining.HasValue 
+            ? $"■ 停止 (残り {CountdownRemaining.Value:hh\\:mm\\:ss})" 
+            : $"■ 停止 ({RecordingDuration:hh\\:mm\\:ss})") 
+        : "● 記録開始";
 
     private string _recordingTitle = "";
     public string RecordingTitle
@@ -218,6 +276,8 @@ public partial class MainViewModel : INotifyPropertyChanged
         TimeLabels = [];
         VisibleDays = [];
 
+        _selectedTimerOption = TimerOptions[0];
+
         CurrentDate = DateTime.Today;
 
         InitializeTimeLabels();
@@ -236,7 +296,7 @@ public partial class MainViewModel : INotifyPropertyChanged
         CurrentTime = DateTime.Now;
         DispatcherTimer timer = new()
         {
-            Interval = TimeSpan.FromSeconds(1)
+            Interval = TimeSpan.FromMilliseconds(500)
         };
         timer.Tick += (s, e) => 
         {
@@ -244,6 +304,22 @@ public partial class MainViewModel : INotifyPropertyChanged
             if (IsRecording && RecordingStartTime.HasValue)
             {
                 RecordingDuration = CurrentTime - RecordingStartTime.Value;
+                
+                if (IsCountdownMode && CountdownRemaining.HasValue)
+                {
+                    var targetDuration = TimeSpan.FromMinutes(SelectedTimerOption.Minutes);
+                    var remaining = targetDuration - RecordingDuration;
+                    if (remaining <= TimeSpan.Zero)
+                    {
+                        CountdownRemaining = TimeSpan.Zero;
+                        SystemSounds.Exclamation.Play();
+                        ToggleRecording();
+                    }
+                    else
+                    {
+                        CountdownRemaining = remaining;
+                    }
+                }
             }
         };
         timer.Start();

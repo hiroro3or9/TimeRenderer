@@ -13,7 +13,11 @@ namespace TimeRenderer
         public SimpleTextInputDialog()
         {
             InitializeComponent();
-            Loaded += (s, e) => InputTextBox.Focus();
+            Loaded += (s, e) => 
+            {
+                InputTextBox.Focus();
+                InputTextBox.SelectAll();
+            };
         }
 
         private void OkButton_Click(object sender, RoutedEventArgs e) => DialogResult = true;
