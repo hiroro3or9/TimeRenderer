@@ -11,12 +11,17 @@ public interface IDialogService
     ScheduleItem? ShowScheduleEditDialog(ScheduleItem? initialItem = null);
 
     /// <summary>
-    /// テキスト入力ダイアログを開き、入力されたテキストを返します。
+    /// 記録開始ダイアログを開き、入力されたタイトルと選択されたタイマーオプションを返します。
     /// キャンセルされた場合はnullを返します。
     /// </summary>
-    /// <param name="defaultText">テキストボックスに初期表示する文字列</param>
-    /// <returns>入力テキスト。キャンセルされたり空の場合はnull</returns>
-    string? ShowTextInputDialog(string? defaultText = null);
+    /// <param name="defaultTitle">デフォルト表示するタイトル</param>
+    /// <param name="timerOptions">タイマーオプションのリスト</param>
+    /// <param name="defaultOption">デフォルト選択されるタイマーオプション</param>
+    /// <returns>入力されたタイトルと選択されたタイマーオプション。キャンセル時はnull</returns>
+    (string Title, MainViewModel.TimerOption SelectedOption)? ShowRecordingStartDialog(
+        string defaultTitle,
+        List<MainViewModel.TimerOption> timerOptions,
+        MainViewModel.TimerOption defaultOption);
     
     /// <summary>
     /// 確認メッセージダイアログを表示し、Yes(true)またはNo(false)を返します。

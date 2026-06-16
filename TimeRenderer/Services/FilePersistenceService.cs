@@ -8,27 +8,27 @@ using TimeRenderer.Services;
 
 namespace TimeRenderer.Services;
 
-public class FilePersistenceService : JsonFileRepositoryBase
+public class FilePersistenceService
 {
     private const string ScheduleFilePath = "schedules.json";
     private const string MemosFilePath = "memos.json";
 
-    public static void SaveData(IEnumerable<ScheduleItem> items) => SaveToFileSync(ScheduleFilePath, items);
+    public static void SaveData(IEnumerable<ScheduleItem> items) => JsonFileRepository.SaveToFileSync(ScheduleFilePath, items);
 
     public static ObservableCollection<ScheduleItem> LoadData()
     {
-        return LoadFromFileSync<ObservableCollection<ScheduleItem>>(ScheduleFilePath) ?? LoadSampleData();
+        return JsonFileRepository.LoadFromFileSync<ObservableCollection<ScheduleItem>>(ScheduleFilePath) ?? LoadSampleData();
     }
 
     public static void SaveMemos(Dictionary<DateTime, string> memos)
     {
         var serializableDict = memos.ToDictionary(k => k.Key.ToString("yyyy-MM-dd"), v => v.Value);
-        SaveToFileSync(MemosFilePath, serializableDict);
+        JsonFileRepository.SaveToFileSync(MemosFilePath, serializableDict);
     }
 
     public static Dictionary<DateTime, string> LoadMemos()
     {
-        var serializableDict = LoadFromFileSync<Dictionary<string, string>>(MemosFilePath);
+        var serializableDict = JsonFileRepository.LoadFromFileSync<Dictionary<string, string>>(MemosFilePath);
         return serializableDict?.ToDictionary(k => DateTime.Parse(k.Key), v => v.Value) ?? [];
     }
 

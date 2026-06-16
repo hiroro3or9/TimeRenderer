@@ -1,19 +1,28 @@
 using System;
 using System.Globalization;
+using System.Windows;
 using System.Windows.Data;
-using System.Windows.Media;
+using TimeRenderer.Helpers;
 
 namespace TimeRenderer.Converters;
 
-public class DateToBackgroundBrushConverter : IValueConverter
+public class DateToBackgroundBrushConverter : IMultiValueConverter
 {
-    public System.Windows.Media.Brush TodayBrush { get; set; } = System.Windows.Media.Brushes.Transparent;
-    public System.Windows.Media.Brush DefaultBrush { get; set; } = System.Windows.Media.Brushes.Transparent;
+    /// <summary>今日の背景ブラシを取得するリソースキー</summary>
+    public string TodayBrushKey   { get; set; } = "PrimarySubtleBrush";
+    /// <summary>それ以外の日の背景ブラシを取得するリソースキー</summary>
+    public string DefaultBrushKey { get; set; } = "SurfaceBrush";
 
-    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
     {
-        return value is DateTime date && date.Date == DateTime.Today ? TodayBrush : DefaultBrush;
+        if (values.Length < 1 || values[0] is not DateTime date)
+            return System.Windows.Media.Brushes.Transparent;
+
+        var todayBrush   = ThemeHelper.GetBrush(TodayBrushKey,   System.Windows.Media.Brushes.Transparent);
+        var defaultBrush = ThemeHelper.GetBrush(DefaultBrushKey, System.Windows.Media.Brushes.Transparent);
+        return date.Date == DateTime.Today ? todayBrush : defaultBrush;
     }
 
-    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => throw new NotImplementedException();
+    public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
+        => throw new NotImplementedException();
 }

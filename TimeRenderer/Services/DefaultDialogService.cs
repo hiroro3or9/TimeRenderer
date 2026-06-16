@@ -20,21 +20,19 @@ public class DefaultDialogService(Window owner) : IDialogService
         return null;
     }
 
-    public string? ShowTextInputDialog(string? defaultText = null)
+    public (string Title, MainViewModel.TimerOption SelectedOption)? ShowRecordingStartDialog(
+        string defaultTitle,
+        List<MainViewModel.TimerOption> timerOptions,
+        MainViewModel.TimerOption defaultOption)
     {
-        SimpleTextInputDialog dialog = new()
+        RecordingStartDialog dialog = new(defaultTitle, timerOptions, defaultOption)
         {
             Owner = owner
         };
 
-        if (defaultText != null)
-        {
-            dialog.InputText = defaultText;
-        }
-
         if (dialog.ShowDialog() == true)
         {
-            return dialog.InputText;
+            return (dialog.InputText, dialog.SelectedTimerOption ?? defaultOption);
         }
         return null;
     }

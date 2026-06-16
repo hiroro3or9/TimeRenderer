@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Windows.Data;
+using TimeRenderer.Helpers;
 
 namespace TimeRenderer.Converters;
 
@@ -170,6 +171,110 @@ public class DateToVisibleDaysConverter : IMultiValueConverter
             var start = date.GetStartOfWeek();
             return Enumerable.Range(0, 7).Select(i => start.AddDays(i)).ToList();
         }
+    }
+
+    public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
+}
+
+public class DateToScheduleItemsConverter : IMultiValueConverter
+{
+    public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
+    {
+        if (values.Length < 2 || values[0] is not DateTime cellDate || values[1] is not IReadOnlyDictionary<DateTime, List<ScheduleItem>> dailyItems)
+            return new List<ScheduleItem>();
+
+        if (dailyItems.TryGetValue(cellDate.Date, out var items))
+        {
+            return items;
+        }
+
+        return new List<ScheduleItem>();
+    }
+
+    public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
+}
+
+public class IsCurrentMonthConverter : IMultiValueConverter
+{
+    public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
+    {
+        if (values.Length < 2 || values[0] is not DateTime cellDate || values[1] is not DateTime currentDate)
+        {
+            if (parameter as string == "OPACITY") return 1.0;
+            return true;
+        }
+
+        bool isCurrentMonth = cellDate.Year == currentDate.Year && cellDate.Month == currentDate.Month;
+        
+        if (parameter as string == "OPACITY")
+            return isCurrentMonth ? 1.0 : 0.4;
+
+        if (parameter as string == "INVERT")
+            return !isCurrentMonth;
+            
+        return isCurrentMonth;
+    }
+
+    public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
+}
+
+public class CurrentMonthForegroundConverter : IMultiValueConverter
+{
+    public string CurrentMonthBrushKey { get; set; } = "TextPrimaryBrush";
+    public string OtherMonthBrushKey   { get; set; } = "TextSecondaryBrush";
+
+    public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
+    {
+        var currentBrush = ThemeHelper.GetBrush(CurrentMonthBrushKey, System.Windows.Media.Brushes.Black);
+        var otherBrush   = ThemeHelper.GetBrush(OtherMonthBrushKey,   System.Windows.Media.Brushes.Gray);
+
+        if (values.Length < 2 || values[0] is not DateTime cellDate || values[1] is not DateTime currentDate)
+            return currentBrush;
+
+        bool isCurrentMonth = cellDate.Year == currentDate.Year && cellDate.Month == currentDate.Month;
+        
+        System.Windows.Media.Brush baseBrush = values.Length >= 3 && values[2] is System.Windows.Media.Brush b ? b : currentBrush;
+
+        return isCurrentMonth ? baseBrush : otherBrush;
+    }
+
+    public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
+}
+
+public class CurrentMonthBackgroundConverter : IMultiValueConverter
+{
+    public string CurrentMonthBrushKey { get; set; } = "SurfaceBrush";
+    public string OtherMonthBrushKey   { get; set; } = "MutedBackgroundBrush";
+
+    public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
+    {
+        var currentBrush = ThemeHelper.GetBrush(CurrentMonthBrushKey, System.Windows.Media.Brushes.Transparent);
+        var otherBrush   = ThemeHelper.GetBrush(OtherMonthBrushKey,   System.Windows.Media.Brushes.Transparent);
+
+        if (values.Length < 2 || values[0] is not DateTime cellDate || values[1] is not DateTime currentDate)
+            return currentBrush;
+
+        bool isCurrentMonth = cellDate.Year == currentDate.Year && cellDate.Month == currentDate.Month;
+        
+        System.Windows.Media.Brush baseBrush = currentBrush;
+        if (values.Length >= 3 && values[2] is System.Windows.Media.Brush b)
+        {
+            baseBrush = b;
+        }
+
+        return isCurrentMonth ? baseBrush : otherBrush;
     }
 
     public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)

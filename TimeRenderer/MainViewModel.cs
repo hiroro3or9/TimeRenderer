@@ -2,6 +2,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Windows.Input;
 using System.Windows.Threading;
 using System.Media;
 using TimeRenderer.Controls;
@@ -16,31 +17,63 @@ public partial class MainViewModel : INotifyPropertyChanged
     public TransitionDirection TransitionDirection
     {
         get => _transitionDirection;
-        set
-        {
-            if (_transitionDirection != value)
-            {
-                _transitionDirection = value;
-                OnPropertyChanged();
-            }
-        }
+        set => SetProperty(ref _transitionDirection, value);
     }
+
+
 
     public enum ViewMode
     {
         Day,
-        Week
+        Week,
+        Month
     }
 
     public static List<int> StartHourOptions => [.. Enumerable.Range(0, 24)];
     public static List<int> EndHourOptions => [.. Enumerable.Range(1, 24)];
 
     public ObservableCollection<ScheduleItem> ScheduleItems { get; set; }
-    public ObservableCollection<string> TimeLabels { get; set; }
-    public ObservableCollection<DateTime> VisibleDays { get; set; }
+    private IReadOnlyList<string> _timeLabels = [];
+    public IReadOnlyList<string> TimeLabels
+    {
+        get => _timeLabels;
+        set => SetProperty(ref _timeLabels, value);
+    }
 
-    public ObservableCollection<ScheduleItem> StandardItems { get; set; }
-    public ObservableCollection<ScheduleItem> AllDayItems { get; set; }
+    private IReadOnlyList<DateTime> _visibleDays = [];
+    public IReadOnlyList<DateTime> VisibleDays
+    {
+        get => _visibleDays;
+        set => SetProperty(ref _visibleDays, value);
+    }
+
+    private IReadOnlyList<ScheduleItem> _standardItems = [];
+    public IReadOnlyList<ScheduleItem> StandardItems
+    {
+        get => _standardItems;
+        set => SetProperty(ref _standardItems, value);
+    }
+
+    private IReadOnlyList<ScheduleItem> _allDayItems = [];
+    public IReadOnlyList<ScheduleItem> AllDayItems
+    {
+        get => _allDayItems;
+        set => SetProperty(ref _allDayItems, value);
+    }
+
+    private IReadOnlyDictionary<DateTime, List<ScheduleItem>> _dailyScheduleItems = new Dictionary<DateTime, List<ScheduleItem>>();
+    public IReadOnlyDictionary<DateTime, List<ScheduleItem>> DailyScheduleItems
+    {
+        get => _dailyScheduleItems;
+        private set => SetProperty(ref _dailyScheduleItems, value);
+    }
+
+    private IReadOnlyList<CalendarCellViewModel> _calendarCells = [];
+    public IReadOnlyList<CalendarCellViewModel> CalendarCells
+    {
+        get => _calendarCells;
+        private set => SetProperty(ref _calendarCells, value);
+    }
 
     private DateTime _currentDate;
     public DateTime CurrentDate
@@ -52,8 +85,8 @@ public partial class MainViewModel : INotifyPropertyChanged
             {
                 var oldWeekStart = CurrentWeekStart;
                 _currentDate = value;
-                OnPropertyChanged();
                 UpdateVisibleDays();
+                OnPropertyChanged();
                 OnPropertyChanged(nameof(CurrentWeekStart));
                 OnPropertyChanged(nameof(DateDisplay));
 
@@ -79,28 +112,14 @@ public partial class MainViewModel : INotifyPropertyChanged
     public TimerOption SelectedTimerOption
     {
         get => _selectedTimerOption;
-        set
-        {
-            if (_selectedTimerOption != value)
-            {
-                _selectedTimerOption = value;
-                OnPropertyChanged();
-            }
-        }
+        set => SetProperty(ref _selectedTimerOption, value);
     }
 
     private bool _isCountdownMode;
     public bool IsCountdownMode
     {
         get => _isCountdownMode;
-        set
-        {
-            if (_isCountdownMode != value)
-            {
-                _isCountdownMode = value;
-                OnPropertyChanged();
-            }
-        }
+        set => SetProperty(ref _isCountdownMode, value);
     }
 
     private TimeSpan? _countdownRemaining;
@@ -109,10 +128,8 @@ public partial class MainViewModel : INotifyPropertyChanged
         get => _countdownRemaining;
         set
         {
-            if (_countdownRemaining != value)
+            if (SetProperty(ref _countdownRemaining, value))
             {
-                _countdownRemaining = value;
-                OnPropertyChanged();
                 OnPropertyChanged(nameof(RecordingDurationText));
             }
         }
@@ -124,10 +141,8 @@ public partial class MainViewModel : INotifyPropertyChanged
         get => _isRecording;
         set
         {
-            if (_isRecording != value)
+            if (SetProperty(ref _isRecording, value))
             {
-                _isRecording = value;
-                OnPropertyChanged();
                 OnPropertyChanged(nameof(RecordingDurationText));
                 UpdateRecordingCommandState();
             }
@@ -138,14 +153,7 @@ public partial class MainViewModel : INotifyPropertyChanged
     public DateTime? RecordingStartTime
     {
         get => _recordingStartTime;
-        set
-        {
-            if (_recordingStartTime != value)
-            {
-                _recordingStartTime = value;
-                OnPropertyChanged();
-            }
-        }
+        set => SetProperty(ref _recordingStartTime, value);
     }
 
     private TimeSpan _recordingDuration;
@@ -154,33 +162,24 @@ public partial class MainViewModel : INotifyPropertyChanged
         get => _recordingDuration;
         set
         {
-            if (_recordingDuration != value)
+            if (SetProperty(ref _recordingDuration, value))
             {
-                _recordingDuration = value;
-                OnPropertyChanged();
                 OnPropertyChanged(nameof(RecordingDurationText));
             }
         }
     }
 
-    public string RecordingDurationText => IsRecording 
-        ? (IsCountdownMode && CountdownRemaining.HasValue 
-            ? $"■ 停止 (残り {CountdownRemaining.Value:hh\\:mm\\:ss})" 
-            : $"■ 停止 ({RecordingDuration:hh\\:mm\\:ss})") 
+    public string RecordingDurationText => IsRecording
+        ? (IsCountdownMode && CountdownRemaining.HasValue
+            ? $"■ 停止 (残り {CountdownRemaining.Value:hh\\:mm\\:ss})"
+            : $"■ 停止 ({RecordingDuration:hh\\:mm\\:ss})")
         : "● 記録開始";
 
     private string _recordingTitle = "";
     public string RecordingTitle
     {
         get => _recordingTitle;
-        set
-        {
-            if (_recordingTitle != value)
-            {
-                _recordingTitle = value;
-                OnPropertyChanged();
-            }
-        }
+        set => SetProperty(ref _recordingTitle, value);
     }
 
     private ViewMode _currentViewMode;
@@ -197,13 +196,15 @@ public partial class MainViewModel : INotifyPropertyChanged
                 OnPropertyChanged(nameof(DateDisplay));
                 OnPropertyChanged(nameof(IsDayMode));
                 OnPropertyChanged(nameof(IsWeekMode));
-                SaveSettings(); 
+                OnPropertyChanged(nameof(IsMonthMode));
+                SaveSettings();
             }
         }
     }
 
     public bool IsDayMode => CurrentViewMode == ViewMode.Day;
     public bool IsWeekMode => CurrentViewMode == ViewMode.Week;
+    public bool IsMonthMode => CurrentViewMode == ViewMode.Month;
 
     public DateTime CurrentWeekStart
     {
@@ -222,7 +223,7 @@ public partial class MainViewModel : INotifyPropertyChanged
             {
                 return CurrentDate.ToString("yyyy年M月d日 (ddd)");
             }
-            else
+            else if (CurrentViewMode == ViewMode.Week)
             {
                 var start = CurrentWeekStart;
                 var end = start.AddDays(6);
@@ -231,6 +232,10 @@ public partial class MainViewModel : INotifyPropertyChanged
                 else
                     return $"{start:yyyy年M月d日} - {end:M月d日}";
             }
+            else // Month
+            {
+                return CurrentDate.ToString("yyyy年M月");
+            }
         }
     }
 
@@ -238,28 +243,14 @@ public partial class MainViewModel : INotifyPropertyChanged
     public DateTime CurrentTime
     {
         get => _currentTime;
-        set
-        {
-            if (_currentTime != value)
-            {
-                _currentTime = value;
-                OnPropertyChanged();
-            }
-        }
+        set => SetProperty(ref _currentTime, value);
     }
 
     private ScheduleItem? _selectedItem;
     public ScheduleItem? SelectedItem
     {
         get => _selectedItem;
-        set
-        {
-            if (_selectedItem != value)
-            {
-                _selectedItem = value;
-                OnPropertyChanged();
-            }
-        }
+        set => SetProperty(ref _selectedItem, value);
     }
 
     public MainViewModel(Services.IDialogService dialogService)
@@ -270,26 +261,22 @@ public partial class MainViewModel : INotifyPropertyChanged
         ScheduleItems = [];
         ScheduleItems.CollectionChanged += OnScheduleItemsChanged;
 
-        StandardItems = [];
-        AllDayItems = [];
-
-        TimeLabels = [];
-        VisibleDays = [];
-
         _selectedTimerOption = TimerOptions[0];
 
         CurrentDate = DateTime.Today;
 
         InitializeTimeLabels();
         UpdateVisibleDays();
-        LoadData(); 
-        LoadSettings(); 
-        LoadMemos(); 
-        UpdateMemoTextForCurrentWeek(); 
+        LoadData();
+        LoadSettings();
+        LoadMemos();
+        UpdateMemoTextForCurrentWeek();
         StartClock();
 
         _isInitialized = true;
     }
+
+
 
     private void StartClock()
     {
@@ -298,13 +285,13 @@ public partial class MainViewModel : INotifyPropertyChanged
         {
             Interval = TimeSpan.FromMilliseconds(500)
         };
-        timer.Tick += (s, e) => 
+        timer.Tick += (s, e) =>
         {
             CurrentTime = DateTime.Now;
             if (IsRecording && RecordingStartTime.HasValue)
             {
                 RecordingDuration = CurrentTime - RecordingStartTime.Value;
-                
+
                 if (IsCountdownMode && CountdownRemaining.HasValue)
                 {
                     var targetDuration = TimeSpan.FromMinutes(SelectedTimerOption.Minutes);
@@ -324,6 +311,24 @@ public partial class MainViewModel : INotifyPropertyChanged
         };
         timer.Start();
     }
+
+        private void AddScheduleItemAtDate(DateTime date)
+        {
+            var newItem = new ScheduleItem
+            {
+                StartTime = date.Date.AddHours(9),
+                EndTime = date.Date.AddHours(10),
+                Title = "新しい予定",
+                BackgroundColor = System.Windows.Media.Brushes.LightBlue
+            };
+
+            var result = _dialogService.ShowScheduleEditDialog(newItem);
+            if (result != null)
+            {
+                ScheduleItems.Add(result);
+                // OnScheduleItemsChanged 経由で Layout の更新等が発行される
+            }
+        }
 
     private void OnScheduleItemsChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
     {
@@ -365,5 +370,13 @@ public partial class MainViewModel : INotifyPropertyChanged
     protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+
+    protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
+    {
+        if (System.Collections.Generic.EqualityComparer<T>.Default.Equals(field, value)) return false;
+        field = value;
+        OnPropertyChanged(propertyName);
+        return true;
     }
 }

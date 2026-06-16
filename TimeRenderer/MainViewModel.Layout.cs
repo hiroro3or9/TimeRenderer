@@ -12,10 +12,8 @@ public partial class MainViewModel
         set
         {
             var clamped = Math.Clamp(value, 0, _displayEndHour - 1);
-            if (_displayStartHour != clamped)
+            if (SetProperty(ref _displayStartHour, clamped))
             {
-                _displayStartHour = clamped;
-                OnPropertyChanged();
                 OnPropertyChanged(nameof(ScheduleGridHeight));
                 InitializeTimeLabels();
                 SaveSettings();
@@ -30,10 +28,8 @@ public partial class MainViewModel
         set
         {
             var clamped = Math.Clamp(value, _displayStartHour + 1, 24);
-            if (_displayEndHour != clamped)
+            if (SetProperty(ref _displayEndHour, clamped))
             {
-                _displayEndHour = clamped;
-                OnPropertyChanged();
                 OnPropertyChanged(nameof(ScheduleGridHeight));
                 InitializeTimeLabels();
                 SaveSettings();
@@ -47,60 +43,70 @@ public partial class MainViewModel
     public double AllDayPanelHeight
     {
         get => _allDayPanelHeight;
-        set
-        {
-            if (_allDayPanelHeight != value)
-            {
-                _allDayPanelHeight = value;
-                OnPropertyChanged();
-            }
-        }
+        set => SetProperty(ref _allDayPanelHeight, value);
     }
 
     private void InitializeTimeLabels()
     {
-        TimeLabels.Clear();
+        var labels = new List<string>();
         for (int i = _displayStartHour; i <= _displayEndHour; i++)
         {
-            TimeLabels.Add($"{i}:00");
+            labels.Add($"{i}:00");
         }
+        TimeLabels = labels;
     }
 
     private void UpdateVisibleDays()
     {
-        VisibleDays.Clear();
+        var days = new List<DateTime>();
         if (CurrentViewMode == ViewMode.Day)
         {
-            VisibleDays.Add(CurrentDate);
+            days.Add(CurrentDate);
         }
-        else
+        else if (CurrentViewMode == ViewMode.Week)
         {
             var start = CurrentWeekStart;
             for (int i = 0; i < 7; i++)
             {
-                VisibleDays.Add(start.AddDays(i));
+                days.Add(start.AddDays(i));
             }
         }
+        else // Month
+        {
+            // 月初の1日を取得
+            var firstDayOfMonth = new DateTime(CurrentDate.Year, CurrentDate.Month, 1);
+            // その月を含む週の月曜日を取得（カレンダーの左上）
+            var diff = (7 + (firstDayOfMonth.DayOfWeek - DayOfWeek.Monday)) % 7;
+            var start = firstDayOfMonth.AddDays(-1 * diff).Date;
+            
+            // 6週間(42日)分を追加
+            for (int i = 0; i < 42; i++)
+            {
+                days.Add(start.AddDays(i));
+            }
+        }
+        VisibleDays = days;
+        UpdateCalendarCells();
     }
 
     private void RecalculateLayout()
     {
-        StandardItems.Clear();
-        AllDayItems.Clear();
+        var newStandardItems = new List<ScheduleItem>();
+        var newAllDayItems = new List<ScheduleItem>();
 
         foreach (var item in ScheduleItems)
         {
             if (item.IsAllDay)
             {
-                AllDayItems.Add(item);
+                newAllDayItems.Add(item);
             }
             else
             {
-                StandardItems.Add(item);
+                newStandardItems.Add(item);
             }
         }
 
-        var allDayGrouped = AllDayItems.GroupBy(x => x.StartTime.Date);
+        var allDayGrouped = newAllDayItems.GroupBy(x => x.StartTime.Date);
         int maxStackIndex = 0;
 
         foreach (var group in allDayGrouped)
@@ -116,11 +122,59 @@ public partial class MainViewModel
 
         AllDayPanelHeight = Math.Max(30, (maxStackIndex * 24) + 6);
 
-        var grouped = StandardItems.GroupBy(x => x.StartTime.Date);
+        var grouped = newStandardItems.GroupBy(x => x.StartTime.Date);
         foreach (var group in grouped)
         {
             var sortedItems = group.OrderBy(x => x.StartTime).ThenByDescending(x => x.EndTime).ToList();
             Helpers.ScheduleLayoutHelper.CalculateClustersAndAssignColumns(sortedItems);
         }
+
+        var dailyItems = new Dictionary<DateTime, List<ScheduleItem>>();
+        foreach (var item in ScheduleItems)
+        {
+            var start = item.StartTime.Date;
+            var end = item.EndTime.Date;
+            for (var d = start; d <= end; d = d.AddDays(1))
+            {
+                if (!dailyItems.TryGetValue(d, out var list))
+                {
+                    list = [];
+                    dailyItems[d] = list;
+                }
+                list.Add(item);
+            }
+        }
+
+        foreach (var key in dailyItems.Keys.ToList())
+        {
+            dailyItems[key] = [.. dailyItems[key]
+                .OrderBy(x => x.IsAllDay ? 0 : 1)
+                .ThenBy(x => x.StartTime)];
+        }
+
+        DailyScheduleItems = dailyItems;
+        StandardItems = newStandardItems;
+        AllDayItems = newAllDayItems;
+        
+        UpdateCalendarCells();
+    }
+
+    private void UpdateCalendarCells()
+    {
+        if (CurrentViewMode != ViewMode.Month) 
+            return;
+
+        var cells = new List<CalendarCellViewModel>();
+        foreach (var day in VisibleDays)
+        {
+            DailyScheduleItems.TryGetValue(day.Date, out var items);
+            items ??= [];
+
+            bool isCurrentMonth = day.Month == CurrentDate.Month && day.Year == CurrentDate.Year;
+            bool isToday = day.Date == DateTime.Today;
+
+            cells.Add(new CalendarCellViewModel(day, isCurrentMonth, isToday, items));
+        }
+        CalendarCells = cells;
     }
 }

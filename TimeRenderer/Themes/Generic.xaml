@@ -15,6 +15,9 @@
                                           ContentTemplate="{TemplateBinding ContentTemplate}"
                                           HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
                                           VerticalAlignment="{TemplateBinding VerticalContentAlignment}">
+                            <ContentPresenter.CacheMode>
+                                <BitmapCache EnableClearType="True" RenderAtScale="1"/>
+                            </ContentPresenter.CacheMode>
                             <ContentPresenter.RenderTransform>
                                 <TranslateTransform/>
                             </ContentPresenter.RenderTransform>
@@ -24,6 +27,9 @@
                                           ContentTemplate="{TemplateBinding ContentTemplate}"
                                           HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
                                           VerticalAlignment="{TemplateBinding VerticalContentAlignment}">
+                            <ContentPresenter.CacheMode>
+                                <BitmapCache EnableClearType="True" RenderAtScale="1"/>
+                            </ContentPresenter.CacheMode>
                             <ContentPresenter.RenderTransform>
                                 <TranslateTransform/>
                             </ContentPresenter.RenderTransform>

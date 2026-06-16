@@ -1,0 +1,33 @@
+<Window x:Class="TimeRenderer.RecordingStartDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="記録開始" Height="260" Width="320"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize" WindowStyle="ToolWindow"
+        Background="{DynamicResource BackgroundBrush}">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        
+        <!-- 作業タイトル -->
+        <TextBlock Grid.Row="0" Text="作業タイトル:" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,6"/>
+        <TextBox x:Name="InputTextBox" Grid.Row="1" Text="{Binding InputText, UpdateSourceTrigger=PropertyChanged}" 
+                 Margin="0,0,0,16" VerticalAlignment="Top" Style="{StaticResource InputTextBoxStyle}"/>
+        
+        <!-- タイマー設定 -->
+        <TextBlock Grid.Row="2" Text="タイマー設定:" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,6"/>
+        <ComboBox x:Name="TimerComboBox" Grid.Row="3" ItemsSource="{Binding TimerOptions}" 
+                  SelectedItem="{Binding SelectedTimerOption}" DisplayMemberPath="Name"
+                  Height="32" VerticalAlignment="Top" Margin="0,0,0,20"/>
+        
+        <!-- ボタン -->
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right">            
+            <Button Content="開始" IsDefault="True" Click="OkButton_Click" Width="90" Margin="0,0,10,0" Style="{StaticResource PrimaryButtonStyle}"/>
+            <Button Content="キャンセル" IsCancel="True" Width="90" Style="{StaticResource BaseButtonStyle}"/>
+        </StackPanel>
+    </Grid>
+</Window>

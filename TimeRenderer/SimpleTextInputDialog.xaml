@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="作業タイトルの入力" Height="180" Width="300"
         WindowStartupLocation="CenterOwner" ResizeMode="NoResize" WindowStyle="ToolWindow"
-        Background="{StaticResource BackgroundBrush}">
+        Background="{DynamicResource BackgroundBrush}">
     <Grid Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>

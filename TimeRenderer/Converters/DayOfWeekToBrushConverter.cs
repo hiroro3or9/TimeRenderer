@@ -1,30 +1,30 @@
 using System;
 using System.Globalization;
 using System.Windows.Data;
-using Media = System.Windows.Media;
+using TimeRenderer.Helpers;
 
 namespace TimeRenderer.Converters
 {
-    public class DayOfWeekToBrushConverter : IValueConverter
+    public class DayOfWeekToBrushConverter : IMultiValueConverter
     {
-        public Media.Brush SaturdayBrush { get; set; } = Media.Brushes.Blue;
-        public Media.Brush SundayBrush { get; set; } = Media.Brushes.Red;
-        public Media.Brush DefaultBrush { get; set; } = Media.Brushes.Black;
+        public string SaturdayBrushKey { get; set; } = "PrimaryBrush";
+        public string SundayBrushKey { get; set; } = "DangerBrush";
+        public string DefaultBrushKey { get; set; } = "TextPrimaryBrush";
 
-        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
         {
-            if (value is DateTime date)
+            if (values.Length < 1 || values[0] is not DateTime date)
+                return ThemeHelper.GetBrush(DefaultBrushKey, System.Windows.Media.Brushes.Black);
+            string key = date.DayOfWeek switch
             {
-                return date.DayOfWeek switch
-                {
-                    DayOfWeek.Saturday => SaturdayBrush,
-                    DayOfWeek.Sunday => SundayBrush,
-                    _ => DefaultBrush
-                };
-            }
-            return DefaultBrush;
+                DayOfWeek.Saturday => SaturdayBrushKey,
+                DayOfWeek.Sunday => SundayBrushKey,
+                _ => DefaultBrushKey
+            };
+            return ThemeHelper.GetBrush(key, System.Windows.Media.Brushes.Black);
         }
 
-        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => throw new NotImplementedException();
+        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
+            => throw new NotImplementedException();
     }
 }
