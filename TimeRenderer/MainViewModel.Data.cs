@@ -14,10 +14,8 @@ public partial class MainViewModel
         get => _isMemoPanelVisible;
         set
         {
-            if (_isMemoPanelVisible != value)
+            if (SetProperty(ref _isMemoPanelVisible, value))
             {
-                _isMemoPanelVisible = value;
-                OnPropertyChanged();
                 SaveSettings();
             }
         }
@@ -29,9 +27,23 @@ public partial class MainViewModel
         get => _isSettingsPanelVisible;
         set
         {
-            if (_isSettingsPanelVisible != value)
+            if (SetProperty(ref _isSettingsPanelVisible, value))
             {
-                _isSettingsPanelVisible = value;
+                SaveSettings();
+            }
+        }
+    }
+
+    private bool _isDarkMode = false;
+    public bool IsDarkMode
+    {
+        get => _isDarkMode;
+        set
+        {
+            if (_isDarkMode != value)
+            {
+                _isDarkMode = value;
+                App.ApplyTheme(value);
                 OnPropertyChanged();
                 SaveSettings();
             }
@@ -44,10 +56,8 @@ public partial class MainViewModel
         get => _isMemoEditMode;
         set
         {
-            if (_isMemoEditMode != value)
+            if (SetProperty(ref _isMemoEditMode, value))
             {
-                _isMemoEditMode = value;
-                OnPropertyChanged();
                 SaveSettings();
             }
         }
@@ -59,10 +69,8 @@ public partial class MainViewModel
         get => _memoText;
         set
         {
-            if (_memoText != value)
+            if (SetProperty(ref _memoText, value))
             {
-                _memoText = value;
-                OnPropertyChanged();
                 _weeklyMemos[CurrentWeekStart] = value;
                 SaveMemos();
             }
@@ -86,7 +94,8 @@ public partial class MainViewModel
             IsMemoEditMode = IsMemoEditMode,
             ViewMode = (int)CurrentViewMode,
             DisplayStartHour = DisplayStartHour,
-            DisplayEndHour = DisplayEndHour
+            DisplayEndHour = DisplayEndHour,
+            IsDarkMode = IsDarkMode
         };
         Services.SettingsService.SaveSettings(settings);
     }
@@ -109,6 +118,7 @@ public partial class MainViewModel
             OnPropertyChanged(nameof(CurrentViewMode));
             OnPropertyChanged(nameof(IsDayMode));
             OnPropertyChanged(nameof(IsWeekMode));
+            OnPropertyChanged(nameof(IsMonthMode));
             OnPropertyChanged(nameof(DateDisplay));
 
             _displayStartHour = Math.Clamp(settings.DisplayStartHour, 0, 23);
@@ -117,6 +127,10 @@ public partial class MainViewModel
             OnPropertyChanged(nameof(DisplayEndHour));
             OnPropertyChanged(nameof(ScheduleGridHeight));
             InitializeTimeLabels();
+
+            _isDarkMode = settings.IsDarkMode;
+            App.ApplyTheme(_isDarkMode);
+            OnPropertyChanged(nameof(IsDarkMode));
             
             UpdateVisibleDays();
         }

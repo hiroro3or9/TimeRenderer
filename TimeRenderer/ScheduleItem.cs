@@ -18,35 +18,47 @@ public class ScheduleItem : INotifyPropertyChanged
     public string Title
     {
         get => _title;
-        set { if (_title != value) { _title = value; OnPropertyChanged(); } }
+        set => SetProperty(ref _title, value);
     }
 
     private DateTime _startTime;
     public DateTime StartTime
     {
         get => _startTime;
-        set { if (_startTime != value) { _startTime = value; OnPropertyChanged(); OnPropertyChanged(nameof(DurationHours)); } }
+        set
+        {
+            if (SetProperty(ref _startTime, value))
+            {
+                OnPropertyChanged(nameof(DurationHours));
+            }
+        }
     }
 
     private DateTime _endTime;
     public DateTime EndTime
     {
         get => _endTime;
-        set { if (_endTime != value) { _endTime = value; OnPropertyChanged(); OnPropertyChanged(nameof(DurationHours)); } }
+        set
+        {
+            if (SetProperty(ref _endTime, value))
+            {
+                OnPropertyChanged(nameof(DurationHours));
+            }
+        }
     }
 
     private bool _isAllDay;
     public bool IsAllDay
     {
         get => _isAllDay;
-        set { if (_isAllDay != value) { _isAllDay = value; OnPropertyChanged(); } }
+        set => SetProperty(ref _isAllDay, value);
     }
 
     private string _content = string.Empty;
     public string Content
     {
         get => _content;
-        set { if (_content != value) { _content = value; OnPropertyChanged(); } }
+        set => SetProperty(ref _content, value);
     }
 
     private Brush _backgroundColor = Brushes.LightBlue;
@@ -54,7 +66,7 @@ public class ScheduleItem : INotifyPropertyChanged
     public Brush BackgroundColor
     {
         get => _backgroundColor;
-        set { if (_backgroundColor != value) { _backgroundColor = value; OnPropertyChanged(); } }
+        set => SetProperty(ref _backgroundColor, value);
     }
 
     public string ColorCode
@@ -83,7 +95,7 @@ public class ScheduleItem : INotifyPropertyChanged
     public int ColumnIndex
     {
         get => _columnIndex;
-        set { if (_columnIndex != value) { _columnIndex = value; OnPropertyChanged(); } }
+        set => SetProperty(ref _columnIndex, value);
     }
 
     // 表示用プロパティ：最大列インデックス（グループ内の総列数 - 1）
@@ -92,7 +104,7 @@ public class ScheduleItem : INotifyPropertyChanged
     public int MaxColumnIndex
     {
         get => _maxColumnIndex;
-        set { if (_maxColumnIndex != value) { _maxColumnIndex = value; OnPropertyChanged(); } }
+        set => SetProperty(ref _maxColumnIndex, value);
     }
 
     public double DurationHours => (EndTime - StartTime).TotalHours;
@@ -101,5 +113,13 @@ public class ScheduleItem : INotifyPropertyChanged
     protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+
+    protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
+    {
+        if (System.Collections.Generic.EqualityComparer<T>.Default.Equals(field, value)) return false;
+        field = value;
+        OnPropertyChanged(propertyName);
+        return true;
     }
 }

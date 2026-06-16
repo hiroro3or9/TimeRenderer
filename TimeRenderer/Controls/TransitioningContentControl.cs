@@ -14,6 +14,12 @@ namespace TimeRenderer.Controls
         Backward
     }
 
+    public enum TransitionAxis
+    {
+        Horizontal,
+        Vertical
+    }
+
     [TemplatePart(Name = "PART_PaintArea", Type = typeof(System.Windows.Controls.Panel))]
     [TemplatePart(Name = "PART_PreviousContentPresentationSite", Type = typeof(ContentPresenter))]
     [TemplatePart(Name = "PART_CurrentContentPresentationSite", Type = typeof(ContentPresenter))]
@@ -29,6 +35,15 @@ namespace TimeRenderer.Controls
         {
             get => (TransitionDirection)GetValue(TransitionDirectionProperty);
             set => SetValue(TransitionDirectionProperty, value);
+        }
+
+        public static readonly DependencyProperty TransitionAxisProperty =
+            DependencyProperty.Register("TransitionAxis", typeof(TransitionAxis), typeof(TransitioningContentControl), new PropertyMetadata(TransitionAxis.Horizontal));
+
+        public TransitionAxis TransitionAxis
+        {
+            get => (TransitionAxis)GetValue(TransitionAxisProperty);
+            set => SetValue(TransitionAxisProperty, value);
         }
 
         static TransitioningContentControl()
@@ -83,9 +98,6 @@ namespace TimeRenderer.Controls
                 _currentContentPresentationSite.RenderTransform = currentTransform;
                 _previousContentPresentationSite.RenderTransform = previousTransform;
 
-                double width = ActualWidth;
-                if (width <= 0) width = 500; // Fallback
-
                 // Helper to create animation
                 static DoubleAnimation CreateAnimation(double from, double to) => new()
                 {
@@ -95,16 +107,37 @@ namespace TimeRenderer.Controls
                     EasingFunction = new QuarticEase { EasingMode = EasingMode.EaseOut }
                 };
 
-                // アニメーションのパラメータを方向に応じて設定
                 bool isForward = TransitionDirection == TransitionDirection.Forward;
-                double oldContentTargetX = isForward ? -width : width;
-                double newContentStartX = isForward ? width : -width;
 
-                var prevAnim = CreateAnimation(0, oldContentTargetX);
-                previousTransform.BeginAnimation(TranslateTransform.XProperty, prevAnim);
+                if (TransitionAxis == TransitionAxis.Horizontal)
+                {
+                    double width = ActualWidth;
+                    if (width <= 0) width = 500; // Fallback
 
-                var currAnim = CreateAnimation(newContentStartX, 0);
-                currentTransform.BeginAnimation(TranslateTransform.XProperty, currAnim);
+                    double oldContentTargetX = isForward ? -width : width;
+                    double newContentStartX = isForward ? width : -width;
+
+                    var prevAnim = CreateAnimation(0, oldContentTargetX);
+                    previousTransform.BeginAnimation(TranslateTransform.XProperty, prevAnim);
+
+                    var currAnim = CreateAnimation(newContentStartX, 0);
+                    currentTransform.BeginAnimation(TranslateTransform.XProperty, currAnim);
+                }
+                else // Vertical
+                {
+                    double height = ActualHeight;
+                    if (height <= 0) height = 500; // Fallback
+
+                    // 下へ進むか上へ進むか
+                    double oldContentTargetY = isForward ? -height : height;
+                    double newContentStartY = isForward ? height : -height;
+
+                    var prevAnim = CreateAnimation(0, oldContentTargetY);
+                    previousTransform.BeginAnimation(TranslateTransform.YProperty, prevAnim);
+
+                    var currAnim = CreateAnimation(newContentStartY, 0);
+                    currentTransform.BeginAnimation(TranslateTransform.YProperty, currAnim);
+                }
 
                 _ = ClearPreviousContentAsync(transitionId);
             }

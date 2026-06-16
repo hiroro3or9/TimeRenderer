@@ -5,13 +5,13 @@ using System.Threading.Tasks;
 
 namespace TimeRenderer.Services;
 
-public abstract class JsonFileRepositoryBase
+public static class JsonFileRepository
 {
-    protected static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
+    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
-    protected static string GetFullPath(string fileName) => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, fileName);
+    private static string GetFullPath(string fileName) => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, fileName);
 
-    protected static async Task SaveToFileAsync<T>(string filePath, T data)
+    public static async Task SaveToFileAsync<T>(string filePath, T data)
     {
         try
         {
@@ -25,7 +25,7 @@ public abstract class JsonFileRepositoryBase
         }
     }
 
-    protected static async Task<T?> LoadFromFileAsync<T>(string filePath)
+    public static async Task<T?> LoadFromFileAsync<T>(string filePath)
     {
         var fullPath = GetFullPath(filePath);
         if (File.Exists(fullPath))
@@ -43,8 +43,7 @@ public abstract class JsonFileRepositoryBase
         return default;
     }
 
-    // 同期版（念のため後方互換や、コンストラクタ内でどうしても必要な場合）
-    protected static void SaveToFileSync<T>(string filePath, T data)
+    public static void SaveToFileSync<T>(string filePath, T data)
     {
         try
         {
@@ -58,7 +57,7 @@ public abstract class JsonFileRepositoryBase
         }
     }
 
-    protected static T? LoadFromFileSync<T>(string filePath)
+    public static T? LoadFromFileSync<T>(string filePath)
     {
         var fullPath = GetFullPath(filePath);
         if (File.Exists(fullPath))

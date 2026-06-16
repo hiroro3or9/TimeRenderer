@@ -15,6 +15,7 @@ public partial class MainViewModel
     public ICommand ToggleRecordingCommand { get; private set; } = null!;
     public ICommand DeleteCommand { get; private set; } = null!;
     public ICommand AddCommand { get; private set; } = null!;
+    public ICommand AddScheduleItemAtDateCommand { get; private set; } = null!;
     public ICommand EditCommand { get; private set; } = null!;
     public ICommand PreviousCommand { get; private set; } = null!;
     public ICommand NextCommand { get; private set; } = null!;
@@ -46,6 +47,26 @@ public partial class MainViewModel
             if (newItem != null)
             {
                 ScheduleItems.Add(newItem);
+            }
+        });
+
+        AddScheduleItemAtDateCommand = new RelayCommand(dateObj =>
+        {
+            if (dateObj is DateTime date)
+            {
+                var newItem = new ScheduleItem
+                {
+                    StartTime = date.Date.AddHours(9),
+                    EndTime = date.Date.AddHours(10),
+                    Title = "新しい予定",
+                    BackgroundColor = System.Windows.Media.Brushes.LightBlue
+                };
+
+                var result = _dialogService.ShowScheduleEditDialog(newItem);
+                if (result != null)
+                {
+                    ScheduleItems.Add(result);
+                }
             }
         });
 
@@ -99,7 +120,13 @@ public partial class MainViewModel
     private void Navigate(int amount)
     {
         TransitionDirection = amount > 0 ? Controls.TransitionDirection.Forward : Controls.TransitionDirection.Backward;
-        CurrentDate = CurrentViewMode == ViewMode.Day ? CurrentDate.AddDays(amount) : CurrentDate.AddDays(amount * 7);
+        CurrentDate = CurrentViewMode switch
+        {
+            ViewMode.Day => CurrentDate.AddDays(amount),
+            ViewMode.Week => CurrentDate.AddDays(amount * 7),
+            ViewMode.Month => CurrentDate.AddMonths(amount),
+            _ => CurrentDate
+        };
     }
 
     private void ToggleRecording()
@@ -137,10 +164,11 @@ public partial class MainViewModel
         else
         {
             string defaultTitle = $"作業ログ {DateTime.Now:HH:mm}";
-            var inputText = _dialogService.ShowTextInputDialog(defaultTitle);
-            if (inputText != null) // Cancel以外（OK押下時）は開始
+            var result = _dialogService.ShowRecordingStartDialog(defaultTitle, TimerOptions, SelectedTimerOption);
+            if (result != null) // Cancel以外（OK押下時）は開始
             {
-                RecordingTitle = string.IsNullOrWhiteSpace(inputText) ? defaultTitle : inputText;
+                RecordingTitle = string.IsNullOrWhiteSpace(result.Value.Title) ? defaultTitle : result.Value.Title;
+                SelectedTimerOption = result.Value.SelectedOption;
                 IsRecording = true;
                 RecordingStartTime = DateTime.Now;
                 RecordingDuration = TimeSpan.Zero;

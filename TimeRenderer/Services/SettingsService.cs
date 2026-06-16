@@ -1,13 +1,12 @@
 using System;
-using TimeRenderer.Services;
 
 namespace TimeRenderer.Services;
 
-public class SettingsService : JsonFileRepositoryBase
+public class SettingsService
 {
     private const string SettingsFilePath = "appsettings.json";
 
-    public static void SaveSettings(AppSettings settings) => SaveToFileSync(SettingsFilePath, settings);
+    public static void SaveSettings(AppSettings settings) => JsonFileRepository.SaveToFileSync(SettingsFilePath, settings);
 
-    public static AppSettings? LoadSettings() => LoadFromFileSync<AppSettings>(SettingsFilePath);
+    public static AppSettings? LoadSettings() => JsonFileRepository.LoadFromFileSync<AppSettings>(SettingsFilePath);
 }

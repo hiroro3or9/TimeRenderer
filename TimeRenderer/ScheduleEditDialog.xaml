@@ -4,7 +4,7 @@
         Title="スケジュール編集" Height="640" Width="420"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
-        Background="{StaticResource BackgroundBrush}">
+        Background="{DynamicResource BackgroundBrush}">
 
     <Window.Resources>
         <!-- ローカルリソースはThemes/Styles.xamlのものを使用するため削除 -->

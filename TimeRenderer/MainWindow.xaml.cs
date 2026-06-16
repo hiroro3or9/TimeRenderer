@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -171,7 +171,7 @@ namespace TimeRenderer
         }
 
         /// <summary>
-        /// スケジュールアイテムのダブルクリックイベント。
+        /// スケジュールアイテムのダブルクリックイベント。(週表示/日表示用)
         /// </summary>
         private void ScheduleItem_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
@@ -182,6 +182,65 @@ namespace TimeRenderer
                     ViewModel.EditCommand.Execute(item);
                 }
                 e.Handled = true;
+            }
+        }
+
+        /// <summary>
+        /// 月表示のカレンダーセル内、スケジュールアイテムがクリックされた時のイベント
+        /// </summary>
+        private void MonthCell_ItemClicked(object sender, Controls.ScheduleItemClickedEventArgs e)
+        {
+            if (ViewModel.EditCommand.CanExecute(e.Item))
+            {
+                ViewModel.EditCommand.Execute(e.Item);
+            }
+        }
+
+        /// <summary>
+        /// 月表示のカレンダーセル内、スケジュールアイテムが右クリックされた時のイベント
+        /// </summary>
+        private void MonthCell_ItemRightClicked(object sender, Controls.ScheduleItemClickedEventArgs e)
+        {
+            if (sender is FrameworkElement element)
+            {
+                ContextMenu contextMenu = new();
+                
+                MenuItem editItem = new() { Header = "編集" };
+                editItem.Click += (s, args) => 
+                {
+                    if (ViewModel.EditCommand.CanExecute(e.Item))
+                    {
+                        ViewModel.EditCommand.Execute(e.Item);
+                    }
+                };
+                
+                MenuItem deleteItem = new() { Header = "削除" };
+                deleteItem.Click += (s, args) => 
+                {
+                    if (ViewModel.DeleteCommand.CanExecute(e.Item))
+                    {
+                        ViewModel.DeleteCommand.Execute(e.Item);
+                    }
+                };
+
+                contextMenu.Items.Add(editItem);
+                contextMenu.Items.Add(deleteItem);
+                
+                contextMenu.IsOpen = true;
+            }
+        }
+
+        /// <summary>
+        /// 月表示のカレンダーのセル自体（空白部分）がダブルクリックされた時のイベント
+        /// </summary>
+        private void MonthCell_Clicked(object sender, RoutedEventArgs e)
+        {
+            if (sender is Controls.CalendarMonthCellControl cell && cell.CellData != null)
+            {
+                if (ViewModel.AddScheduleItemAtDateCommand.CanExecute(cell.CellData.Date))
+                {
+                    ViewModel.AddScheduleItemAtDateCommand.Execute(cell.CellData.Date);
+                }
             }
         }
 
