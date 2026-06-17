@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:TimeRenderer"
+        xmlns:helpers="clr-namespace:TimeRenderer.Helpers"
         xmlns:conv="clr-namespace:TimeRenderer.Converters"
         xmlns:controls="clr-namespace:TimeRenderer.Controls"
         xmlns:markdig="clr-namespace:Markdig.Wpf;assembly=Markdig.Wpf"
@@ -349,7 +350,9 @@
         </StackPanel>
 
         <!-- スケジュール領域 -->
-        <ScrollViewer x:Name="MainScrollViewer" Grid.Row="2" VerticalScrollBarVisibility="Auto" Visibility="{Binding IsMonthMode, Converter={StaticResource InvertedBooleanToVisibilityConverter}}">
+        <ScrollViewer x:Name="MainScrollViewer" Grid.Row="2" VerticalScrollBarVisibility="Auto" 
+                      Visibility="{Binding IsMonthMode, Converter={StaticResource InvertedBooleanToVisibilityConverter}}"
+                      helpers:ScrollViewerHelper.EnableMiddleButtonScroll="True">
             <Grid Height="{Binding ScheduleGridHeight}" Background="{DynamicResource SurfaceBrush}">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="60"/>
@@ -688,7 +691,8 @@
 
                 <!-- プレビュー -->
                 <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="12" Background="Transparent"
-                              Visibility="{Binding IsMemoEditMode, Converter={StaticResource InvertedBooleanToVisibilityConverter}}">
+                              Visibility="{Binding IsMemoEditMode, Converter={StaticResource InvertedBooleanToVisibilityConverter}}"
+                              helpers:ScrollViewerHelper.EnableMiddleButtonScroll="True">
                     <markdig:MarkdownViewer Markdown="{Binding MemoText}"/>
                 </ScrollViewer>
             </Grid>
