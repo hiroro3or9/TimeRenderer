@@ -49,4 +49,10 @@
     <Color x:Key="HoverBorderColor">#CBD5E1</Color> <!-- Slate 300 -->
     <SolidColorBrush x:Key="HoverBorderBrush" Color="{StaticResource HoverBorderColor}"/>
 
+    <!-- ScrollBar Colors -->
+    <Color x:Key="ScrollBarThumbColor">#33000000</Color> <!-- Black with 20% opacity -->
+    <SolidColorBrush x:Key="ScrollBarThumbBrush" Color="{StaticResource ScrollBarThumbColor}"/>
+    <Color x:Key="ScrollBarThumbHoverColor">#73000000</Color> <!-- Black with 45% opacity -->
+    <SolidColorBrush x:Key="ScrollBarThumbHoverBrush" Color="{StaticResource ScrollBarThumbHoverColor}"/>
+
 </ResourceDictionary>

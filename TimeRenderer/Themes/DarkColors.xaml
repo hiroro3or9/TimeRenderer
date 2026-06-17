@@ -23,7 +23,7 @@
     <Color x:Key="BackgroundColor">#0F172A</Color> <!-- Slate 900 -->
     <SolidColorBrush x:Key="BackgroundBrush" Color="{StaticResource BackgroundColor}"/>
 
-    <Color x:Key="MutedBackgroundColor">#1E293B</Color> <!-- Slate 800 -->
+    <Color x:Key="MutedBackgroundColor">#0F172A</Color> <!-- Slate 900 -->
     <SolidColorBrush x:Key="MutedBackgroundBrush" Color="{StaticResource MutedBackgroundColor}"/>
 
     <Color x:Key="SurfaceColor">#1E293B</Color> <!-- Slate 800 -->
@@ -48,5 +48,11 @@
     <SolidColorBrush x:Key="PressedBackgroundBrush" Color="{StaticResource PressedBackgroundColor}"/>
     <Color x:Key="HoverBorderColor">#475569</Color> <!-- Slate 600 -->
     <SolidColorBrush x:Key="HoverBorderBrush" Color="{StaticResource HoverBorderColor}"/>
+
+    <!-- ScrollBar Colors -->
+    <Color x:Key="ScrollBarThumbColor">#40FFFFFF</Color> <!-- White with 25% opacity -->
+    <SolidColorBrush x:Key="ScrollBarThumbBrush" Color="{StaticResource ScrollBarThumbColor}"/>
+    <Color x:Key="ScrollBarThumbHoverColor">#8CFFFFFF</Color> <!-- White with 55% opacity -->
+    <SolidColorBrush x:Key="ScrollBarThumbHoverBrush" Color="{StaticResource ScrollBarThumbHoverColor}"/>
 
 </ResourceDictionary>
