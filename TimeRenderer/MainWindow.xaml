@@ -103,6 +103,7 @@
         </Style>
         <conv:DayOfWeekToBrushConverter x:Key="DayOfWeekToBrushConverter"/>
         <conv:DateToBackgroundBrushConverter x:Key="DateToBackgroundBrushConverter"/>
+        <conv:DateToSprintTimelinePositionConverter x:Key="DateToSprintTimelinePositionConverter"/>
     </Window.Resources>
     
     <Grid>
@@ -189,6 +190,12 @@
                                  Style="{StaticResource SegmentedMiddleStyle}"/>
                     <RadioButton Content="月" Command="{Binding ChangeViewModeCommand}" CommandParameter="Month" 
                                  IsChecked="{Binding IsMonthMode, Mode=OneWay}" GroupName="ViewMode"
+                                 Style="{StaticResource SegmentedMiddleStyle}"/>
+                    <RadioButton Content="スプリント" Command="{Binding ChangeViewModeCommand}" CommandParameter="Sprint" 
+                                 IsChecked="{Binding IsSprintMode, Mode=OneWay}" GroupName="ViewMode"
+                                 Style="{StaticResource SegmentedMiddleStyle}"/>
+                    <RadioButton Content="TL" Command="{Binding ChangeViewModeCommand}" CommandParameter="SprintTimeline" 
+                                 IsChecked="{Binding IsSprintTimelineMode, Mode=OneWay}" GroupName="ViewMode"
                                  Style="{StaticResource SegmentedRightStyle}"/>
                 </StackPanel>
             </Grid>
@@ -617,6 +624,174 @@
             </controls:TransitioningContentControl>
         </Grid>
 
+        <!-- スプリント表示用のカレンダー領域（3週間グリッド） -->
+        <Grid Grid.Row="1" Grid.RowSpan="2" Background="{DynamicResource SurfaceBrush}"
+              Visibility="{Binding IsSprintMode, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="30"/> <!-- 曜日ヘッダー -->
+                <RowDefinition Height="*"/> <!-- 日付セル -->
+            </Grid.RowDefinitions>
+
+            <!-- 曜日ヘッダー -->
+            <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
+                <UniformGrid Rows="1" Columns="7" Background="{DynamicResource BackgroundBrush}">
+                    <TextBlock Text="月" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold"/>
+                    <TextBlock Text="火" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold"/>
+                    <TextBlock Text="水" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold"/>
+                    <TextBlock Text="木" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold"/>
+                    <TextBlock Text="金" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold"/>
+                    <TextBlock Text="土" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource PrimaryBrush}" FontWeight="SemiBold"/>
+                    <TextBlock Text="日" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource DangerBrush}" FontWeight="SemiBold"/>
+                </UniformGrid>
+            </Border>
+
+            <!-- カレンダーのセル（3週間グリッド） -->
+            <controls:TransitioningContentControl Grid.Row="1" Content="{Binding CurrentDate}" TransitionDirection="{Binding TransitionDirection}"
+                                                  TransitionAxis="Vertical"
+                                                  HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
+                <controls:TransitioningContentControl.ContentTemplate>
+                    <DataTemplate>
+                        <ItemsControl ItemsSource="{Binding DataContext.CalendarCells, RelativeSource={RelativeSource AncestorType=Window}}">
+                            <ItemsControl.CacheMode>
+                                <BitmapCache EnableClearType="True" RenderAtScale="1"/>
+                            </ItemsControl.CacheMode>
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <UniformGrid Rows="3" Columns="7"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <controls:CalendarMonthCellControl CellData="{Binding}"
+                                                                       MutedBackgroundBrush="{DynamicResource MutedBackgroundBrush}"
+                                                                       TextSecondaryBrush="{DynamicResource TextSecondaryBrush}"
+                                                                       TextPrimaryBrush="{DynamicResource TextPrimaryBrush}"
+                                                                       TodayBackgroundBrush="{DynamicResource PrimarySubtleBrush}"
+                                                                       SundayForegroundBrush="{DynamicResource DangerBrush}"
+                                                                       SaturdayForegroundBrush="{DynamicResource PrimaryBrush}"
+                                                                       WeekdayForegroundBrush="{DynamicResource TextPrimaryBrush}"
+                                                                       ItemClicked="MonthCell_ItemClicked"
+                                                                       ItemRightClicked="MonthCell_ItemRightClicked"
+                                                                       CellClicked="MonthCell_Clicked" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </DataTemplate>
+                </controls:TransitioningContentControl.ContentTemplate>
+            </controls:TransitioningContentControl>
+        </Grid>
+
+        <!-- スプリントタイムライン表示用の領域 -->
+        <Grid Grid.Row="1" Grid.RowSpan="2" Background="{DynamicResource SurfaceBrush}"
+              Visibility="{Binding IsSprintTimelineMode, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="40"/> <!-- スプリントヘッダー -->
+                <RowDefinition Height="*"/> <!-- タイムライン領域 -->
+            </Grid.RowDefinitions>
+
+            <!-- スプリントヘッダー -->
+            <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
+                <ItemsControl ItemsSource="{Binding TimelineSprints}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <UniformGrid Rows="1" Columns="5" Background="{DynamicResource BackgroundBrush}"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,1,0">
+                                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Name}" FontWeight="Bold" HorizontalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <TextBlock FontSize="10" HorizontalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}">
+                                        <Run Text="{Binding StartDate, StringFormat='MM/dd', Mode=OneWay}"/>
+                                        <Run Text=" - "/>
+                                        <Run Text="{Binding EndDate, StringFormat='MM/dd', Mode=OneWay}"/>
+                                    </TextBlock>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Border>
+
+            <!-- タイムライン領域 -->
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                <Grid x:Name="TimelineGrid" MinHeight="400">
+                    <!-- 背景列（スプリントの境界線） -->
+                    <ItemsControl ItemsSource="{Binding TimelineSprints}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <UniformGrid Rows="1" Columns="5"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,1,0" Background="Transparent"/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <!-- 予定バーの一覧 -->
+                    <ItemsControl ItemsSource="{Binding ScheduleItems}" Margin="0,10">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Vertical"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Height="35" Margin="0,4" Cursor="Hand" MouseLeftButtonDown="ScheduleItem_MouseLeftButtonDown">
+                                    <Grid.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem Header="編集" Click="EditMenuItem_Click"/>
+                                            <MenuItem Header="削除" Click="DeleteMenuItem_Click"/>
+                                        </ContextMenu>
+                                    </Grid.ContextMenu>
+                                    
+                                    <!-- 予定バー -->
+                                    <Border CornerRadius="4" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="8,4" VerticalAlignment="Center" Height="28">
+                                        <Border.Background>
+                                            <SolidColorBrush Color="{Binding BackgroundColor.Color}" Opacity="0.85"/>
+                                        </Border.Background>
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <!-- 幅 (Width) -->
+                                                <Setter Property="Width">
+                                                    <Setter.Value>
+                                                        <MultiBinding Converter="{StaticResource DateToSprintTimelinePositionConverter}" ConverterParameter="WIDTH">
+                                                            <Binding Path="StartTime"/>
+                                                            <Binding Path="EndTime"/>
+                                                            <Binding Path="DataContext.TimelineSprints" RelativeSource="{RelativeSource AncestorType=Window}"/>
+                                                            <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=Grid}"/>
+                                                        </MultiBinding>
+                                                    </Setter.Value>
+                                                </Setter>
+                                                <!-- 位置 (Margin) -->
+                                                <Setter Property="HorizontalAlignment" Value="Left"/>
+                                                <Setter Property="Margin">
+                                                    <Setter.Value>
+                                                        <MultiBinding Converter="{StaticResource DateToSprintTimelinePositionConverter}">
+                                                            <Binding Path="StartTime"/>
+                                                            <Binding Path="EndTime"/>
+                                                            <Binding Path="DataContext.TimelineSprints" RelativeSource="{RelativeSource AncestorType=Window}"/>
+                                                            <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=Grid}"/>
+                                                        </MultiBinding>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Style>
+                                        </Border.Style>
+                                        <Grid>
+                                            <TextBlock Text="{Binding Title}" FontWeight="Bold" Foreground="#1E293B" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </Border>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Grid>
+            </ScrollViewer>
+        </Grid>
+
         <!-- メモパネル -->
         <Border Grid.Row="1" Grid.RowSpan="2" Grid.Column="1" 
                 Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1,0,0,0"
@@ -804,8 +979,9 @@
                     <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Margin="0,0,0,16"/>
 
                     <!-- 表示設定 -->
-                    <TextBlock Text="表示設定" FontWeight="SemiBold" FontSize="14" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,12"/>
-                    <Grid Margin="0,0,0,16">
+                    <TextBlock Text="表示設定" FontWeight="SemiBold" FontSize="14" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,12"
+                               Visibility="{Binding IsTimeRangeSettingsVisible, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                    <Grid Margin="0,0,0,16" Visibility="{Binding IsTimeRangeSettingsVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" SharedSizeGroup="LabelG" />
                             <ColumnDefinition Width="*" />
@@ -821,6 +997,98 @@
                                       Width="70" FontSize="13" />
                         </StackPanel>
                     </Grid>
+
+                    <!-- スプリント設定 -->
+                    <StackPanel Visibility="{Binding IsSprintSettingsVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <TextBlock Text="スプリント設定 (手動)" FontWeight="SemiBold" FontSize="14" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,12"/>
+                        
+                        <!-- 手動スプリント一覧リスト -->
+                        <ListBox ItemsSource="{Binding ManualSprints}" MaxHeight="120" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Background="Transparent" Margin="0,0,0,12" Focusable="False">
+                            <ListBox.ItemContainerStyle>
+                                <Style TargetType="ListBoxItem">
+                                    <Setter Property="Padding" Value="4,6"/>
+                                    <Setter Property="Background" Value="Transparent"/>
+                                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                    <Setter Property="Focusable" Value="False"/>
+                                </Style>
+                            </ListBox.ItemContainerStyle>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="12"/>
+                                            <TextBlock FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0">
+                                                <Run Text="{Binding StartDate, StringFormat='yyyy/MM/dd', Mode=OneWay}"/>
+                                                <Run Text=" - "/>
+                                                <Run Text="{Binding EndDate, StringFormat='MM/dd', Mode=OneWay}"/>
+                                            </TextBlock>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Button Content="編集" 
+                                                    Command="{Binding DataContext.EditManualSprintCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                    CommandParameter="{Binding}"
+                                                    Style="{StaticResource GhostButtonStyle}" 
+                                                    Padding="6,4" FontSize="11" Margin="0,0,4,0" Cursor="Hand"/>
+                                            <Button Content="削除" 
+                                                    Command="{Binding DataContext.DeleteManualSprintCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                    CommandParameter="{Binding}"
+                                                    Style="{StaticResource GhostButtonStyle}" Foreground="{DynamicResource DangerBrush}" 
+                                                    Padding="6,4" FontSize="11" Cursor="Hand"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+
+                        <!-- 追加フォームコントロール -->
+                        <Grid Margin="0,0,0,10">
+                            <!-- 追加ボタン -->
+                            <Button Content="＋ スプリントを追加" 
+                                    Command="{Binding ShowAddSprintFormCommand}"
+                                    Visibility="{Binding IsAddSprintFormVisible, Converter={StaticResource InvertedBooleanToVisibilityConverter}}"
+                                    Style="{StaticResource BaseButtonStyle}" HorizontalAlignment="Stretch"/>
+                            
+                            <!-- インライン追加フォーム -->
+                            <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="12" Background="{DynamicResource BackgroundBrush}"
+                                    Visibility="{Binding IsAddSprintFormVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding FormTitle}" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,10"/>
+                                    <TextBlock Text="スプリント名" Style="{StaticResource FieldLabelStyle}"/>
+                                    <TextBox Text="{Binding NewSprintName, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10" Style="{StaticResource InputTextBoxStyle}"/>
+                                    
+                                    <Grid Margin="0,0,0,12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="12"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="開始日" Style="{StaticResource FieldLabelStyle}"/>
+                                            <DatePicker SelectedDate="{Binding NewSprintStartDate, UpdateSourceTrigger=PropertyChanged}"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="終了日" Style="{StaticResource FieldLabelStyle}"/>
+                                            <DatePicker SelectedDate="{Binding NewSprintEndDate, UpdateSourceTrigger=PropertyChanged}"/>
+                                        </StackPanel>
+                                    </Grid>
+                                    
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="8"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Button Grid.Column="0" Content="キャンセル" Command="{Binding HideAddSprintFormCommand}" Style="{StaticResource BaseButtonStyle}" Cursor="Hand"/>
+                                        <Button Grid.Column="2" Content="保存" Command="{Binding SaveNewSprintCommand}" Style="{StaticResource PrimaryButtonStyle}" Cursor="Hand"/>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </StackPanel>
                 </StackPanel>
 
             </Grid>

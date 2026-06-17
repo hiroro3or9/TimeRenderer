@@ -26,7 +26,9 @@ public partial class MainViewModel : INotifyPropertyChanged
     {
         Day,
         Week,
-        Month
+        Month,
+        Sprint,
+        SprintTimeline
     }
 
     public static List<int> StartHourOptions => [.. Enumerable.Range(0, 24)];
@@ -182,6 +184,70 @@ public partial class MainViewModel : INotifyPropertyChanged
         set => SetProperty(ref _recordingTitle, value);
     }
 
+    private List<SprintInfo> _manualSprints = [];
+    public List<SprintInfo> ManualSprints
+    {
+        get => _manualSprints;
+        set
+        {
+            if (SetProperty(ref _manualSprints, value))
+            {
+                UpdateVisibleDays();
+                SaveSettings();
+            }
+        }
+    }
+
+    private IReadOnlyList<SprintInfo> _timelineSprints = [];
+    public IReadOnlyList<SprintInfo> TimelineSprints
+    {
+        get => _timelineSprints;
+        set => SetProperty(ref _timelineSprints, value);
+    }
+
+    private bool _isAddSprintFormVisible;
+    public bool IsAddSprintFormVisible
+    {
+        get => _isAddSprintFormVisible;
+        set => SetProperty(ref _isAddSprintFormVisible, value);
+    }
+
+    private string _newSprintName = string.Empty;
+    public string NewSprintName
+    {
+        get => _newSprintName;
+        set => SetProperty(ref _newSprintName, value);
+    }
+
+    private DateTime? _newSprintStartDate;
+    public DateTime? NewSprintStartDate
+    {
+        get => _newSprintStartDate;
+        set => SetProperty(ref _newSprintStartDate, value);
+    }
+
+    private DateTime? _newSprintEndDate;
+    public DateTime? NewSprintEndDate
+    {
+        get => _newSprintEndDate;
+        set => SetProperty(ref _newSprintEndDate, value);
+    }
+
+    private SprintInfo? _editingSprint;
+    public SprintInfo? EditingSprint
+    {
+        get => _editingSprint;
+        set
+        {
+            if (SetProperty(ref _editingSprint, value))
+            {
+                OnPropertyChanged(nameof(FormTitle));
+            }
+        }
+    }
+
+    public string FormTitle => EditingSprint == null ? "スプリントを追加" : "スプリントを編集";
+
     private ViewMode _currentViewMode;
     public ViewMode CurrentViewMode
     {
@@ -197,6 +263,10 @@ public partial class MainViewModel : INotifyPropertyChanged
                 OnPropertyChanged(nameof(IsDayMode));
                 OnPropertyChanged(nameof(IsWeekMode));
                 OnPropertyChanged(nameof(IsMonthMode));
+                OnPropertyChanged(nameof(IsSprintMode));
+                OnPropertyChanged(nameof(IsSprintTimelineMode));
+                OnPropertyChanged(nameof(IsTimeRangeSettingsVisible));
+                OnPropertyChanged(nameof(IsSprintSettingsVisible));
                 SaveSettings();
             }
         }
@@ -205,6 +275,10 @@ public partial class MainViewModel : INotifyPropertyChanged
     public bool IsDayMode => CurrentViewMode == ViewMode.Day;
     public bool IsWeekMode => CurrentViewMode == ViewMode.Week;
     public bool IsMonthMode => CurrentViewMode == ViewMode.Month;
+    public bool IsSprintMode => CurrentViewMode == ViewMode.Sprint;
+    public bool IsSprintTimelineMode => CurrentViewMode == ViewMode.SprintTimeline;
+    public bool IsTimeRangeSettingsVisible => CurrentViewMode == ViewMode.Day || CurrentViewMode == ViewMode.Week;
+    public bool IsSprintSettingsVisible => CurrentViewMode == ViewMode.Sprint || CurrentViewMode == ViewMode.SprintTimeline;
 
     public DateTime CurrentWeekStart
     {
@@ -232,9 +306,20 @@ public partial class MainViewModel : INotifyPropertyChanged
                 else
                     return $"{start:yyyy年M月d日} - {end:M月d日}";
             }
-            else // Month
+            else if (CurrentViewMode == ViewMode.Month)
             {
                 return CurrentDate.ToString("yyyy年M月");
+            }
+            else if (CurrentViewMode == ViewMode.Sprint)
+            {
+                var sprint = Helpers.SprintHelper.GetSprintForDate(ManualSprints, CurrentDate);
+                return $"{sprint.Name} ({sprint.StartDate:yyyy/MM/dd} - {sprint.EndDate:MM/dd})";
+            }
+            else // SprintTimeline
+            {
+                // タイムラインモード時は表示範囲を表示
+                var sprint = Helpers.SprintHelper.GetSprintForDate(ManualSprints, CurrentDate);
+                return $"スプリントタイムライン (起点: {sprint.Name})";
             }
         }
     }
