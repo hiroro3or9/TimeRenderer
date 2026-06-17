@@ -21,6 +21,11 @@ public partial class MainViewModel
     public ICommand NextCommand { get; private set; } = null!;
     public ICommand TodayCommand { get; private set; } = null!;
     public ICommand ChangeViewModeCommand { get; private set; } = null!;
+    public ICommand ShowAddSprintFormCommand { get; private set; } = null!;
+    public ICommand HideAddSprintFormCommand { get; private set; } = null!;
+    public ICommand SaveNewSprintCommand { get; private set; } = null!;
+    public ICommand DeleteManualSprintCommand { get; private set; } = null!;
+    public ICommand EditManualSprintCommand { get; private set; } = null!;
 
     private void InitializeCommands()
     {
@@ -115,6 +120,143 @@ public partial class MainViewModel
         });
 
         ToggleRecordingCommand = new RelayCommand(_ => ToggleRecording());
+
+        ShowAddSprintFormCommand = new RelayCommand(_ =>
+        {
+            EditingSprint = null;
+            var latest = ManualSprints.OrderBy(x => x.StartDate).LastOrDefault();
+            if (latest != null)
+            {
+                NewSprintStartDate = latest.EndDate.AddDays(1).Date;
+                NewSprintEndDate = latest.EndDate.AddDays(14).Date;
+                if (latest.Name.StartsWith("Sprint ") && int.TryParse(latest.Name.Substring(7), out var num))
+                {
+                    NewSprintName = $"Sprint {num + 1}";
+                }
+                else
+                {
+                    NewSprintName = "Sprint";
+                }
+            }
+            else
+            {
+                var current = Helpers.SprintHelper.GetSprintForDate(ManualSprints, DateTime.Today);
+                NewSprintStartDate = current.StartDate;
+                NewSprintEndDate = current.EndDate;
+                NewSprintName = "Sprint 1";
+            }
+            IsAddSprintFormVisible = true;
+        });
+
+        HideAddSprintFormCommand = new RelayCommand(_ =>
+        {
+            IsAddSprintFormVisible = false;
+            NewSprintName = string.Empty;
+            NewSprintStartDate = null;
+            NewSprintEndDate = null;
+            EditingSprint = null;
+        });
+
+        SaveNewSprintCommand = new RelayCommand(
+            _ =>
+            {
+                if (string.IsNullOrWhiteSpace(NewSprintName))
+                {
+                    _dialogService.ShowConfirmationDialog("スプリント名を入力してください。", "入力エラー");
+                    return;
+                }
+                if (!NewSprintStartDate.HasValue || !NewSprintEndDate.HasValue)
+                {
+                    _dialogService.ShowConfirmationDialog("開始日と終了日を設定してください。", "入力エラー");
+                    return;
+                }
+                if (NewSprintStartDate.Value.Date > NewSprintEndDate.Value.Date)
+                {
+                    _dialogService.ShowConfirmationDialog("開始日は終了日以前である必要があります。", "入力エラー");
+                    return;
+                }
+
+                // 期間重複チェック (編集中のスプリント自身は除外)
+                bool isOverlapped = ManualSprints.Any(x =>
+                    x.Id != EditingSprint?.Id && (
+                    (NewSprintStartDate.Value.Date >= x.StartDate.Date && NewSprintStartDate.Value.Date <= x.EndDate.Date) ||
+                    (NewSprintEndDate.Value.Date >= x.StartDate.Date && NewSprintEndDate.Value.Date <= x.EndDate.Date) ||
+                    (x.StartDate.Date >= NewSprintStartDate.Value.Date && x.StartDate.Date <= NewSprintEndDate.Value.Date))
+                );
+
+                if (isOverlapped)
+                {
+                    _dialogService.ShowConfirmationDialog("既存のスプリントと期間が重複しています。", "入力エラー");
+                    return;
+                }
+
+                if (EditingSprint != null)
+                {
+                    // 編集モード：既存スプリントを置換
+                    var list = new List<SprintInfo>(ManualSprints);
+                    var index = list.FindIndex(x => x.Id == EditingSprint.Id);
+                    if (index >= 0)
+                    {
+                        list[index] = new SprintInfo
+                        {
+                            Id = EditingSprint.Id,
+                            Name = NewSprintName,
+                            StartDate = NewSprintStartDate.Value.Date,
+                            EndDate = NewSprintEndDate.Value.Date,
+                            IsManual = true
+                        };
+                        ManualSprints = list;
+                    }
+                }
+                else
+                {
+                    // 新規追加モード
+                    var sprint = new SprintInfo
+                    {
+                        Name = NewSprintName,
+                        StartDate = NewSprintStartDate.Value.Date,
+                        EndDate = NewSprintEndDate.Value.Date,
+                        IsManual = true
+                    };
+
+                    var list = new List<SprintInfo>(ManualSprints) { sprint };
+                    ManualSprints = list;
+                }
+
+                HideAddSprintFormCommand.Execute(null);
+            }
+        );
+
+        DeleteManualSprintCommand = new RelayCommand(
+            param =>
+            {
+                if (param is SprintInfo sprint)
+                {
+                    if (_dialogService.ShowConfirmationDialog($"スプリント「{sprint.Name}」を削除しますか？\n削除すると自動分割の計算に戻ります。", "削除確認"))
+                    {
+                        var list = new List<SprintInfo>(ManualSprints);
+                        list.Remove(sprint);
+                        ManualSprints = list;
+                    }
+                }
+            },
+            param => param is SprintInfo
+        );
+
+        EditManualSprintCommand = new RelayCommand(
+            param =>
+            {
+                if (param is SprintInfo sprint)
+                {
+                    EditingSprint = sprint;
+                    NewSprintName = sprint.Name;
+                    NewSprintStartDate = sprint.StartDate;
+                    NewSprintEndDate = sprint.EndDate;
+                    IsAddSprintFormVisible = true;
+                }
+            },
+            param => param is SprintInfo
+        );
     }
 
     private void Navigate(int amount)
@@ -125,8 +267,23 @@ public partial class MainViewModel
             ViewMode.Day => CurrentDate.AddDays(amount),
             ViewMode.Week => CurrentDate.AddDays(amount * 7),
             ViewMode.Month => CurrentDate.AddMonths(amount),
+            ViewMode.Sprint => GetAdjacentSprintDate(amount),
+            ViewMode.SprintTimeline => GetAdjacentSprintDate(amount),
             _ => CurrentDate
         };
+    }
+
+    private DateTime GetAdjacentSprintDate(int amount)
+    {
+        var currentSprint = Helpers.SprintHelper.GetSprintForDate(ManualSprints, CurrentDate);
+        var sprints = Helpers.SprintHelper.GetSprintsForRange(ManualSprints, currentSprint.StartDate.AddMonths(-3), currentSprint.EndDate.AddMonths(3));
+        int idx = sprints.FindIndex(s => s.StartDate.Date == currentSprint.StartDate.Date);
+        if (idx >= 0)
+        {
+            int targetIdx = Math.Clamp(idx + amount, 0, sprints.Count - 1);
+            return sprints[targetIdx].StartDate;
+        }
+        return CurrentDate.AddDays(amount * 14);
     }
 
     private void ToggleRecording()

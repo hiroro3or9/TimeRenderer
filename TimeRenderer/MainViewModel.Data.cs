@@ -95,7 +95,8 @@ public partial class MainViewModel
             ViewMode = (int)CurrentViewMode,
             DisplayStartHour = DisplayStartHour,
             DisplayEndHour = DisplayEndHour,
-            IsDarkMode = IsDarkMode
+            IsDarkMode = IsDarkMode,
+            ManualSprints = ManualSprints
         };
         Services.SettingsService.SaveSettings(settings);
     }
@@ -119,6 +120,8 @@ public partial class MainViewModel
             OnPropertyChanged(nameof(IsDayMode));
             OnPropertyChanged(nameof(IsWeekMode));
             OnPropertyChanged(nameof(IsMonthMode));
+            OnPropertyChanged(nameof(IsSprintMode));
+            OnPropertyChanged(nameof(IsSprintTimelineMode));
             OnPropertyChanged(nameof(DateDisplay));
 
             _displayStartHour = Math.Clamp(settings.DisplayStartHour, 0, 23);
@@ -131,6 +134,9 @@ public partial class MainViewModel
             _isDarkMode = settings.IsDarkMode;
             App.ApplyTheme(_isDarkMode);
             OnPropertyChanged(nameof(IsDarkMode));
+
+            _manualSprints = settings.ManualSprints ?? [];
+            OnPropertyChanged(nameof(ManualSprints));
             
             UpdateVisibleDays();
         }

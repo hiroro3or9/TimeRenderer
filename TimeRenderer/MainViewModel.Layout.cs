@@ -71,7 +71,7 @@ public partial class MainViewModel
                 days.Add(start.AddDays(i));
             }
         }
-        else // Month
+        else if (CurrentViewMode == ViewMode.Month)
         {
             // 月初の1日を取得
             var firstDayOfMonth = new DateTime(CurrentDate.Year, CurrentDate.Month, 1);
@@ -83,6 +83,44 @@ public partial class MainViewModel
             for (int i = 0; i < 42; i++)
             {
                 days.Add(start.AddDays(i));
+            }
+        }
+        else if (CurrentViewMode == ViewMode.Sprint)
+        {
+            var sprint = Helpers.SprintHelper.GetSprintForDate(ManualSprints, CurrentDate);
+            // スプリント開始日の週の月曜日
+            var start = Converters.DateTimeHelper.GetStartOfWeek(sprint.StartDate);
+            // スプリント終了日の週の日曜日
+            var end = Converters.DateTimeHelper.GetStartOfWeek(sprint.EndDate).AddDays(6);
+            
+            for (var d = start; d <= end; d = d.AddDays(1))
+            {
+                days.Add(d);
+            }
+        }
+        else if (CurrentViewMode == ViewMode.SprintTimeline)
+        {
+            // 基準スプリントを中心とした 5つのスプリントを表示する
+            var baseSprint = Helpers.SprintHelper.GetSprintForDate(ManualSprints, CurrentDate);
+            var sprints = Helpers.SprintHelper.GetSprintsForRange(ManualSprints, baseSprint.StartDate.AddMonths(-3), baseSprint.EndDate.AddMonths(3));
+            
+            int baseIdx = sprints.FindIndex(s => s.StartDate.Date == baseSprint.StartDate.Date);
+            if (baseIdx < 0) baseIdx = 0;
+            
+            int startIdx = Math.Max(0, baseIdx - 2);
+            int count = Math.Min(sprints.Count - startIdx, 5);
+            var displaySprints = sprints.GetRange(startIdx, count);
+
+            TimelineSprints = displaySprints;
+
+            if (displaySprints.Count > 0)
+            {
+                var start = displaySprints[0].StartDate.Date;
+                var end = displaySprints[^1].EndDate.Date;
+                for (var d = start; d <= end; d = d.AddDays(1))
+                {
+                    days.Add(d);
+                }
             }
         }
         VisibleDays = days;
@@ -161,19 +199,30 @@ public partial class MainViewModel
 
     private void UpdateCalendarCells()
     {
-        if (CurrentViewMode != ViewMode.Month) 
+        if (CurrentViewMode != ViewMode.Month && CurrentViewMode != ViewMode.Sprint) 
             return;
 
         var cells = new List<CalendarCellViewModel>();
+        var sprint = CurrentViewMode == ViewMode.Sprint ? Helpers.SprintHelper.GetSprintForDate(ManualSprints, CurrentDate) : null;
+
         foreach (var day in VisibleDays)
         {
             DailyScheduleItems.TryGetValue(day.Date, out var items);
             items ??= [];
 
-            bool isCurrentMonth = day.Month == CurrentDate.Month && day.Year == CurrentDate.Year;
+            bool isCurrent = false;
+            if (CurrentViewMode == ViewMode.Month)
+            {
+                isCurrent = day.Month == CurrentDate.Month && day.Year == CurrentDate.Year;
+            }
+            else if (CurrentViewMode == ViewMode.Sprint && sprint != null)
+            {
+                isCurrent = day.Date >= sprint.StartDate.Date && day.Date <= sprint.EndDate.Date;
+            }
+
             bool isToday = day.Date == DateTime.Today;
 
-            cells.Add(new CalendarCellViewModel(day, isCurrentMonth, isToday, items));
+            cells.Add(new CalendarCellViewModel(day, isCurrent, isToday, items));
         }
         CalendarCells = cells;
     }
