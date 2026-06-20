@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 
-namespace TimeRenderer;
+using TimeRenderer.Models;
+
+namespace TimeRenderer.ViewModels;
 
 public class CalendarCellViewModel(DateTime date, bool isCurrentMonth, bool isToday, IReadOnlyList<ScheduleItem> dailyItems)
 {

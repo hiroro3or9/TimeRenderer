@@ -1,3 +1,6 @@
+using TimeRenderer.Models;
+using TimeRenderer.ViewModels;
+
 namespace TimeRenderer.Services;
 
 public interface IDialogService

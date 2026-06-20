@@ -1,7 +1,9 @@
 using System.Collections.Generic;
 using System.Windows;
 
-namespace TimeRenderer
+using TimeRenderer.ViewModels;
+
+namespace TimeRenderer.Views.Dialogs
 {
     /// <summary>
     /// 記録開始時の設定を行うダイアログ

@@ -2,6 +2,7 @@ using System;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Data;
+using TimeRenderer.ViewModels;
 
 namespace TimeRenderer.Converters;
 
@@ -15,6 +16,11 @@ public class DateToPageVisibilityConverter : IMultiValueConverter
         var itemDate = itemStartTime.Date;
         var baseDate = values[ConverterIndices.DateToPageVisibility.CurrentDate] is DateTime d ? d.Date : DateTime.Today;
         var mode = values[ConverterIndices.DateToPageVisibility.ViewMode] is MainViewModel.ViewMode viewMode ? viewMode : MainViewModel.ViewMode.Day;
+        // 有効な曜日チェック
+        if (values[ConverterIndices.DateToPageVisibility.EnabledDays] is IEnumerable<DayOfWeek> enabledDays && !enabledDays.Contains(itemDate.DayOfWeek))
+        {
+            return Visibility.Collapsed;
+        }
 
         if (mode == MainViewModel.ViewMode.Day)
         {

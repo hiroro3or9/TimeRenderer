@@ -1,4 +1,4 @@
-<Window x:Class="TimeRenderer.MainWindow"
+<Window x:Class="TimeRenderer.Views.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -225,6 +225,7 @@
                                         <MultiBinding Converter="{StaticResource DateToVisibleDaysConverter}">
                                             <Binding />
                                             <Binding Path="DataContext.CurrentViewMode" RelativeSource="{RelativeSource AncestorType=Window}"/>
+                                            <Binding Path="DataContext.EnabledDaysOfWeek" RelativeSource="{RelativeSource AncestorType=Window}"/>
                                         </MultiBinding>
                                     </ItemsControl.ItemsSource>
                                     <ItemsControl.ItemsPanel>
@@ -314,6 +315,7 @@
                                                     <Binding Path="StartTime" />
                                                     <Binding Path="DataContext" RelativeSource="{RelativeSource AncestorType=ItemsControl}"/> <!-- CurrentDate from ItemsControl DataContext -->
                                                     <Binding Path="DataContext.CurrentViewMode" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                    <Binding Path="DataContext.EnabledDaysOfWeek" RelativeSource="{RelativeSource AncestorType=Window}" />
                                                 </MultiBinding>
                                             </Setter.Value>
                                         </Setter>
@@ -329,6 +331,7 @@
                                                     <Binding Path="DataContext.CurrentViewMode" RelativeSource="{RelativeSource AncestorType=Window}" />
                                                     <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=Canvas}" />
                                                     <Binding Path="IsAllDay" />
+                                                    <Binding Path="DataContext.EnabledDaysOfWeek" RelativeSource="{RelativeSource AncestorType=Window}"/>
                                                 </MultiBinding>
                                             </Setter.Value>
                                         </Setter>
@@ -343,6 +346,7 @@
                                                     <Binding Path="DataContext.CurrentViewMode" RelativeSource="{RelativeSource AncestorType=Window}" />
                                                     <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=Canvas}" />
                                                     <Binding Path="IsAllDay" />
+                                                    <Binding Path="DataContext.EnabledDaysOfWeek" RelativeSource="{RelativeSource AncestorType=Window}"/>
                                                 </MultiBinding>
                                             </Setter.Value>
                                         </Setter>
@@ -395,6 +399,7 @@
                                         <MultiBinding Converter="{StaticResource DateToVisibleDaysConverter}">
                                             <Binding />
                                             <Binding Path="DataContext.CurrentViewMode" RelativeSource="{RelativeSource AncestorType=Window}"/>
+                                            <Binding Path="DataContext.EnabledDaysOfWeek" RelativeSource="{RelativeSource AncestorType=Window}"/>
                                         </MultiBinding>
                                     </ItemsControl.ItemsSource>
                                     <ItemsControl.ItemsPanel>
@@ -446,6 +451,7 @@
                                                         <Binding Path="StartTime" />
                                                         <Binding Path="DataContext" RelativeSource="{RelativeSource AncestorType=ItemsControl}"/> <!-- CurrentDate from ItemsControl DataContext -->
                                                         <Binding Path="DataContext.CurrentViewMode" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                        <Binding Path="DataContext.EnabledDaysOfWeek" RelativeSource="{RelativeSource AncestorType=Window}" />
                                                     </MultiBinding>
                                                 </Setter.Value>
                                             </Setter>
@@ -468,6 +474,8 @@
                                                         <Binding Path="DataContext" RelativeSource="{RelativeSource AncestorType=ItemsControl}"/> <!-- CurrentDate from ItemsControl DataContext -->
                                                         <Binding Path="DataContext.CurrentViewMode" RelativeSource="{RelativeSource AncestorType=Window}" />
                                                         <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=Canvas}" />
+                                                        <Binding Path="IsAllDay" />
+                                                        <Binding Path="DataContext.EnabledDaysOfWeek" RelativeSource="{RelativeSource AncestorType=Window}"/>
                                                     </MultiBinding>
                                                 </Setter.Value>
                                             </Setter>
@@ -481,6 +489,8 @@
                                                         <Binding Path="DataContext" RelativeSource="{RelativeSource AncestorType=ItemsControl}"/> <!-- CurrentDate from ItemsControl DataContext -->
                                                         <Binding Path="DataContext.CurrentViewMode" RelativeSource="{RelativeSource AncestorType=Window}" />
                                                         <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=Canvas}" />
+                                                        <Binding Path="IsAllDay" />
+                                                        <Binding Path="DataContext.EnabledDaysOfWeek" RelativeSource="{RelativeSource AncestorType=Window}"/>
                                                     </MultiBinding>
                                                 </Setter.Value>
                                             </Setter>
@@ -574,18 +584,34 @@
                 <RowDefinition Height="30"/> <!-- 曜日ヘッダー -->
                 <RowDefinition Height="*"/> <!-- 日付セル -->
             </Grid.RowDefinitions>
-
             <!-- 曜日ヘッダー -->
             <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
-                <UniformGrid Rows="1" Columns="7" Background="{DynamicResource BackgroundBrush}">
-                    <TextBlock Text="月" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold"/>
-                    <TextBlock Text="火" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold"/>
-                    <TextBlock Text="水" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold"/>
-                    <TextBlock Text="木" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold"/>
-                    <TextBlock Text="金" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold"/>
-                    <TextBlock Text="土" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource PrimaryBrush}" FontWeight="SemiBold"/>
-                    <TextBlock Text="日" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource DangerBrush}" FontWeight="SemiBold"/>
-                </UniformGrid>
+                <ItemsControl ItemsSource="{Binding DataContext.EnabledDayHeaders, RelativeSource={RelativeSource AncestorType=Window}}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <UniformGrid Rows="1" Background="{DynamicResource BackgroundBrush}"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Name}" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="SemiBold" Height="30" LineHeight="30">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding DayOfWeek}" Value="Saturday">
+                                                <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding DayOfWeek}" Value="Sunday">
+                                                <Setter Property="Foreground" Value="{DynamicResource DangerBrush}"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
             </Border>
 
             <!-- カレンダーのセル -->
@@ -600,7 +626,7 @@
                             </ItemsControl.CacheMode>
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
-                                    <UniformGrid Rows="6" Columns="7"/>
+                                    <UniformGrid Rows="6" Columns="{Binding DataContext.EnabledDaysCount, RelativeSource={RelativeSource AncestorType=Window}}"/>
                                 </ItemsPanelTemplate>
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
@@ -631,18 +657,34 @@
                 <RowDefinition Height="30"/> <!-- 曜日ヘッダー -->
                 <RowDefinition Height="*"/> <!-- 日付セル -->
             </Grid.RowDefinitions>
-
             <!-- 曜日ヘッダー -->
             <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
-                <UniformGrid Rows="1" Columns="7" Background="{DynamicResource BackgroundBrush}">
-                    <TextBlock Text="月" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold"/>
-                    <TextBlock Text="火" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold"/>
-                    <TextBlock Text="水" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold"/>
-                    <TextBlock Text="木" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold"/>
-                    <TextBlock Text="金" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold"/>
-                    <TextBlock Text="土" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource PrimaryBrush}" FontWeight="SemiBold"/>
-                    <TextBlock Text="日" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource DangerBrush}" FontWeight="SemiBold"/>
-                </UniformGrid>
+                <ItemsControl ItemsSource="{Binding DataContext.EnabledDayHeaders, RelativeSource={RelativeSource AncestorType=Window}}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <UniformGrid Rows="1" Background="{DynamicResource BackgroundBrush}"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Name}" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="SemiBold" Height="30" LineHeight="30">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding DayOfWeek}" Value="Saturday">
+                                                <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding DayOfWeek}" Value="Sunday">
+                                                <Setter Property="Foreground" Value="{DynamicResource DangerBrush}"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
             </Border>
 
             <!-- カレンダーのセル（3週間グリッド） -->
@@ -657,7 +699,7 @@
                             </ItemsControl.CacheMode>
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
-                                    <UniformGrid Rows="3" Columns="7"/>
+                                    <UniformGrid Rows="3" Columns="{Binding DataContext.EnabledDaysCount, RelativeSource={RelativeSource AncestorType=Window}}"/>
                                 </ItemsPanelTemplate>
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
@@ -979,8 +1021,9 @@
                     <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Margin="0,0,0,16"/>
 
                     <!-- 表示設定 -->
-                    <TextBlock Text="表示設定" FontWeight="SemiBold" FontSize="14" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,12"
-                               Visibility="{Binding IsTimeRangeSettingsVisible, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                    <TextBlock Text="表示設定" FontWeight="SemiBold" FontSize="14" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,12"/>
+                    
+                    <!-- 表示時間範囲 -->
                     <Grid Margin="0,0,0,16" Visibility="{Binding IsTimeRangeSettingsVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" SharedSizeGroup="LabelG" />
@@ -996,6 +1039,26 @@
                             <ComboBox ItemsSource="{Binding EndHourOptions}" SelectedItem="{Binding DisplayEndHour, UpdateSourceTrigger=PropertyChanged}"
                                       Width="70" FontSize="13" />
                         </StackPanel>
+                    </Grid>
+
+                    <!-- 表示曜日 -->
+                    <Grid Margin="0,0,0,16" Visibility="{Binding IsDayOfWeekSettingsVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelG" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        
+                        <TextBlock Grid.Column="0" Text="表示曜日" Style="{StaticResource FieldLabelStyle}" VerticalAlignment="Top" Margin="0,4,16,0" />
+                        
+                        <WrapPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <CheckBox Content="月" IsChecked="{Binding ShowMonday}" Margin="0,0,12,6" FontSize="13"/>
+                            <CheckBox Content="火" IsChecked="{Binding ShowTuesday}" Margin="0,0,12,6" FontSize="13"/>
+                            <CheckBox Content="水" IsChecked="{Binding ShowWednesday}" Margin="0,0,12,6" FontSize="13"/>
+                            <CheckBox Content="木" IsChecked="{Binding ShowThursday}" Margin="0,0,12,6" FontSize="13"/>
+                            <CheckBox Content="金" IsChecked="{Binding ShowFriday}" Margin="0,0,12,6" FontSize="13"/>
+                            <CheckBox Content="土" IsChecked="{Binding ShowSaturday}" Margin="0,0,12,6" FontSize="13" Foreground="{DynamicResource PrimaryBrush}"/>
+                            <CheckBox Content="日" IsChecked="{Binding ShowSunday}" Margin="0,0,12,6" FontSize="13" Foreground="{DynamicResource DangerBrush}"/>
+                        </WrapPanel>
                     </Grid>
 
                     <!-- スプリント設定 -->

@@ -7,7 +7,11 @@ using System.Windows.Threading;
 using System.Media;
 using TimeRenderer.Controls;
 
-namespace TimeRenderer;
+using TimeRenderer.Models;
+using TimeRenderer.Helpers;
+using TimeRenderer.Services;
+
+namespace TimeRenderer.ViewModels;
 
 public partial class MainViewModel : INotifyPropertyChanged
 {
@@ -267,6 +271,7 @@ public partial class MainViewModel : INotifyPropertyChanged
                 OnPropertyChanged(nameof(IsSprintTimelineMode));
                 OnPropertyChanged(nameof(IsTimeRangeSettingsVisible));
                 OnPropertyChanged(nameof(IsSprintSettingsVisible));
+                OnPropertyChanged(nameof(IsDayOfWeekSettingsVisible));
                 SaveSettings();
             }
         }
@@ -279,6 +284,7 @@ public partial class MainViewModel : INotifyPropertyChanged
     public bool IsSprintTimelineMode => CurrentViewMode == ViewMode.SprintTimeline;
     public bool IsTimeRangeSettingsVisible => CurrentViewMode == ViewMode.Day || CurrentViewMode == ViewMode.Week;
     public bool IsSprintSettingsVisible => CurrentViewMode == ViewMode.Sprint || CurrentViewMode == ViewMode.SprintTimeline;
+    public bool IsDayOfWeekSettingsVisible => CurrentViewMode != ViewMode.SprintTimeline;
 
     public DateTime CurrentWeekStart
     {
@@ -451,6 +457,63 @@ public partial class MainViewModel : INotifyPropertyChanged
         }
     }
 
+    public record DayHeaderInfo(string Name, DayOfWeek DayOfWeek);
+
+    public List<DayHeaderInfo> EnabledDayHeaders
+    {
+        get
+        {
+            var headers = new List<DayHeaderInfo>();
+            var order = new[] { DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday, DayOfWeek.Friday, DayOfWeek.Saturday, DayOfWeek.Sunday };
+            foreach (var day in order)
+            {
+                if (EnabledDaysOfWeek.Contains(day))
+                {
+                    var name = day switch
+                    {
+                        DayOfWeek.Monday => "月",
+                        DayOfWeek.Tuesday => "火",
+                        DayOfWeek.Wednesday => "水",
+                        DayOfWeek.Thursday => "木",
+                        DayOfWeek.Friday => "金",
+                        DayOfWeek.Saturday => "土",
+                        DayOfWeek.Sunday => "日",
+                        _ => ""
+                    };
+                    headers.Add(new DayHeaderInfo(name, day));
+                }
+            }
+            return headers;
+        }
+    }
+
+    public List<string> EnabledDayNames
+    {
+        get
+        {
+            var names = new List<string>();
+            var order = new[] { DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday, DayOfWeek.Friday, DayOfWeek.Saturday, DayOfWeek.Sunday };
+            foreach (var day in order)
+            {
+                if (EnabledDaysOfWeek.Contains(day))
+                {
+                    names.Add(day switch
+                    {
+                        DayOfWeek.Monday => "月",
+                        DayOfWeek.Tuesday => "火",
+                        DayOfWeek.Wednesday => "水",
+                        DayOfWeek.Thursday => "木",
+                        DayOfWeek.Friday => "金",
+                        DayOfWeek.Saturday => "土",
+                        DayOfWeek.Sunday => "日",
+                        _ => ""
+                    });
+                }
+            }
+            return names;
+        }
+    }
+
     public event PropertyChangedEventHandler? PropertyChanged;
     protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
@@ -465,3 +528,4 @@ public partial class MainViewModel : INotifyPropertyChanged
         return true;
     }
 }
+

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Windows.Media;
 using Brushes = System.Windows.Media.Brushes;
 using TimeRenderer.Services;
+using TimeRenderer.Models;
 
 namespace TimeRenderer.Services;
 

@@ -4,7 +4,9 @@ using Brush = System.Windows.Media.Brush;
 using Brushes = System.Windows.Media.Brushes;
 using MessageBox = System.Windows.MessageBox;
 
-namespace TimeRenderer
+using TimeRenderer.Models;
+
+namespace TimeRenderer.Views.Dialogs
 {
     /// <summary>
     /// スケジュールアイテムの追加・編集用ダイアログ。

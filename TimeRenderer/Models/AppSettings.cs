@@ -1,6 +1,6 @@
 using System;
 
-namespace TimeRenderer;
+namespace TimeRenderer.Models;
 
 public class AppSettings
 {
@@ -13,4 +13,15 @@ public class AppSettings
     public int DisplayEndHour { get; set; } = 24;    // 表示終了時刻（1～24）
     public bool IsDarkMode { get; set; } = false;    // ダークモード
     public System.Collections.Generic.List<SprintInfo> ManualSprints { get; set; } = [];
+    public System.Collections.Generic.List<DayOfWeek> EnabledDaysOfWeek { get; set; } =
+    [
+        DayOfWeek.Monday,
+        DayOfWeek.Tuesday,
+        DayOfWeek.Wednesday,
+        DayOfWeek.Thursday,
+        DayOfWeek.Friday,
+        DayOfWeek.Saturday,
+        DayOfWeek.Sunday
+    ];
 }
+

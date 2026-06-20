@@ -1,6 +1,6 @@
 using System.Windows.Input;
 
-namespace TimeRenderer;
+namespace TimeRenderer.Helpers;
 
 /// <summary>
 /// ICommand の汎用実装。ViewModel からUIコマンドをバインドするために使用する。

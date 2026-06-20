@@ -8,7 +8,11 @@ using MenuItem = System.Windows.Controls.MenuItem;
 using ContextMenu = System.Windows.Controls.ContextMenu;
 using MessageBox = System.Windows.MessageBox;
 
-namespace TimeRenderer
+using TimeRenderer.ViewModels;
+using TimeRenderer.Models;
+using TimeRenderer.Services;
+
+namespace TimeRenderer.Views
 {
     /// <summary>
     /// MainWindow のコードビハインド。
