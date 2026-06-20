@@ -1,6 +1,6 @@
 using System.Windows;
 
-namespace TimeRenderer
+namespace TimeRenderer.Views.Dialogs
 {
     public partial class SimpleTextInputDialog : Window
     {

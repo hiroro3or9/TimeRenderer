@@ -1,5 +1,8 @@
 using System.Windows;
 using TimeRenderer.Controls;
+using TimeRenderer.Models;
+using TimeRenderer.ViewModels;
+using TimeRenderer.Views.Dialogs;
 using MessageBox = System.Windows.MessageBox;
 
 namespace TimeRenderer.Services;

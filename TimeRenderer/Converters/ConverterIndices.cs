@@ -1,6 +1,6 @@
 using System;
 
-namespace TimeRenderer;
+namespace TimeRenderer.Converters;
 
 /// <summary>
 /// XAMLのMultiBindingで各コンバーターに渡される配列(values)のインデックス定義
@@ -9,16 +9,17 @@ public static class ConverterIndices
 {
     public static class DateToPageVisibility
     {
-        public const int RequiredCount = 3;
+        public const int RequiredCount = 4;
 
         public const int StartTime = 0;
         public const int CurrentDate = 1;
         public const int ViewMode = 2;
+        public const int EnabledDays = 3;
     }
 
     public static class DateToPagePosition
     {
-        public const int RequiredCount = 6;
+        public const int RequiredCount = 8;
 
         public const int StartTime = 0;
         public const int ColumnIndex = 1;
@@ -27,15 +28,18 @@ public static class ConverterIndices
         public const int ViewMode = 4;
         public const int CanvasActualWidth = 5;
         public const int IsAllDay = 6;
+        public const int EnabledDays = 7;
     }
 
     public static class DateToVisibleDays
     {
-        public const int RequiredCount = 2;
+        public const int RequiredCount = 3;
 
         public const int CurrentDate = 0;
         public const int ViewMode = 1;
+        public const int EnabledDays = 2;
     }
+
 
     public static class TimeToPosition
     {

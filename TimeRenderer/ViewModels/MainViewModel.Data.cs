@@ -1,7 +1,11 @@
 using System;
 using System.Collections.Generic;
 
-namespace TimeRenderer;
+using TimeRenderer.Models;
+using TimeRenderer.Helpers;
+using TimeRenderer.Services;
+
+namespace TimeRenderer.ViewModels;
 
 public partial class MainViewModel
 {
@@ -83,6 +87,88 @@ public partial class MainViewModel
         OnPropertyChanged(nameof(MemoText));
     }
 
+    private List<DayOfWeek> _enabledDaysOfWeek =
+    [
+        DayOfWeek.Monday,
+        DayOfWeek.Tuesday,
+        DayOfWeek.Wednesday,
+        DayOfWeek.Thursday,
+        DayOfWeek.Friday,
+        DayOfWeek.Saturday,
+        DayOfWeek.Sunday
+    ];
+
+    public List<DayOfWeek> EnabledDaysOfWeek
+    {
+        get => _enabledDaysOfWeek;
+        set
+        {
+            if (SetProperty(ref _enabledDaysOfWeek, value))
+            {
+                NotifyShowDaysProperties();
+                OnPropertyChanged(nameof(EnabledDaysCount));
+                OnPropertyChanged(nameof(EnabledDayNames));
+                OnPropertyChanged(nameof(EnabledDayHeaders));
+                UpdateVisibleDays();
+                SaveSettings();
+            }
+        }
+    }
+
+    public int EnabledDaysCount => _enabledDaysOfWeek.Count;
+
+    private void SetDayEnabled(DayOfWeek day, bool enabled)
+    {
+        var list = new List<DayOfWeek>(_enabledDaysOfWeek);
+        if (enabled)
+        {
+            if (!list.Contains(day))
+            {
+                list.Add(day);
+                // 曜日の順序を維持（月～日）
+                DayOfWeek[] order = [DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday, DayOfWeek.Friday, DayOfWeek.Saturday, DayOfWeek.Sunday];
+                list = [.. order.Where(d => list.Contains(d))];
+            }
+        }
+        else
+        {
+            if (list.Contains(day))
+            {
+                // 最低1つの曜日は表示した状態を維持する
+                if (list.Count > 1)
+                {
+                    list.Remove(day);
+                }
+                else
+                {
+                    // チェック状態を元に戻すために通知
+                    NotifyShowDaysProperties();
+                    return;
+                }
+            }
+        }
+        EnabledDaysOfWeek = list;
+    }
+
+    private void NotifyShowDaysProperties()
+    {
+        OnPropertyChanged(nameof(ShowMonday));
+        OnPropertyChanged(nameof(ShowTuesday));
+        OnPropertyChanged(nameof(ShowWednesday));
+        OnPropertyChanged(nameof(ShowThursday));
+        OnPropertyChanged(nameof(ShowFriday));
+        OnPropertyChanged(nameof(ShowSaturday));
+        OnPropertyChanged(nameof(ShowSunday));
+    }
+
+    public bool ShowMonday { get => EnabledDaysOfWeek.Contains(DayOfWeek.Monday); set => SetDayEnabled(DayOfWeek.Monday, value); }
+    public bool ShowTuesday { get => EnabledDaysOfWeek.Contains(DayOfWeek.Tuesday); set => SetDayEnabled(DayOfWeek.Tuesday, value); }
+    public bool ShowWednesday { get => EnabledDaysOfWeek.Contains(DayOfWeek.Wednesday); set => SetDayEnabled(DayOfWeek.Wednesday, value); }
+    public bool ShowThursday { get => EnabledDaysOfWeek.Contains(DayOfWeek.Thursday); set => SetDayEnabled(DayOfWeek.Thursday, value); }
+    public bool ShowFriday { get => EnabledDaysOfWeek.Contains(DayOfWeek.Friday); set => SetDayEnabled(DayOfWeek.Friday, value); }
+    public bool ShowSaturday { get => EnabledDaysOfWeek.Contains(DayOfWeek.Saturday); set => SetDayEnabled(DayOfWeek.Saturday, value); }
+    public bool ShowSunday { get => EnabledDaysOfWeek.Contains(DayOfWeek.Sunday); set => SetDayEnabled(DayOfWeek.Sunday, value); }
+
     private void SaveSettings()
     {
         if (!_isInitialized) return;
@@ -96,7 +182,8 @@ public partial class MainViewModel
             DisplayStartHour = DisplayStartHour,
             DisplayEndHour = DisplayEndHour,
             IsDarkMode = IsDarkMode,
-            ManualSprints = ManualSprints
+            ManualSprints = ManualSprints,
+            EnabledDaysOfWeek = EnabledDaysOfWeek
         };
         Services.SettingsService.SaveSettings(settings);
     }
@@ -137,10 +224,31 @@ public partial class MainViewModel
 
             _manualSprints = settings.ManualSprints ?? [];
             OnPropertyChanged(nameof(ManualSprints));
+
+            if (settings.EnabledDaysOfWeek != null && settings.EnabledDaysOfWeek.Count > 0)
+            {
+                _enabledDaysOfWeek = settings.EnabledDaysOfWeek;
+            }
+            else
+                _enabledDaysOfWeek =
+                [
+                    DayOfWeek.Monday,
+                    DayOfWeek.Tuesday,
+                    DayOfWeek.Wednesday,
+                    DayOfWeek.Thursday,
+                    DayOfWeek.Friday,
+                    DayOfWeek.Saturday,
+                    DayOfWeek.Sunday
+                ];
+            NotifyShowDaysProperties();
+            OnPropertyChanged(nameof(EnabledDaysCount));
+            OnPropertyChanged(nameof(EnabledDayNames));
+            OnPropertyChanged(nameof(EnabledDayHeaders));
             
             UpdateVisibleDays();
         }
     }
+
 
     private void SaveData()
     {

@@ -6,7 +6,7 @@ using Brush = System.Windows.Media.Brush;
 using Brushes = System.Windows.Media.Brushes;
 using System.Text.Json.Serialization;
 
-namespace TimeRenderer;
+namespace TimeRenderer.Models;
 
 /// <summary>
 /// スケジュールの1件分のデータを表すモデルクラス。

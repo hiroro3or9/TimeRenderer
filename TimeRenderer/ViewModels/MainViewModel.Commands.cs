@@ -4,7 +4,10 @@ using System.Windows.Media;
 using TimeRenderer.Services;
 using Brushes = System.Windows.Media.Brushes;
 
-namespace TimeRenderer;
+using TimeRenderer.Models;
+using TimeRenderer.Helpers;
+
+namespace TimeRenderer.ViewModels;
 
 public partial class MainViewModel
 {
@@ -129,7 +132,7 @@ public partial class MainViewModel
             {
                 NewSprintStartDate = latest.EndDate.AddDays(1).Date;
                 NewSprintEndDate = latest.EndDate.AddDays(14).Date;
-                if (latest.Name.StartsWith("Sprint ") && int.TryParse(latest.Name.Substring(7), out var num))
+                if (latest.Name.StartsWith("Sprint ") && int.TryParse(latest.Name.AsSpan(7), out var num))
                 {
                     NewSprintName = $"Sprint {num + 1}";
                 }
@@ -264,7 +267,7 @@ public partial class MainViewModel
         TransitionDirection = amount > 0 ? Controls.TransitionDirection.Forward : Controls.TransitionDirection.Backward;
         CurrentDate = CurrentViewMode switch
         {
-            ViewMode.Day => CurrentDate.AddDays(amount),
+            ViewMode.Day => GetNextActiveDay(CurrentDate, amount),
             ViewMode.Week => CurrentDate.AddDays(amount * 7),
             ViewMode.Month => CurrentDate.AddMonths(amount),
             ViewMode.Sprint => GetAdjacentSprintDate(amount),
@@ -272,6 +275,26 @@ public partial class MainViewModel
             _ => CurrentDate
         };
     }
+
+    /// <summary>
+    /// 表示対象の曜日のみを考慮して、次のアクティブな日を取得します
+    /// </summary>
+    private DateTime GetNextActiveDay(DateTime date, int amount)
+    {
+        var next = date;
+        var step = amount > 0 ? 1 : -1;
+        var absAmount = Math.Abs(amount);
+        
+        for (int i = 0; i < absAmount; i++)
+        {
+            do
+            {
+                next = next.AddDays(step);
+            } while (EnabledDaysOfWeek.Count > 0 && !EnabledDaysOfWeek.Contains(next.DayOfWeek));
+        }
+        return next;
+    }
+
 
     private DateTime GetAdjacentSprintDate(int amount)
     {

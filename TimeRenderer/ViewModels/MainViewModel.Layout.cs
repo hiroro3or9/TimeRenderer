@@ -1,7 +1,11 @@
 using System;
 using System.Linq;
 
-namespace TimeRenderer;
+using TimeRenderer.Models;
+using TimeRenderer.Helpers;
+using TimeRenderer.Services;
+
+namespace TimeRenderer.ViewModels;
 
 public partial class MainViewModel
 {
@@ -68,7 +72,11 @@ public partial class MainViewModel
             var start = CurrentWeekStart;
             for (int i = 0; i < 7; i++)
             {
-                days.Add(start.AddDays(i));
+                var day = start.AddDays(i);
+                if (EnabledDaysOfWeek.Contains(day.DayOfWeek))
+                {
+                    days.Add(day);
+                }
             }
         }
         else if (CurrentViewMode == ViewMode.Month)
@@ -79,10 +87,18 @@ public partial class MainViewModel
             var diff = (7 + (firstDayOfMonth.DayOfWeek - DayOfWeek.Monday)) % 7;
             var start = firstDayOfMonth.AddDays(-1 * diff).Date;
             
-            // 6週間(42日)分を追加
-            for (int i = 0; i < 42; i++)
+            // 6週間分ループし、有効な曜日のみを追加
+            for (int w = 0; w < 6; w++)
             {
-                days.Add(start.AddDays(i));
+                var weekStart = start.AddDays(w * 7);
+                for (int d = 0; d < 7; d++)
+                {
+                    var day = weekStart.AddDays(d);
+                    if (EnabledDaysOfWeek.Contains(day.DayOfWeek))
+                    {
+                        days.Add(day);
+                    }
+                }
             }
         }
         else if (CurrentViewMode == ViewMode.Sprint)
@@ -93,9 +109,18 @@ public partial class MainViewModel
             // スプリント終了日の週の日曜日
             var end = Converters.DateTimeHelper.GetStartOfWeek(sprint.EndDate).AddDays(6);
             
-            for (var d = start; d <= end; d = d.AddDays(1))
+            // 週ごとにループして、有効な曜日のみを追加する
+            for (var d = start; d <= end; d = d.AddDays(7))
             {
-                days.Add(d);
+                for (int i = 0; i < 7; i++)
+                {
+                    var day = d.AddDays(i);
+                    if (day > end) break;
+                    if (EnabledDaysOfWeek.Contains(day.DayOfWeek))
+                    {
+                        days.Add(day);
+                    }
+                }
             }
         }
         else if (CurrentViewMode == ViewMode.SprintTimeline)

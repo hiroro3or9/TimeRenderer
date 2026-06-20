@@ -1,6 +1,6 @@
 using System;
 
-namespace TimeRenderer;
+namespace TimeRenderer.Models;
 
 /// <summary>
 /// スプリント情報を管理するモデルクラスです。

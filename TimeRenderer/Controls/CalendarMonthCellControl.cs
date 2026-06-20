@@ -4,6 +4,8 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 using Brush = System.Windows.Media.Brush;
+using TimeRenderer.Models;
+using TimeRenderer.ViewModels;
 
 namespace TimeRenderer.Controls
 {
