@@ -178,7 +178,10 @@ public partial class MainViewModel
         var newAllDayItems = new List<ScheduleItem>();
         var newSegments = new List<ScheduleSegment>();
 
-        foreach (var item in ScheduleItems)
+        // 色フィルタで非表示のカテゴリを除いたアイテムのみを描画対象にする
+        var visibleItems = ScheduleItems.Where(x => IsColorVisible(x.ColorCode)).ToList();
+
+        foreach (var item in visibleItems)
         {
             if (item.IsAllDay)
             {
@@ -228,10 +231,14 @@ public partial class MainViewModel
         }
 
         var dailyItems = new Dictionary<DateTime, List<ScheduleItem>>();
-        foreach (var item in ScheduleItems)
+        foreach (var item in visibleItems)
         {
             var start = item.StartTime.Date;
-            var end = item.EndTime.Date;
+            // 終端がちょうど0:00の日は実際にはまたがっていないため含めない
+            // （終日イベントは 0:00〜翌0:00 で保存されるため、翌日に重複表示されるのを防ぐ）
+            var end = (item.EndTime.TimeOfDay == TimeSpan.Zero && item.EndTime > item.StartTime)
+                ? item.EndTime.Date.AddDays(-1)
+                : item.EndTime.Date;
             for (var d = start; d <= end; d = d.AddDays(1))
             {
                 if (!dailyItems.TryGetValue(d, out var list))
@@ -275,6 +282,7 @@ public partial class MainViewModel
         var rangeEnd = TimelineSprints[^1].EndDate.Date.AddDays(1);
 
         TimelineItems = [.. ScheduleItems
+            .Where(x => IsColorVisible(x.ColorCode))
             .Where(x => x.EndTime >= rangeStart && x.StartTime < rangeEnd)
             .OrderBy(x => x.StartTime)];
     }
