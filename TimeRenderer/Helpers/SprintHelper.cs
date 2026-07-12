@@ -153,17 +153,32 @@ public static class SprintHelper
         return [.. result.OrderBy(x => x.StartDate)];
     }
 
+    // GetSprintForDate は DateDisplay / UpdateVisibleDays 等から高頻度で呼ばれるため、
+    // 生成済みのスプリント一覧をキャッシュする（ManualSprints はリスト再代入で更新されるため参照比較で判定可能）
+    private static IReadOnlyList<SprintInfo>? _cacheSource;
+    private static DateTime _cacheFrom;
+    private static DateTime _cacheTo;
+    private static List<SprintInfo>? _cachedSprints;
+
     /// <summary>
     /// 指定された基準日が含まれるスプリントを取得します。
     /// </summary>
     public static SprintInfo GetSprintForDate(IReadOnlyList<SprintInfo> manualSprints, DateTime date)
     {
-        // 十分に広い期間でスプリント一覧を生成し、日付が含まれるものを探索
-        var fromDate = date.AddMonths(-3);
-        var toDate = date.AddMonths(3);
-        var sprints = GetSprintsForRange(manualSprints, fromDate, toDate);
+        var target = date.Date;
 
-        var match = sprints.FirstOrDefault(s => date.Date >= s.StartDate && date.Date <= s.EndDate);
+        if (_cachedSprints == null ||
+            !ReferenceEquals(_cacheSource, manualSprints) ||
+            target <= _cacheFrom || target >= _cacheTo)
+        {
+            // 十分に広い期間でスプリント一覧を生成してキャッシュ
+            _cacheFrom = target.AddMonths(-3);
+            _cacheTo = target.AddMonths(3);
+            _cachedSprints = GetSprintsForRange(manualSprints, _cacheFrom, _cacheTo);
+            _cacheSource = manualSprints;
+        }
+
+        var match = _cachedSprints.FirstOrDefault(s => target >= s.StartDate && target <= s.EndDate);
         if (match != null)
         {
             return match;

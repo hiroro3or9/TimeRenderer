@@ -7,11 +7,12 @@
         xmlns:helpers="clr-namespace:TimeRenderer.Helpers"
         xmlns:conv="clr-namespace:TimeRenderer.Converters"
         xmlns:controls="clr-namespace:TimeRenderer.Controls"
+        xmlns:views="clr-namespace:TimeRenderer.Views"
         xmlns:markdig="clr-namespace:Markdig.Wpf;assembly=Markdig.Wpf"
         xmlns:sys="clr-namespace:System;assembly=mscorlib"
         mc:Ignorable="d"
         Background="{DynamicResource BackgroundBrush}"
-        Title="TimeRenderer" Height="700" Width="1000"
+        Title="TimeRenderer" Height="700" Width="1100"
         Loaded="Window_Loaded">
     <Window.Resources>
         <conv:TimeToPositionConverter x:Key="TimeToPositionConverter" PixelsPerHour="60"/>
@@ -25,11 +26,7 @@
         <conv:InvertedBooleanToVisibilityConverter x:Key="InvertedBooleanToVisibilityConverter"/>
         <conv:InverseBooleanConverter x:Key="InverseBooleanConverter"/>
         <conv:LShapeGeometryConverter x:Key="LShapeGeometryConverter"/>
-        <conv:DateToScheduleItemsConverter x:Key="DateToScheduleItemsConverter"/>
-        <conv:IsCurrentMonthConverter x:Key="IsCurrentMonthConverter"/>
-        <conv:CurrentMonthForegroundConverter x:Key="CurrentMonthForegroundConverter"/>
-        <conv:CurrentMonthBackgroundConverter x:Key="CurrentMonthBackgroundConverter"/>
-        
+
         <Style TargetType="ListBoxItem" x:Key="TimeLabelStyle">
             <Setter Property="Height" Value="60"/>
             <Setter Property="Padding" Value="0"/>
@@ -101,6 +98,23 @@
             <Setter Property="BorderThickness" Value="1,1,1,1"/> <!-- 境界線が太くなるのを防ぐため左側も描画し、重なりを考慮するか、0,1,1,1にするか。ここでは左ボーダーありにして、並べたときに重なるようにマージン調整する手もあるが、シンプルに 1,1,1,1 で左隣のボーダーと重なるように Margin="-1,0,0,0" するのが綺麗に見える。 -->
             <Setter Property="Margin" Value="-1,0,0,0"/>
         </Style>
+        <!-- 統計ビュー：カテゴリ別横棒グラフ用スタイル -->
+        <Style x:Key="StatsBarStyle" TargetType="ProgressBar">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ProgressBar">
+                        <Grid>
+                            <Border Background="{DynamicResource BackgroundBrush}" CornerRadius="4"
+                                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"/>
+                            <Border x:Name="PART_Track"/>
+                            <Border x:Name="PART_Indicator" Background="{TemplateBinding Foreground}"
+                                    CornerRadius="4" HorizontalAlignment="Left" Margin="1"/>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <conv:DayOfWeekToBrushConverter x:Key="DayOfWeekToBrushConverter"/>
         <conv:DateToBackgroundBrushConverter x:Key="DateToBackgroundBrushConverter"/>
         <conv:DateToSprintTimelinePositionConverter x:Key="DateToSprintTimelinePositionConverter"/>
@@ -194,8 +208,11 @@
                     <RadioButton Content="スプリント" Command="{Binding ChangeViewModeCommand}" CommandParameter="Sprint" 
                                  IsChecked="{Binding IsSprintMode, Mode=OneWay}" GroupName="ViewMode"
                                  Style="{StaticResource SegmentedMiddleStyle}"/>
-                    <RadioButton Content="TL" Command="{Binding ChangeViewModeCommand}" CommandParameter="SprintTimeline" 
+                    <RadioButton Content="TL" Command="{Binding ChangeViewModeCommand}" CommandParameter="SprintTimeline"
                                  IsChecked="{Binding IsSprintTimelineMode, Mode=OneWay}" GroupName="ViewMode"
+                                 Style="{StaticResource SegmentedMiddleStyle}"/>
+                    <RadioButton Content="統計" Command="{Binding ChangeViewModeCommand}" CommandParameter="Stats"
+                                 IsChecked="{Binding IsStatsMode, Mode=OneWay}" GroupName="ViewMode"
                                  Style="{StaticResource SegmentedRightStyle}"/>
                 </StackPanel>
             </Grid>
@@ -440,7 +457,8 @@
                                 <ItemsControl x:Name="ScheduleItemsControl" ItemsSource="{Binding DataContext.StandardItems, RelativeSource={RelativeSource AncestorType=Window}}">
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate>
-                                            <Canvas x:Name="ScheduleCanvas"/>
+                                            <!-- ClipToBounds: 表示時間範囲外・日またぎのアイテムがグリッド外へはみ出して描画されるのを防ぐ -->
+                                            <Canvas x:Name="ScheduleCanvas" ClipToBounds="True"/>
                                         </ItemsPanelTemplate>
                                     </ItemsControl.ItemsPanel>
                                     <ItemsControl.ItemContainerStyle>
@@ -528,10 +546,11 @@
                                                     <StackPanel>
                                                         <TextBlock Text="{Binding Title}" FontWeight="Bold" Foreground="#1E293B" TextTrimming="CharacterEllipsis"/>
                                                         <TextBlock Text="{Binding Content}" TextWrapping="Wrap" FontSize="11" Foreground="#64748B" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
+                                                        <!-- 日またぎで分割されたセグメントでも、元アイテムの本来の時間帯を表示する -->
                                                         <TextBlock FontSize="10" Foreground="#64748B" Opacity="0.8" Margin="0,2,0,0">
-                                                            <Run Text="{Binding StartTime, StringFormat=HH:mm}"/>
+                                                            <Run Text="{Binding Item.StartTime, StringFormat=HH:mm, Mode=OneWay}"/>
                                                             <Run Text=" - "/>
-                                                            <Run Text="{Binding EndTime, StringFormat=HH:mm}"/>
+                                                            <Run Text="{Binding Item.EndTime, StringFormat=HH:mm, Mode=OneWay}"/>
                                                         </TextBlock>
                                                     </StackPanel>
                                                 </Border>
@@ -578,150 +597,20 @@
         </ScrollViewer>
 
         <!-- 月表示用のカレンダー領域 -->
-        <Grid Grid.Row="1" Grid.RowSpan="2" Background="{DynamicResource SurfaceBrush}"
-              Visibility="{Binding IsMonthMode, Converter={StaticResource BooleanToVisibilityConverter}}">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="30"/> <!-- 曜日ヘッダー -->
-                <RowDefinition Height="*"/> <!-- 日付セル -->
-            </Grid.RowDefinitions>
-            <!-- 曜日ヘッダー -->
-            <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
-                <ItemsControl ItemsSource="{Binding DataContext.EnabledDayHeaders, RelativeSource={RelativeSource AncestorType=Window}}">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <UniformGrid Rows="1" Background="{DynamicResource BackgroundBrush}"/>
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <TextBlock Text="{Binding Name}" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="SemiBold" Height="30" LineHeight="30">
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding DayOfWeek}" Value="Saturday">
-                                                <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
-                                            </DataTrigger>
-                                            <DataTrigger Binding="{Binding DayOfWeek}" Value="Sunday">
-                                                <Setter Property="Foreground" Value="{DynamicResource DangerBrush}"/>
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TextBlock.Style>
-                            </TextBlock>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </Border>
+        <views:CalendarGridView Grid.Row="1" Grid.RowSpan="2" Background="{DynamicResource SurfaceBrush}"
+                                Rows="6"
+                                Visibility="{Binding IsMonthMode, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                controls:CalendarMonthCellControl.ItemClicked="MonthCell_ItemClicked"
+                                controls:CalendarMonthCellControl.ItemRightClicked="MonthCell_ItemRightClicked"
+                                controls:CalendarMonthCellControl.CellClicked="MonthCell_Clicked"/>
 
-            <!-- カレンダーのセル -->
-            <controls:TransitioningContentControl Grid.Row="1" Content="{Binding CurrentDate}" TransitionDirection="{Binding TransitionDirection}"
-                                                  TransitionAxis="Vertical"
-                                                  HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
-                <controls:TransitioningContentControl.ContentTemplate>
-                    <DataTemplate>
-                        <ItemsControl ItemsSource="{Binding DataContext.CalendarCells, RelativeSource={RelativeSource AncestorType=Window}}">
-                            <ItemsControl.CacheMode>
-                                <BitmapCache EnableClearType="True" RenderAtScale="1"/>
-                            </ItemsControl.CacheMode>
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <UniformGrid Rows="6" Columns="{Binding DataContext.EnabledDaysCount, RelativeSource={RelativeSource AncestorType=Window}}"/>
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <controls:CalendarMonthCellControl CellData="{Binding}"
-                                                                       MutedBackgroundBrush="{DynamicResource MutedBackgroundBrush}"
-                                                                       TextSecondaryBrush="{DynamicResource TextSecondaryBrush}"
-                                                                       TextPrimaryBrush="{DynamicResource TextPrimaryBrush}"
-                                                                       TodayBackgroundBrush="{DynamicResource PrimarySubtleBrush}"
-                                                                       SundayForegroundBrush="{DynamicResource DangerBrush}"
-                                                                       SaturdayForegroundBrush="{DynamicResource PrimaryBrush}"
-                                                                       WeekdayForegroundBrush="{DynamicResource TextPrimaryBrush}"
-                                                                       ItemClicked="MonthCell_ItemClicked"
-                                                                       ItemRightClicked="MonthCell_ItemRightClicked"
-                                                                       CellClicked="MonthCell_Clicked" />
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </DataTemplate>
-                </controls:TransitioningContentControl.ContentTemplate>
-            </controls:TransitioningContentControl>
-        </Grid>
-
-        <!-- スプリント表示用のカレンダー領域（3週間グリッド） -->
-        <Grid Grid.Row="1" Grid.RowSpan="2" Background="{DynamicResource SurfaceBrush}"
-              Visibility="{Binding IsSprintMode, Converter={StaticResource BooleanToVisibilityConverter}}">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="30"/> <!-- 曜日ヘッダー -->
-                <RowDefinition Height="*"/> <!-- 日付セル -->
-            </Grid.RowDefinitions>
-            <!-- 曜日ヘッダー -->
-            <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
-                <ItemsControl ItemsSource="{Binding DataContext.EnabledDayHeaders, RelativeSource={RelativeSource AncestorType=Window}}">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <UniformGrid Rows="1" Background="{DynamicResource BackgroundBrush}"/>
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <TextBlock Text="{Binding Name}" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="SemiBold" Height="30" LineHeight="30">
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding DayOfWeek}" Value="Saturday">
-                                                <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
-                                            </DataTrigger>
-                                            <DataTrigger Binding="{Binding DayOfWeek}" Value="Sunday">
-                                                <Setter Property="Foreground" Value="{DynamicResource DangerBrush}"/>
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TextBlock.Style>
-                            </TextBlock>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </Border>
-
-            <!-- カレンダーのセル（3週間グリッド） -->
-            <controls:TransitioningContentControl Grid.Row="1" Content="{Binding CurrentDate}" TransitionDirection="{Binding TransitionDirection}"
-                                                  TransitionAxis="Vertical"
-                                                  HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
-                <controls:TransitioningContentControl.ContentTemplate>
-                    <DataTemplate>
-                        <ItemsControl ItemsSource="{Binding DataContext.CalendarCells, RelativeSource={RelativeSource AncestorType=Window}}">
-                            <ItemsControl.CacheMode>
-                                <BitmapCache EnableClearType="True" RenderAtScale="1"/>
-                            </ItemsControl.CacheMode>
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <UniformGrid Rows="3" Columns="{Binding DataContext.EnabledDaysCount, RelativeSource={RelativeSource AncestorType=Window}}"/>
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <controls:CalendarMonthCellControl CellData="{Binding}"
-                                                                       MutedBackgroundBrush="{DynamicResource MutedBackgroundBrush}"
-                                                                       TextSecondaryBrush="{DynamicResource TextSecondaryBrush}"
-                                                                       TextPrimaryBrush="{DynamicResource TextPrimaryBrush}"
-                                                                       TodayBackgroundBrush="{DynamicResource PrimarySubtleBrush}"
-                                                                       SundayForegroundBrush="{DynamicResource DangerBrush}"
-                                                                       SaturdayForegroundBrush="{DynamicResource PrimaryBrush}"
-                                                                       WeekdayForegroundBrush="{DynamicResource TextPrimaryBrush}"
-                                                                       ItemClicked="MonthCell_ItemClicked"
-                                                                       ItemRightClicked="MonthCell_ItemRightClicked"
-                                                                       CellClicked="MonthCell_Clicked" />
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </DataTemplate>
-                </controls:TransitioningContentControl.ContentTemplate>
-            </controls:TransitioningContentControl>
-        </Grid>
+        <!-- スプリント表示用のカレンダー領域（週数に応じた可変グリッド） -->
+        <views:CalendarGridView Grid.Row="1" Grid.RowSpan="2" Background="{DynamicResource SurfaceBrush}"
+                                Rows="{Binding SprintWeekRows}"
+                                Visibility="{Binding IsSprintMode, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                controls:CalendarMonthCellControl.ItemClicked="MonthCell_ItemClicked"
+                                controls:CalendarMonthCellControl.ItemRightClicked="MonthCell_ItemRightClicked"
+                                controls:CalendarMonthCellControl.CellClicked="MonthCell_Clicked"/>
 
         <!-- スプリントタイムライン表示用の領域 -->
         <Grid Grid.Row="1" Grid.RowSpan="2" Background="{DynamicResource SurfaceBrush}"
@@ -773,8 +662,8 @@
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
 
-                    <!-- 予定バーの一覧 -->
-                    <ItemsControl ItemsSource="{Binding ScheduleItems}" Margin="0,10">
+                    <!-- 予定バーの一覧（表示範囲内のアイテムのみ・開始時刻順） -->
+                    <ItemsControl ItemsSource="{Binding TimelineItems}" Margin="0,10">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
                                 <StackPanel Orientation="Vertical"/>
@@ -831,6 +720,127 @@
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
                 </Grid>
+            </ScrollViewer>
+        </Grid>
+
+        <!-- 統計表示用の領域 -->
+        <Grid Grid.Row="1" Grid.RowSpan="2" Background="{DynamicResource SurfaceBrush}"
+              Visibility="{Binding IsStatsMode, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" helpers:ScrollViewerHelper.EnableMiddleButtonScroll="True">
+                <StackPanel Margin="24" MaxWidth="960">
+
+                    <!-- 期間切替 + サマリー -->
+                    <Grid Margin="0,0,0,20">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Orientation="Horizontal" Grid.Column="0">
+                            <RadioButton Content="週" Command="{Binding ChangeStatsPeriodCommand}" CommandParameter="Week"
+                                         IsChecked="{Binding IsStatsWeekPeriod, Mode=OneWay}" GroupName="StatsPeriod"
+                                         Style="{StaticResource SegmentedLeftStyle}"/>
+                            <RadioButton Content="月" Command="{Binding ChangeStatsPeriodCommand}" CommandParameter="Month"
+                                         IsChecked="{Binding IsStatsMonthPeriod, Mode=OneWay}" GroupName="StatsPeriod"
+                                         Style="{StaticResource SegmentedMiddleStyle}"/>
+                            <RadioButton Content="スプリント" Command="{Binding ChangeStatsPeriodCommand}" CommandParameter="Sprint"
+                                         IsChecked="{Binding IsStatsSprintPeriod, Mode=OneWay}" GroupName="StatsPeriod"
+                                         Style="{StaticResource SegmentedRightStyle}"/>
+                        </StackPanel>
+                        <TextBlock Grid.Column="2" Text="{Binding StatsSummaryText}" VerticalAlignment="Center"
+                                   FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    </Grid>
+
+                    <!-- データなし -->
+                    <TextBlock Text="この期間に記録はありません（終日の予定は集計対象外です）"
+                               Foreground="{DynamicResource TextMutedBrush}" FontSize="13" Margin="0,8,0,24"
+                               Visibility="{Binding HasStatsData, Converter={StaticResource InvertedBooleanToVisibilityConverter}}"/>
+
+                    <!-- カテゴリ別作業時間 -->
+                    <StackPanel Visibility="{Binding HasStatsData, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <TextBlock Text="カテゴリ別作業時間" FontWeight="SemiBold" FontSize="14"
+                                   Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,12"/>
+                        <ItemsControl ItemsSource="{Binding StatsCategoryItems}" Margin="0,0,0,28">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="150"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="64"/>
+                                            <ColumnDefinition Width="56"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Orientation="Horizontal" Grid.Column="0" VerticalAlignment="Center">
+                                            <Border Width="14" Height="14" Background="{Binding Brush}" CornerRadius="3"
+                                                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Margin="0,0,8,0"/>
+                                            <TextBlock Text="{Binding Name}" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}"
+                                                       TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                        <ProgressBar Grid.Column="1" Value="{Binding Hours, Mode=OneWay}" Maximum="{Binding MaxHours, Mode=OneWay}"
+                                                     Height="18" Foreground="{Binding Brush}" Style="{StaticResource StatsBarStyle}"/>
+                                        <TextBlock Grid.Column="2" Text="{Binding HoursText}" FontSize="13" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="3" Text="{Binding PercentText}" FontSize="12"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- 日別の推移（積み上げ棒グラフ） -->
+                        <TextBlock Text="日別の推移" FontWeight="SemiBold" FontSize="14"
+                                   Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,12"/>
+                        <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="0,0,0,0">
+                            <ItemsControl ItemsSource="{Binding StatsDailyItems}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <UniformGrid Rows="1"/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="1,0">
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="16"/>
+                                                <RowDefinition Height="180"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+                                            <!-- 合計時間ラベル -->
+                                            <TextBlock Grid.Row="0" Text="{Binding TotalText}" FontSize="9"
+                                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,2"/>
+                                            <!-- 積み上げバー -->
+                                            <ItemsControl Grid.Row="1" ItemsSource="{Binding Segments}" VerticalAlignment="Bottom" Margin="3,0">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Border Height="{Binding HeightPx}" Background="{Binding Brush}"
+                                                                BorderBrush="{DynamicResource SurfaceBrush}" BorderThickness="0,0,0,1"
+                                                                ToolTip="{Binding ToolTipText}"/>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                            <!-- 日付ラベル -->
+                                            <TextBlock Grid.Row="2" Text="{Binding Label}" FontSize="10" Margin="0,4,0,0"
+                                                       HorizontalAlignment="Center" TextTrimming="CharacterEllipsis">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsToday}" Value="True">
+                                                                <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
+                                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Border>
+                    </StackPanel>
+                </StackPanel>
             </ScrollViewer>
         </Grid>
 
@@ -1060,6 +1070,47 @@
                             <CheckBox Content="日" IsChecked="{Binding ShowSunday}" Margin="0,0,12,6" FontSize="13" Foreground="{DynamicResource DangerBrush}"/>
                         </WrapPanel>
                     </Grid>
+
+                    <!-- カテゴリ設定 -->
+                    <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Margin="0,0,0,16"/>
+                    <TextBlock Text="カテゴリ" FontWeight="SemiBold" FontSize="14" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                    <TextBlock Text="色に名前を付けて分類できます（統計に反映）" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,10"/>
+                    <ItemsControl ItemsSource="{Binding Categories}" Margin="0,0,0,8">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,0,0,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <!-- 色選択 -->
+                                    <ComboBox Grid.Column="0" Width="56" VerticalAlignment="Center" Margin="0,0,8,0"
+                                              ItemsSource="{Binding DataContext.PaletteColors, RelativeSource={RelativeSource AncestorType=Window}}"
+                                              SelectedValuePath="Code" SelectedValue="{Binding ColorCode}">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Width="20" Height="14" Background="{Binding Brush}" CornerRadius="3"
+                                                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                                        ToolTip="{Binding Name}"/>
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                    <!-- 名前 -->
+                                    <TextBox Grid.Column="1" Text="{Binding Name, UpdateSourceTrigger=LostFocus}"
+                                             Style="{StaticResource InputTextBoxStyle}" FontSize="12" VerticalAlignment="Center"/>
+                                    <!-- 削除 -->
+                                    <Button Grid.Column="2" Content="✕" Margin="4,0,0,0"
+                                            Command="{Binding DataContext.DeleteCategoryCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding}"
+                                            Style="{StaticResource IconButtonStyle}" Foreground="{DynamicResource TextSecondaryBrush}"
+                                            Width="24" Height="24" Cursor="Hand"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <Button Content="＋ カテゴリを追加" Command="{Binding AddCategoryCommand}"
+                            Style="{StaticResource BaseButtonStyle}" HorizontalAlignment="Stretch" Margin="0,0,0,20"/>
 
                     <!-- スプリント設定 -->
                     <StackPanel Visibility="{Binding IsSprintSettingsVisible, Converter={StaticResource BooleanToVisibilityConverter}}">

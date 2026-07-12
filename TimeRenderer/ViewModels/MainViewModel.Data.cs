@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Windows.Threading;
 
 using TimeRenderer.Models;
 using TimeRenderer.Helpers;
@@ -10,6 +11,10 @@ namespace TimeRenderer.ViewModels;
 public partial class MainViewModel
 {
     private Dictionary<DateTime, string> _weeklyMemos = [];
+
+    // メモはキーストロークごとに保存せず、入力が止まってから書き込む（デバウンス）
+    private DispatcherTimer? _memoSaveTimer;
+    private bool _hasPendingMemoSave;
 
     // メモパネル関連プロパティ
     private bool _isMemoPanelVisible = true;
@@ -75,9 +80,39 @@ public partial class MainViewModel
         {
             if (SetProperty(ref _memoText, value))
             {
-                _weeklyMemos[CurrentWeekStart] = value;
-                SaveMemos();
+                if (string.IsNullOrEmpty(value))
+                {
+                    _weeklyMemos.Remove(CurrentWeekStart);
+                }
+                else
+                {
+                    _weeklyMemos[CurrentWeekStart] = value;
+                }
+                ScheduleMemoSave();
             }
+        }
+    }
+
+    private void ScheduleMemoSave()
+    {
+        _hasPendingMemoSave = true;
+        if (_memoSaveTimer == null)
+        {
+            _memoSaveTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+            _memoSaveTimer.Tick += (_, _) => FlushMemoSave();
+        }
+        _memoSaveTimer.Stop();
+        _memoSaveTimer.Start();
+    }
+
+    /// <summary>保留中のメモ保存を即時実行する（アプリ終了時などに呼ぶ）</summary>
+    public void FlushMemoSave()
+    {
+        _memoSaveTimer?.Stop();
+        if (_hasPendingMemoSave)
+        {
+            _hasPendingMemoSave = false;
+            SaveMemos();
         }
     }
 
@@ -107,7 +142,6 @@ public partial class MainViewModel
             {
                 NotifyShowDaysProperties();
                 OnPropertyChanged(nameof(EnabledDaysCount));
-                OnPropertyChanged(nameof(EnabledDayNames));
                 OnPropertyChanged(nameof(EnabledDayHeaders));
                 UpdateVisibleDays();
                 SaveSettings();
@@ -183,7 +217,8 @@ public partial class MainViewModel
             DisplayEndHour = DisplayEndHour,
             IsDarkMode = IsDarkMode,
             ManualSprints = ManualSprints,
-            EnabledDaysOfWeek = EnabledDaysOfWeek
+            EnabledDaysOfWeek = EnabledDaysOfWeek,
+            Categories = [.. Categories]
         };
         Services.SettingsService.SaveSettings(settings);
     }
@@ -202,14 +237,12 @@ public partial class MainViewModel
             _isMemoEditMode = settings.IsMemoEditMode;
             OnPropertyChanged(nameof(IsMemoEditMode));
 
-            _currentViewMode = (ViewMode)settings.ViewMode;
+            // 設定ファイルが壊れていても不正な enum 値にならないよう検証する
+            _currentViewMode = Enum.IsDefined(typeof(ViewMode), settings.ViewMode)
+                ? (ViewMode)settings.ViewMode
+                : ViewMode.Day;
             OnPropertyChanged(nameof(CurrentViewMode));
-            OnPropertyChanged(nameof(IsDayMode));
-            OnPropertyChanged(nameof(IsWeekMode));
-            OnPropertyChanged(nameof(IsMonthMode));
-            OnPropertyChanged(nameof(IsSprintMode));
-            OnPropertyChanged(nameof(IsSprintTimelineMode));
-            OnPropertyChanged(nameof(DateDisplay));
+            NotifyViewModeDependents();
 
             _displayStartHour = Math.Clamp(settings.DisplayStartHour, 0, 23);
             _displayEndHour = Math.Clamp(settings.DisplayEndHour, _displayStartHour + 1, 24);
@@ -224,6 +257,8 @@ public partial class MainViewModel
 
             _manualSprints = settings.ManualSprints ?? [];
             OnPropertyChanged(nameof(ManualSprints));
+
+            LoadCategories(settings.Categories);
 
             if (settings.EnabledDaysOfWeek != null && settings.EnabledDaysOfWeek.Count > 0)
             {
@@ -242,9 +277,8 @@ public partial class MainViewModel
                 ];
             NotifyShowDaysProperties();
             OnPropertyChanged(nameof(EnabledDaysCount));
-            OnPropertyChanged(nameof(EnabledDayNames));
             OnPropertyChanged(nameof(EnabledDayHeaders));
-            
+
             UpdateVisibleDays();
         }
     }
@@ -252,16 +286,34 @@ public partial class MainViewModel
 
     private void SaveData()
     {
+        // 初期化中・ロード中の保存を抑止する
+        // （起動時の Clear で空リストがファイルに書き込まれ、データ消失の危険があった）
+        if (!_isInitialized || _isLoadingData) return;
+
         Services.FilePersistenceService.SaveData(ScheduleItems);
     }
 
     private void LoadData()
     {
         var items = Services.FilePersistenceService.LoadData();
-        ScheduleItems.Clear();
-        foreach (var item in items)
+
+        _isLoadingData = true;
+        try
         {
-            ScheduleItems.Add(item);
+            // Clear は Reset イベントのため OldItems が渡らず、購読解除は手動で行う
+            foreach (var old in ScheduleItems)
+            {
+                old.PropertyChanged -= OnScheduleItemPropertyChanged;
+            }
+            ScheduleItems.Clear();
+            foreach (var item in items)
+            {
+                ScheduleItems.Add(item);
+            }
+        }
+        finally
+        {
+            _isLoadingData = false;
         }
         RecalculateLayout();
     }

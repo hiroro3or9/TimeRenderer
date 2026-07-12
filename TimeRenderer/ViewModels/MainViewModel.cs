@@ -17,6 +17,12 @@ public partial class MainViewModel : INotifyPropertyChanged
 {
     private readonly bool _isInitialized = false;
 
+    /// <summary>LoadData 実行中フラグ（再計算・保存の抑止用）</summary>
+    private bool _isLoadingData;
+
+    /// <summary>アイテムの複数プロパティ一括更新中フラグ（変更ごとの再計算・保存の抑止用）</summary>
+    private bool _isBatchUpdatingItem;
+
     private TransitionDirection _transitionDirection = TransitionDirection.Forward;
     public TransitionDirection TransitionDirection
     {
@@ -32,7 +38,8 @@ public partial class MainViewModel : INotifyPropertyChanged
         Week,
         Month,
         Sprint,
-        SprintTimeline
+        SprintTimeline,
+        Stats
     }
 
     public static List<int> StartHourOptions => [.. Enumerable.Range(0, 24)];
@@ -53,8 +60,9 @@ public partial class MainViewModel : INotifyPropertyChanged
         set => SetProperty(ref _visibleDays, value);
     }
 
-    private IReadOnlyList<ScheduleItem> _standardItems = [];
-    public IReadOnlyList<ScheduleItem> StandardItems
+    private IReadOnlyList<ScheduleSegment> _standardItems = [];
+    /// <summary>週/日ビュー描画用のセグメント一覧（日またぎアイテムは日単位に分割済み）</summary>
+    public IReadOnlyList<ScheduleSegment> StandardItems
     {
         get => _standardItems;
         set => SetProperty(ref _standardItems, value);
@@ -150,7 +158,6 @@ public partial class MainViewModel : INotifyPropertyChanged
             if (SetProperty(ref _isRecording, value))
             {
                 OnPropertyChanged(nameof(RecordingDurationText));
-                UpdateRecordingCommandState();
             }
         }
     }
@@ -263,18 +270,25 @@ public partial class MainViewModel : INotifyPropertyChanged
                 _currentViewMode = value;
                 OnPropertyChanged();
                 UpdateVisibleDays();
-                OnPropertyChanged(nameof(DateDisplay));
-                OnPropertyChanged(nameof(IsDayMode));
-                OnPropertyChanged(nameof(IsWeekMode));
-                OnPropertyChanged(nameof(IsMonthMode));
-                OnPropertyChanged(nameof(IsSprintMode));
-                OnPropertyChanged(nameof(IsSprintTimelineMode));
-                OnPropertyChanged(nameof(IsTimeRangeSettingsVisible));
-                OnPropertyChanged(nameof(IsSprintSettingsVisible));
-                OnPropertyChanged(nameof(IsDayOfWeekSettingsVisible));
+                NotifyViewModeDependents();
                 SaveSettings();
             }
         }
+    }
+
+    /// <summary>CurrentViewMode に依存する表示用プロパティの変更通知をまとめて発行する</summary>
+    private void NotifyViewModeDependents()
+    {
+        OnPropertyChanged(nameof(DateDisplay));
+        OnPropertyChanged(nameof(IsDayMode));
+        OnPropertyChanged(nameof(IsWeekMode));
+        OnPropertyChanged(nameof(IsMonthMode));
+        OnPropertyChanged(nameof(IsSprintMode));
+        OnPropertyChanged(nameof(IsSprintTimelineMode));
+        OnPropertyChanged(nameof(IsStatsMode));
+        OnPropertyChanged(nameof(IsTimeRangeSettingsVisible));
+        OnPropertyChanged(nameof(IsSprintSettingsVisible));
+        OnPropertyChanged(nameof(IsDayOfWeekSettingsVisible));
     }
 
     public bool IsDayMode => CurrentViewMode == ViewMode.Day;
@@ -282,18 +296,12 @@ public partial class MainViewModel : INotifyPropertyChanged
     public bool IsMonthMode => CurrentViewMode == ViewMode.Month;
     public bool IsSprintMode => CurrentViewMode == ViewMode.Sprint;
     public bool IsSprintTimelineMode => CurrentViewMode == ViewMode.SprintTimeline;
+    public bool IsStatsMode => CurrentViewMode == ViewMode.Stats;
     public bool IsTimeRangeSettingsVisible => CurrentViewMode == ViewMode.Day || CurrentViewMode == ViewMode.Week;
     public bool IsSprintSettingsVisible => CurrentViewMode == ViewMode.Sprint || CurrentViewMode == ViewMode.SprintTimeline;
-    public bool IsDayOfWeekSettingsVisible => CurrentViewMode != ViewMode.SprintTimeline;
+    public bool IsDayOfWeekSettingsVisible => CurrentViewMode != ViewMode.SprintTimeline && CurrentViewMode != ViewMode.Stats;
 
-    public DateTime CurrentWeekStart
-    {
-        get
-        {
-            var diff = (7 + (CurrentDate.DayOfWeek - DayOfWeek.Monday)) % 7;
-            return CurrentDate.AddDays(-1 * diff).Date;
-        }
-    }
+    public DateTime CurrentWeekStart => Converters.DateTimeHelper.GetStartOfWeek(CurrentDate);
 
     public string DateDisplay
     {
@@ -321,6 +329,10 @@ public partial class MainViewModel : INotifyPropertyChanged
                 var sprint = Helpers.SprintHelper.GetSprintForDate(ManualSprints, CurrentDate);
                 return $"{sprint.Name} ({sprint.StartDate:yyyy/MM/dd} - {sprint.EndDate:MM/dd})";
             }
+            else if (CurrentViewMode == ViewMode.Stats)
+            {
+                return GetStatsRangeDisplay();
+            }
             else // SprintTimeline
             {
                 // タイムラインモード時は表示範囲を表示
@@ -337,17 +349,13 @@ public partial class MainViewModel : INotifyPropertyChanged
         set => SetProperty(ref _currentTime, value);
     }
 
-    private ScheduleItem? _selectedItem;
-    public ScheduleItem? SelectedItem
-    {
-        get => _selectedItem;
-        set => SetProperty(ref _selectedItem, value);
-    }
-
     public MainViewModel(Services.IDialogService dialogService)
     {
         _dialogService = dialogService;
         InitializeCommands();
+        InitializeCategoryCommands();
+        InitializeStatsCommands();
+        LoadCategories(null); // 既定カテゴリで初期化（LoadSettings で上書きされる）
 
         ScheduleItems = [];
         ScheduleItems.CollectionChanged += OnScheduleItemsChanged;
@@ -403,24 +411,6 @@ public partial class MainViewModel : INotifyPropertyChanged
         timer.Start();
     }
 
-        private void AddScheduleItemAtDate(DateTime date)
-        {
-            var newItem = new ScheduleItem
-            {
-                StartTime = date.Date.AddHours(9),
-                EndTime = date.Date.AddHours(10),
-                Title = "新しい予定",
-                BackgroundColor = System.Windows.Media.Brushes.LightBlue
-            };
-
-            var result = _dialogService.ShowScheduleEditDialog(newItem);
-            if (result != null)
-            {
-                ScheduleItems.Add(result);
-                // OnScheduleItemsChanged 経由で Layout の更新等が発行される
-            }
-        }
-
     private void OnScheduleItemsChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
     {
         if (e.NewItems != null)
@@ -438,23 +428,22 @@ public partial class MainViewModel : INotifyPropertyChanged
                 item.PropertyChanged -= OnScheduleItemPropertyChanged;
             }
         }
+
+        if (_isLoadingData) return; // ロード中は再計算・保存を抑止（LoadData 完了時に一括実行）
+
         RecalculateLayout();
         SaveData();
     }
 
     private void OnScheduleItemPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(ScheduleItem.StartTime) || 
-            e.PropertyName == nameof(ScheduleItem.EndTime) || 
-            e.PropertyName == nameof(ScheduleItem.IsAllDay))
-        {
-            RecalculateLayout();
-        }
-        if (e.PropertyName != nameof(ScheduleItem.ColumnIndex) && 
-            e.PropertyName != nameof(ScheduleItem.MaxColumnIndex))
-        {
-            SaveData();
-        }
+        // ColumnIndex は RecalculateLayout 内で書き換えられる表示用プロパティのため無視（再帰防止）
+        if (e.PropertyName == nameof(ScheduleItem.ColumnIndex)) return;
+        if (_isBatchUpdatingItem) return; // EditCommand 等の一括更新中は完了時にまとめて処理
+
+        // タイトル・色などの変更も月ビュー（独自描画セル）や週ビューのセグメントへ反映する必要がある
+        RecalculateLayout();
+        SaveData();
     }
 
     public record DayHeaderInfo(string Name, DayOfWeek DayOfWeek);
@@ -484,33 +473,6 @@ public partial class MainViewModel : INotifyPropertyChanged
                 }
             }
             return headers;
-        }
-    }
-
-    public List<string> EnabledDayNames
-    {
-        get
-        {
-            var names = new List<string>();
-            var order = new[] { DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday, DayOfWeek.Friday, DayOfWeek.Saturday, DayOfWeek.Sunday };
-            foreach (var day in order)
-            {
-                if (EnabledDaysOfWeek.Contains(day))
-                {
-                    names.Add(day switch
-                    {
-                        DayOfWeek.Monday => "月",
-                        DayOfWeek.Tuesday => "火",
-                        DayOfWeek.Wednesday => "水",
-                        DayOfWeek.Thursday => "木",
-                        DayOfWeek.Friday => "金",
-                        DayOfWeek.Saturday => "土",
-                        DayOfWeek.Sunday => "日",
-                        _ => ""
-                    });
-                }
-            }
-            return names;
         }
     }
 
