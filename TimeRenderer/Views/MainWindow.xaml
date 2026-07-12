@@ -118,6 +118,29 @@
         <conv:DayOfWeekToBrushConverter x:Key="DayOfWeekToBrushConverter"/>
         <conv:DateToBackgroundBrushConverter x:Key="DateToBackgroundBrushConverter"/>
         <conv:DateToSprintTimelinePositionConverter x:Key="DateToSprintTimelinePositionConverter"/>
+
+        <!-- 検索結果1行分のボタン（行全体がクリック可能・ホバーで強調） -->
+        <Style x:Key="SearchResultButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Stretch"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource PrimarySubtleBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
     
     <Grid>
@@ -149,6 +172,165 @@
                     <Button Content="＞" Command="{Binding NextCommand}" Style="{StaticResource BaseButtonStyle}" Width="36" Padding="0" Margin="0,0,12,0"/>
                     
                     <TextBlock Text="{Binding DateDisplay}" VerticalAlignment="Center" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="8,0,0,0"/>
+                </StackPanel>
+
+                <!-- 中央：検索 + 色フィルタ -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="24,0,12,0">
+
+                    <!-- 検索ボックス -->
+                    <Border x:Name="SearchBoxBorder" Width="240" Height="32" CornerRadius="6"
+                            Background="{DynamicResource BackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                            VerticalAlignment="Center">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="🔍" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="8,0,4,0"/>
+                            <TextBox x:Name="SearchTextBox" Grid.Column="1" Text="{Binding SearchQuery, UpdateSourceTrigger=PropertyChanged}"
+                                     BorderThickness="0" Background="Transparent" VerticalAlignment="Center" VerticalContentAlignment="Center"
+                                     FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}"
+                                     GotKeyboardFocus="SearchTextBox_GotKeyboardFocus"/>
+                            <!-- プレースホルダ -->
+                            <TextBlock Grid.Column="1" Text="タイトル・内容を検索" FontSize="13" Foreground="{DynamicResource TextMutedBrush}"
+                                       IsHitTestVisible="False" VerticalAlignment="Center" Margin="2,0,0,0">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding SearchQuery}" Value="">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                            <!-- クリア -->
+                            <Button Grid.Column="2" Content="✕" Command="{Binding ClearSearchCommand}"
+                                    Width="22" Height="22" Margin="0,0,4,0"
+                                    Foreground="{DynamicResource TextSecondaryBrush}" Cursor="Hand">
+                                <Button.Style>
+                                    <Style TargetType="Button" BasedOn="{StaticResource IconButtonStyle}">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding SearchQuery}" Value="">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                        </Grid>
+                    </Border>
+
+                    <!-- 色フィルタ トグル -->
+                    <ToggleButton x:Name="FilterToggle" Margin="10,0,0,0" VerticalAlignment="Center"
+                                  Style="{StaticResource BaseToggleButtonStyle}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="🎨 フィルタ" FontSize="13" VerticalAlignment="Center"/>
+                            <Ellipse Width="7" Height="7" Margin="6,0,0,0" Fill="{DynamicResource PrimaryBrush}" VerticalAlignment="Center"
+                                     Visibility="{Binding IsColorFilterActive, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                        </StackPanel>
+                    </ToggleButton>
+
+                    <!-- 検索結果ポップアップ -->
+                    <Popup PlacementTarget="{Binding ElementName=SearchBoxBorder}" Placement="Bottom"
+                           IsOpen="{Binding IsSearchResultsOpen, Mode=TwoWay}" StaysOpen="False" AllowsTransparency="True"
+                           PopupAnimation="Fade" VerticalOffset="4">
+                        <Border Width="340" MaxHeight="440" Background="{DynamicResource SurfaceBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8">
+                            <Border.Effect>
+                                <DropShadowEffect Color="Black" BlurRadius="12" ShadowDepth="2" Opacity="0.15"/>
+                            </Border.Effect>
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <Border Grid.Row="0" Padding="10,6" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
+                                    <TextBlock Text="{Binding SearchResultCountText}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                </Border>
+                                <!-- 該当なし -->
+                                <TextBlock Grid.Row="1" Text="該当する記録がありません" Margin="12" FontSize="12"
+                                           Foreground="{DynamicResource TextMutedBrush}"
+                                           Visibility="{Binding HasSearchResults, Converter={StaticResource InvertedBooleanToVisibilityConverter}}"/>
+                                <!-- 結果一覧 -->
+                                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                                              Visibility="{Binding HasSearchResults, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                    <ItemsControl ItemsSource="{Binding SearchResults}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Button Style="{StaticResource SearchResultButtonStyle}"
+                                                        Command="{Binding DataContext.JumpToSearchResultCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        CommandParameter="{Binding}">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <Border Grid.Column="0" Width="10" Height="10" CornerRadius="2" Background="{Binding Brush}"
+                                                                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                                                Margin="0,3,8,0" VerticalAlignment="Top"/>
+                                                        <StackPanel Grid.Column="1">
+                                                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="13"
+                                                                       Foreground="{DynamicResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis"/>
+                                                            <TextBlock Text="{Binding Content}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                                                       TextTrimming="CharacterEllipsis" Margin="0,1,0,0"
+                                                                       Visibility="{Binding HasContent, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                                            <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                                                <TextBlock Text="{Binding DateText}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                                                                <TextBlock Text="{Binding TimeText}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" Margin="8,0,0,0"/>
+                                                            </StackPanel>
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </Button>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </Grid>
+                        </Border>
+                    </Popup>
+
+                    <!-- 色フィルタ ポップアップ -->
+                    <Popup PlacementTarget="{Binding ElementName=FilterToggle}" Placement="Bottom"
+                           IsOpen="{Binding IsChecked, ElementName=FilterToggle, Mode=TwoWay}" StaysOpen="False" AllowsTransparency="True"
+                           PopupAnimation="Fade" VerticalOffset="4">
+                        <Border Width="240" MaxHeight="400" Background="{DynamicResource SurfaceBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8">
+                            <Border.Effect>
+                                <DropShadowEffect Color="Black" BlurRadius="12" ShadowDepth="2" Opacity="0.15"/>
+                            </Border.Effect>
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Border Grid.Row="0" Padding="12,8" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
+                                    <TextBlock Text="表示するカテゴリ" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                </Border>
+                                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" MaxHeight="290">
+                                    <ItemsControl ItemsSource="{Binding Categories}" Margin="6">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <CheckBox IsChecked="{Binding IsFilterEnabled}" Margin="6,4" Cursor="Hand" VerticalContentAlignment="Center">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <Border Width="14" Height="14" CornerRadius="3" Background="{Binding Brush}"
+                                                                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Margin="2,0,8,0" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="{Binding Name}" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                </CheckBox>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                                <Button Grid.Row="2" Content="すべて表示" Command="{Binding ResetColorFilterCommand}"
+                                        Style="{StaticResource BaseButtonStyle}" Margin="10" HorizontalAlignment="Stretch"/>
+                            </Grid>
+                        </Border>
+                    </Popup>
                 </StackPanel>
 
                 <!-- 右側：モード切替 -->

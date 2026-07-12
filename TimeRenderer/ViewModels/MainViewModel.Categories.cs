@@ -59,6 +59,7 @@ public partial class MainViewModel
             Categories.Add(category);
             SaveSettings();
             UpdateStats();
+            OnPropertyChanged(nameof(IsColorFilterActive));
         });
 
         DeleteCategoryCommand = new RelayCommand(
@@ -73,6 +74,8 @@ public partial class MainViewModel
                         Categories.Remove(category);
                         SaveSettings();
                         UpdateStats();
+                        OnPropertyChanged(nameof(IsColorFilterActive));
+                        RecalculateLayout();
                     }
                 }
             },
@@ -89,6 +92,15 @@ public partial class MainViewModel
     private void OnCategoryPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (_isLoadingData) return;
+
+        // フィルタ表示状態はセッション内のみの状態のため保存せず、表示だけ更新する
+        if (e.PropertyName == nameof(CategoryInfo.IsFilterEnabled))
+        {
+            OnPropertyChanged(nameof(IsColorFilterActive));
+            RecalculateLayout();
+            return;
+        }
+
         SaveSettings();
         UpdateStats();
     }

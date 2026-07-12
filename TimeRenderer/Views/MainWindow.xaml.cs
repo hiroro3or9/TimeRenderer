@@ -34,6 +34,8 @@ namespace TimeRenderer.Views
             
             // ViewModelのプロパティ変更監視
             viewModel.PropertyChanged += ViewModel_PropertyChanged;
+            // 検索結果ジャンプ時のスクロール要求を購読
+            viewModel.ScrollToTimeRequested += OnScrollToTimeRequested;
 
             SetupNotifyIcon();
         }
@@ -165,6 +167,7 @@ namespace TimeRenderer.Views
             {
                  vm.FlushMemoSave(); // デバウンス中の未保存メモを書き込む
                  vm.PropertyChanged -= ViewModel_PropertyChanged;
+                 vm.ScrollToTimeRequested -= OnScrollToTimeRequested;
             }
 
             base.OnClosed(e);
@@ -301,6 +304,34 @@ namespace TimeRenderer.Views
                     ViewModel.DeleteCommand.Execute(item);
                 }
             }
+        }
+
+        /// <summary>
+        /// 検索ボックスに再フォーカスした際、入力が残っていれば結果ポップアップを開き直す。
+        /// </summary>
+        private void SearchTextBox_GotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+        {
+            // フォーカスを与えたクリック自体が「ポップアップ外のクリック」と誤判定され、
+            // 開いた直後に即閉じてしまう（StaysOpen=False の競合）。
+            // クリック（入力イベント）の処理が終わってから開くよう遅延させる。
+            Dispatcher.BeginInvoke(new Action(() => ViewModel.ReopenSearchResultsIfAny()),
+                System.Windows.Threading.DispatcherPriority.Background);
+        }
+
+        /// <summary>
+        /// 検索結果から日ビューへジャンプした後、該当時刻が画面中央に来るようスクロールする。
+        /// ビュー切替・レイアウト確定後に実行する必要があるため Dispatcher で遅延させる。
+        /// </summary>
+        private void OnScrollToTimeRequested(object? sender, DateTime time)
+        {
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                const double pixelsPerHour = 60.0;
+                double currentY = ((time.Hour - ViewModel.DisplayStartHour) * pixelsPerHour) + (time.Minute * (pixelsPerHour / 60.0));
+                double targetOffset = currentY - (MainScrollViewer.ViewportHeight / 2);
+                if (targetOffset < 0) targetOffset = 0;
+                MainScrollViewer.ScrollToVerticalOffset(targetOffset);
+            }), System.Windows.Threading.DispatcherPriority.Loaded);
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)

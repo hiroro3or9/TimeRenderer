@@ -36,6 +36,17 @@ public class CategoryInfo : INotifyPropertyChanged
     [JsonIgnore]
     public Brush Brush => CreateBrush(_colorCode);
 
+    private bool _isFilterEnabled = true;
+    /// <summary>
+    /// 色フィルタでこのカテゴリを表示するか（セッション内のみの状態・非永続）。
+    /// </summary>
+    [JsonIgnore]
+    public bool IsFilterEnabled
+    {
+        get => _isFilterEnabled;
+        set => SetProperty(ref _isFilterEnabled, value);
+    }
+
     public static Brush CreateBrush(string colorCode)
     {
         if (!string.IsNullOrEmpty(colorCode))
