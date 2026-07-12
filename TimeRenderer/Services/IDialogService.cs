@@ -10,8 +10,9 @@ public interface IDialogService
     /// キャンセルされた場合はnullを返します。
     /// </summary>
     /// <param name="initialItem">編集対象のアイテム。新規作成時はnull</param>
+    /// <param name="categories">選択可能なカテゴリ一覧</param>
     /// <returns>追加または更新されたScheduleItem。キャンセルされた場合はnull</returns>
-    ScheduleItem? ShowScheduleEditDialog(ScheduleItem? initialItem = null);
+    ScheduleItem? ShowScheduleEditDialog(ScheduleItem? initialItem = null, IReadOnlyList<CategoryInfo>? categories = null);
 
     /// <summary>
     /// 記録開始ダイアログを開き、入力されたタイトルと選択されたタイマーオプションを返します。
@@ -30,4 +31,9 @@ public interface IDialogService
     /// 確認メッセージダイアログを表示し、Yes(true)またはNo(false)を返します。
     /// </summary>
     bool ShowConfirmationDialog(string message, string title);
+
+    /// <summary>
+    /// 通知メッセージダイアログ（OKボタンのみ）を表示します。
+    /// </summary>
+    void ShowMessage(string message, string title);
 }

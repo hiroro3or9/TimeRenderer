@@ -89,7 +89,7 @@ public class ScheduleItem : INotifyPropertyChanged
         }
     }
 
-    // 表示用プロパティ：列インデックス
+    // 表示用プロパティ：列インデックス（終日イベントの縦積み位置に使用）
     private int _columnIndex;
     [JsonIgnore]
     public int ColumnIndex
@@ -98,15 +98,7 @@ public class ScheduleItem : INotifyPropertyChanged
         set => SetProperty(ref _columnIndex, value);
     }
 
-    // 表示用プロパティ：最大列インデックス（グループ内の総列数 - 1）
-    private int _maxColumnIndex;
     [JsonIgnore]
-    public int MaxColumnIndex
-    {
-        get => _maxColumnIndex;
-        set => SetProperty(ref _maxColumnIndex, value);
-    }
-
     public double DurationHours => (EndTime - StartTime).TotalHours;
 
     public event PropertyChangedEventHandler? PropertyChanged;

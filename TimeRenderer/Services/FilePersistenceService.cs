@@ -9,7 +9,7 @@ using TimeRenderer.Models;
 
 namespace TimeRenderer.Services;
 
-public class FilePersistenceService
+public static class FilePersistenceService
 {
     private const string ScheduleFilePath = "schedules.json";
     private const string MemosFilePath = "memos.json";
@@ -30,7 +30,19 @@ public class FilePersistenceService
     public static Dictionary<DateTime, string> LoadMemos()
     {
         var serializableDict = JsonFileRepository.LoadFromFileSync<Dictionary<string, string>>(MemosFilePath);
-        return serializableDict?.ToDictionary(k => DateTime.Parse(k.Key), v => v.Value) ?? [];
+        if (serializableDict == null) return [];
+
+        // カルチャ非依存で解析し、壊れたキーは読み飛ばす
+        var result = new Dictionary<DateTime, string>();
+        foreach (var (key, value) in serializableDict)
+        {
+            if (DateTime.TryParseExact(key, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.None, out var date))
+            {
+                result[date] = value;
+            }
+        }
+        return result;
     }
 
     private static ObservableCollection<ScheduleItem> LoadSampleData()

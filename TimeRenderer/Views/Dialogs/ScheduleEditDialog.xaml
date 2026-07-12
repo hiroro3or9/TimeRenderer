@@ -67,7 +67,7 @@
 
         <!-- 色 -->
         <StackPanel Grid.Row="6" Margin="0,0,0,16">
-            <TextBlock Text="色" Style="{StaticResource FieldLabelStyle}"/>
+            <TextBlock Text="カテゴリ" Style="{StaticResource FieldLabelStyle}"/>
             <ComboBox x:Name="ColorCombo" Width="200" HorizontalAlignment="Left" FontSize="14" Padding="6,6">
                 <ComboBox.ItemTemplate>
                     <DataTemplate>

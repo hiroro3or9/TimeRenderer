@@ -1,9 +1,8 @@
-using System;
 using TimeRenderer.Models;
 
 namespace TimeRenderer.Services;
 
-public class SettingsService
+public static class SettingsService
 {
     private const string SettingsFilePath = "appsettings.json";
 

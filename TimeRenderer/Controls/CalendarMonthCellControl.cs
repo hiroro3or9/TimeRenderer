@@ -145,6 +145,44 @@ namespace TimeRenderer.Controls
             _weekdayForegroundBrush.Freeze();
         }
 
+        // アイテム描画のレイアウト定数（OnRender とヒットテストで共有）
+        private const double DayFontSize = 12;
+        private const double ItemFontSize = 11;
+        private const double ItemHeight = 18;
+        private const double ItemMargin = 2;
+        private const double ItemPadding = 4;
+
+        /// <summary>
+        /// アイテム描画領域のレイアウトを計算する。
+        /// OnRender と GetItemAtPosition で同一ロジック・同一DPIを使用する（高DPIでのクリック判定ずれ防止）。
+        /// </summary>
+        private (double StartY, int DisplayCount, bool HasMore) GetItemLayout(double height)
+        {
+            var data = CellData;
+            if (data == null || data.DailyItems == null) return (0, 0, false);
+
+            double pixelsPerDip = VisualTreeHelper.GetDpi(this).PixelsPerDip;
+            var dayText = new FormattedText(
+                data.DayText,
+                CultureInfo.CurrentUICulture,
+                System.Windows.FlowDirection.LeftToRight,
+                _dayTypeface,
+                DayFontSize,
+                System.Windows.Media.Brushes.Black,
+                pixelsPerDip);
+
+            double startY = dayText.Height + 8;
+            int maxItems = (int)((height - startY) / (ItemHeight + ItemMargin));
+            int count = data.DailyItems.Count;
+            int displayCount = Math.Clamp(count, 0, Math.Max(0, maxItems));
+            bool hasMore = count > maxItems;
+            if (hasMore && maxItems > 0)
+            {
+                displayCount = maxItems - 1; // 省略テキストの分1つ減らす
+            }
+            return (startY, displayCount, hasMore);
+        }
+
         protected override void OnRender(DrawingContext dc)
         {
             base.OnRender(dc);
@@ -181,7 +219,7 @@ namespace TimeRenderer.Controls
                 CultureInfo.CurrentUICulture,
                 System.Windows.FlowDirection.LeftToRight,
                 _dayTypeface,
-                12, // FontSize
+                DayFontSize,
                 fgBrush,
                 VisualTreeHelper.GetDpi(this).PixelsPerDip);
 
@@ -190,30 +228,17 @@ namespace TimeRenderer.Controls
             // 3. スケジュールアイテムの描画処理
             if (data.DailyItems == null || data.DailyItems.Count == 0) return;
 
-            double currentY = dayFormattedText.Height + 8; // 日付テキストの下部から開始
-            double itemHeight = 18; // アイテムの描画高さ
-            double margin = 2; // アイテム間のマージン
-            double padding = 4; // アイテム内のパディング
-
-            int maxItems = (int)((height - currentY) / (itemHeight + margin));
-            int displayCount = Math.Min(data.DailyItems.Count, maxItems);
-
-            // スペースが足りず省略表記を行う場合
-            bool hasMoreItems = data.DailyItems.Count > maxItems;
-            if (hasMoreItems && maxItems > 0)
-            {
-                displayCount = maxItems - 1; // 省略テキストの分1つ減らす
-            }
+            var (currentY, displayCount, hasMoreItems) = GetItemLayout(height);
 
             for (int i = 0; i < displayCount; i++)
             {
                 var item = data.DailyItems[i];
-                DrawScheduleItem(dc, item, new Rect(2, currentY, width - 4, itemHeight), padding);
-                currentY += itemHeight + margin;
+                DrawScheduleItem(dc, item, new Rect(2, currentY, width - 4, ItemHeight), ItemPadding);
+                currentY += ItemHeight + ItemMargin;
             }
 
             // 省略テキストを描画
-            if (hasMoreItems && displayCount >= 0)
+            if (hasMoreItems)
             {
                 var moreText = $"+{data.DailyItems.Count - displayCount} 件";
                 var moreFormattedText = new FormattedText(
@@ -221,7 +246,7 @@ namespace TimeRenderer.Controls
                     CultureInfo.CurrentUICulture,
                     System.Windows.FlowDirection.LeftToRight,
                     _itemTypeface,
-                    11,
+                    ItemFontSize,
                     TextSecondaryBrush ?? _textSecondaryBrush,
                     VisualTreeHelper.GetDpi(this).PixelsPerDip);
 
@@ -242,7 +267,7 @@ namespace TimeRenderer.Controls
                 CultureInfo.CurrentUICulture,
                 System.Windows.FlowDirection.LeftToRight,
                 _itemTypeface,
-                11,
+                ItemFontSize,
                 _textPrimaryBrush, // 予定背景はパステルカラー固定のため、文字色は常に暗い色で固定
                 VisualTreeHelper.GetDpi(this).PixelsPerDip)
             {
@@ -263,25 +288,16 @@ namespace TimeRenderer.Controls
             if (data == null || data.DailyItems == null || data.DailyItems.Count == 0) return null;
 
             double width = ActualWidth;
-            double height = ActualHeight;
-
-            var dayFormattedText = new FormattedText("0", CultureInfo.CurrentUICulture, System.Windows.FlowDirection.LeftToRight, _dayTypeface, 12, System.Windows.Media.Brushes.Black, 1);
-            double currentY = dayFormattedText.Height + 8;
-            double itemHeight = 18;
-            double margin = 2;
-
-            int maxItems = (int)((height - currentY) / (itemHeight + margin));
-            int displayCount = Math.Min(data.DailyItems.Count, maxItems);
-            if (data.DailyItems.Count > maxItems && maxItems > 0) displayCount = maxItems - 1;
+            var (currentY, displayCount, _) = GetItemLayout(ActualHeight);
 
             for (int i = 0; i < displayCount; i++)
             {
-                Rect itemRect = new(2, currentY, width - 4, itemHeight);
+                Rect itemRect = new(2, currentY, width - 4, ItemHeight);
                 if (itemRect.Contains(pos))
                 {
                     return data.DailyItems[i];
                 }
-                currentY += itemHeight + margin;
+                currentY += ItemHeight + ItemMargin;
             }
 
             return null;

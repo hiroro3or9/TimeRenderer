@@ -43,6 +43,22 @@ public partial class MainViewModel
 
     public double ScheduleGridHeight => (_displayEndHour - _displayStartHour) * 60.0;
 
+    private int _sprintWeekRows = 3;
+    /// <summary>スプリントビューのグリッド行数（スプリントの週数に追随）</summary>
+    public int SprintWeekRows
+    {
+        get => _sprintWeekRows;
+        private set => SetProperty(ref _sprintWeekRows, value);
+    }
+
+    private IReadOnlyList<ScheduleItem> _timelineItems = [];
+    /// <summary>スプリントタイムラインの表示範囲内のアイテム（開始時刻順）</summary>
+    public IReadOnlyList<ScheduleItem> TimelineItems
+    {
+        get => _timelineItems;
+        private set => SetProperty(ref _timelineItems, value);
+    }
+
     private double _allDayPanelHeight = 30;
     public double AllDayPanelHeight
     {
@@ -108,7 +124,10 @@ public partial class MainViewModel
             var start = Converters.DateTimeHelper.GetStartOfWeek(sprint.StartDate);
             // スプリント終了日の週の日曜日
             var end = Converters.DateTimeHelper.GetStartOfWeek(sprint.EndDate).AddDays(6);
-            
+
+            // グリッド行数をスプリントの実際の週数に合わせる（3週間超の手動スプリント対応）
+            SprintWeekRows = Math.Max(1, (int)((end - start).TotalDays + 1) / 7);
+
             // 週ごとにループして、有効な曜日のみを追加する
             for (var d = start; d <= end; d = d.AddDays(7))
             {
@@ -150,12 +169,14 @@ public partial class MainViewModel
         }
         VisibleDays = days;
         UpdateCalendarCells();
+        UpdateTimelineItems();
+        UpdateStats();
     }
 
     private void RecalculateLayout()
     {
-        var newStandardItems = new List<ScheduleItem>();
         var newAllDayItems = new List<ScheduleItem>();
+        var newSegments = new List<ScheduleSegment>();
 
         foreach (var item in ScheduleItems)
         {
@@ -165,7 +186,22 @@ public partial class MainViewModel
             }
             else
             {
-                newStandardItems.Add(item);
+                // 日付をまたぐアイテムは日単位のセグメントに分割する
+                // （例: 23:00→翌1:00 は「23:00-24:00」と「0:00-1:00」の2つとして描画）
+                var start = item.StartTime;
+                var end = item.EndTime;
+                if (end <= start)
+                {
+                    newSegments.Add(new ScheduleSegment(item, start, start));
+                    continue;
+                }
+                for (var d = start.Date; d <= end.Date; d = d.AddDays(1))
+                {
+                    var segStart = d == start.Date ? start : d;
+                    var segEnd = end < d.AddDays(1) ? end : d.AddDays(1);
+                    if (segEnd <= segStart) continue; // 終了がちょうど0:00の場合の空セグメントを除外
+                    newSegments.Add(new ScheduleSegment(item, segStart, segEnd));
+                }
             }
         }
 
@@ -185,11 +221,10 @@ public partial class MainViewModel
 
         AllDayPanelHeight = Math.Max(30, (maxStackIndex * 24) + 6);
 
-        var grouped = newStandardItems.GroupBy(x => x.StartTime.Date);
-        foreach (var group in grouped)
+        foreach (var group in newSegments.GroupBy(x => x.StartTime.Date))
         {
-            var sortedItems = group.OrderBy(x => x.StartTime).ThenByDescending(x => x.EndTime).ToList();
-            Helpers.ScheduleLayoutHelper.CalculateClustersAndAssignColumns(sortedItems);
+            var sortedSegments = group.OrderBy(x => x.StartTime).ThenByDescending(x => x.EndTime).ToList();
+            Helpers.ScheduleLayoutHelper.CalculateClustersAndAssignColumns(sortedSegments);
         }
 
         var dailyItems = new Dictionary<DateTime, List<ScheduleItem>>();
@@ -216,10 +251,32 @@ public partial class MainViewModel
         }
 
         DailyScheduleItems = dailyItems;
-        StandardItems = newStandardItems;
+        StandardItems = newSegments;
         AllDayItems = newAllDayItems;
-        
+
         UpdateCalendarCells();
+        UpdateTimelineItems();
+        UpdateStats();
+    }
+
+    /// <summary>
+    /// タイムラインビュー用に、表示範囲内のアイテムのみを開始時刻順で抽出する。
+    /// （全アイテムをそのまま表示すると範囲外の予定が空行として残るため）
+    /// </summary>
+    private void UpdateTimelineItems()
+    {
+        if (CurrentViewMode != ViewMode.SprintTimeline || TimelineSprints.Count == 0)
+        {
+            if (TimelineItems.Count > 0) TimelineItems = [];
+            return;
+        }
+
+        var rangeStart = TimelineSprints[0].StartDate.Date;
+        var rangeEnd = TimelineSprints[^1].EndDate.Date.AddDays(1);
+
+        TimelineItems = [.. ScheduleItems
+            .Where(x => x.EndTime >= rangeStart && x.StartTime < rangeEnd)
+            .OrderBy(x => x.StartTime)];
     }
 
     private void UpdateCalendarCells()

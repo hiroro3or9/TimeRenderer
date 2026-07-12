@@ -49,32 +49,19 @@ public partial class MainViewModel
             param => param is ScheduleItem
         );
 
-        AddCommand = new RelayCommand(_ =>
-        {
-            var newItem = _dialogService.ShowScheduleEditDialog();
-            if (newItem != null)
-            {
-                ScheduleItems.Add(newItem);
-            }
-        });
+        AddCommand = new RelayCommand(_ => AddViaDialog(null));
 
         AddScheduleItemAtDateCommand = new RelayCommand(dateObj =>
         {
             if (dateObj is DateTime date)
             {
-                var newItem = new ScheduleItem
+                AddViaDialog(new ScheduleItem
                 {
                     StartTime = date.Date.AddHours(9),
                     EndTime = date.Date.AddHours(10),
                     Title = "新しい予定",
-                    BackgroundColor = System.Windows.Media.Brushes.LightBlue
-                };
-
-                var result = _dialogService.ShowScheduleEditDialog(newItem);
-                if (result != null)
-                {
-                    ScheduleItems.Add(result);
-                }
+                    ColorCode = Categories.FirstOrDefault()?.ColorCode ?? Brushes.LightBlue.ToString()
+                });
             }
         });
 
@@ -83,15 +70,26 @@ public partial class MainViewModel
             {
                 if (param is ScheduleItem item)
                 {
-                    var editedItem = _dialogService.ShowScheduleEditDialog(item);
+                    var editedItem = _dialogService.ShowScheduleEditDialog(item, [.. Categories]);
                     if (editedItem != null)
                     {
-                        item.Title = editedItem.Title;
-                        item.Content = editedItem.Content;
-                        item.StartTime = editedItem.StartTime;
-                        item.EndTime = editedItem.EndTime;
-                        item.IsAllDay = editedItem.IsAllDay;
-                        item.BackgroundColor = editedItem.BackgroundColor;
+                        // プロパティごとの再計算・保存を避け、一括更新後に1回だけ実行する
+                        _isBatchUpdatingItem = true;
+                        try
+                        {
+                            item.Title = editedItem.Title;
+                            item.Content = editedItem.Content;
+                            item.StartTime = editedItem.StartTime;
+                            item.EndTime = editedItem.EndTime;
+                            item.IsAllDay = editedItem.IsAllDay;
+                            item.BackgroundColor = editedItem.BackgroundColor;
+                        }
+                        finally
+                        {
+                            _isBatchUpdatingItem = false;
+                        }
+                        RecalculateLayout();
+                        SaveData();
                     }
                 }
             },
@@ -165,17 +163,17 @@ public partial class MainViewModel
             {
                 if (string.IsNullOrWhiteSpace(NewSprintName))
                 {
-                    _dialogService.ShowConfirmationDialog("スプリント名を入力してください。", "入力エラー");
+                    _dialogService.ShowMessage("スプリント名を入力してください。", "入力エラー");
                     return;
                 }
                 if (!NewSprintStartDate.HasValue || !NewSprintEndDate.HasValue)
                 {
-                    _dialogService.ShowConfirmationDialog("開始日と終了日を設定してください。", "入力エラー");
+                    _dialogService.ShowMessage("開始日と終了日を設定してください。", "入力エラー");
                     return;
                 }
                 if (NewSprintStartDate.Value.Date > NewSprintEndDate.Value.Date)
                 {
-                    _dialogService.ShowConfirmationDialog("開始日は終了日以前である必要があります。", "入力エラー");
+                    _dialogService.ShowMessage("開始日は終了日以前である必要があります。", "入力エラー");
                     return;
                 }
 
@@ -189,7 +187,7 @@ public partial class MainViewModel
 
                 if (isOverlapped)
                 {
-                    _dialogService.ShowConfirmationDialog("既存のスプリントと期間が重複しています。", "入力エラー");
+                    _dialogService.ShowMessage("既存のスプリントと期間が重複しています。", "入力エラー");
                     return;
                 }
 
@@ -272,6 +270,12 @@ public partial class MainViewModel
             ViewMode.Month => CurrentDate.AddMonths(amount),
             ViewMode.Sprint => GetAdjacentSprintDate(amount),
             ViewMode.SprintTimeline => GetAdjacentSprintDate(amount),
+            ViewMode.Stats => StatsPeriod switch
+            {
+                StatsPeriodMode.Month => CurrentDate.AddMonths(amount),
+                StatsPeriodMode.Sprint => GetAdjacentSprintDate(amount),
+                _ => CurrentDate.AddDays(amount * 7)
+            },
             _ => CurrentDate
         };
     }
@@ -317,21 +321,22 @@ public partial class MainViewModel
             {
                 var endTime = DateTime.Now;
                 var startTime = RecordingStartTime.Value;
-                
+                var duration = endTime - startTime;
+
                 var title = string.IsNullOrWhiteSpace(RecordingTitle) ? $"作業ログ {startTime:HH:mm}" : RecordingTitle;
 
                 ScheduleItem newItem = new()
                 {
                     Title = title,
-                    Content = $"記録時間: {(endTime - startTime):hh\\:mm}",
+                    // TimeSpan の "hh" は24時間で桁落ちするため総時間数で表記する
+                    Content = $"記録時間: {(int)duration.TotalHours}:{duration.Minutes:D2}",
                     StartTime = startTime,
                     EndTime = endTime,
-                    BackgroundColor = Brushes.DarkOrange,
+                    ColorCode = RecordingCategory?.ColorCode ?? Brushes.DarkOrange.ToString(),
                     ColumnIndex = 0
                 };
-                
+
                 ScheduleItems.Add(newItem);
-                RecalculateLayout();
             }
 
             IsRecording = false;
@@ -367,8 +372,13 @@ public partial class MainViewModel
         }
     }
 
-    private static void UpdateRecordingCommandState()
+    /// <summary>編集ダイアログを表示し、確定されたアイテムを追加する</summary>
+    private void AddViaDialog(ScheduleItem? template)
     {
-        // ToggleRecordingCommand.RaiseCanExecuteChanged();
+        var result = _dialogService.ShowScheduleEditDialog(template, [.. Categories]);
+        if (result != null)
+        {
+            ScheduleItems.Add(result);
+        }
     }
 }

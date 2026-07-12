@@ -9,9 +9,9 @@ namespace TimeRenderer.Services;
 
 public class DefaultDialogService(Window owner) : IDialogService
 {
-    public ScheduleItem? ShowScheduleEditDialog(ScheduleItem? initialItem = null)
+    public ScheduleItem? ShowScheduleEditDialog(ScheduleItem? initialItem = null, IReadOnlyList<CategoryInfo>? categories = null)
     {
-        ScheduleEditDialog dialog = new(initialItem)
+        ScheduleEditDialog dialog = new(initialItem, categories)
         {
             Owner = owner
         };
@@ -50,5 +50,10 @@ public class DefaultDialogService(Window owner) : IDialogService
             MessageBoxImage.Question);
 
         return result == MessageBoxResult.Yes;
+    }
+
+    public void ShowMessage(string message, string title)
+    {
+        MessageBox.Show(owner, message, title, MessageBoxButton.OK, MessageBoxImage.Warning);
     }
 }

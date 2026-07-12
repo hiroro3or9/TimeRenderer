@@ -25,33 +25,70 @@ namespace TimeRenderer.Views.Dialogs
 
         private readonly List<ColorOption> _colorOptions;
 
+        // 編集前の時刻（5分丸め・秒消失を防ぐため、変更がなければ元の値をそのまま使う）
+        private readonly DateTime? _originalStartTime;
+        private readonly DateTime? _originalEndTime;
+
+        /// <summary>
+        /// 5分刻みの分選択肢を生成する。既存アイテムの分が5分刻みでない場合はその値も追加する
+        /// （記録機能で作られた任意の分を編集時に勝手に丸めないため）。
+        /// </summary>
+        private static List<string> BuildMinuteOptions(int? exactMinute = null)
+        {
+            var minutes = Enumerable.Range(0, 12).Select(m => m * 5).ToList();
+            if (exactMinute.HasValue && !minutes.Contains(exactMinute.Value))
+            {
+                minutes.Add(exactMinute.Value);
+                minutes.Sort();
+            }
+            return [.. minutes.Select(m => m.ToString("D2"))];
+        }
+
+        /// <summary>
+        /// 日付＋時＋分から時刻を組み立てる。時・分が編集前と同じ場合は元の値（秒を含む）を維持する。
+        /// </summary>
+        private static DateTime ComposeDateTime(DateTime date, int hour, int minute, DateTime? original)
+        {
+            if (original.HasValue && original.Value.Hour == hour && original.Value.Minute == minute)
+            {
+                return date.Date.Add(original.Value.TimeOfDay);
+            }
+            return date.Date.AddHours(hour).AddMinutes(minute);
+        }
+
         /// <summary>
         /// コンストラクタ。既存アイテムを渡すと編集モード、nullなら新規追加モード。
         /// </summary>
-        public ScheduleEditDialog(ScheduleItem? existingItem = null)
+        /// <param name="categories">カテゴリ一覧（null/空の場合は既定値を使用）</param>
+        public ScheduleEditDialog(ScheduleItem? existingItem = null, IReadOnlyList<CategoryInfo>? categories = null)
         {
             InitializeComponent();
 
-            // 色の選択肢を初期化
-            _colorOptions =
-            [
-                new("ライトブルー", Brushes.LightBlue),
-                new("ライトグリーン", Brushes.LightGreen),
-                new("ライトピンク", Brushes.LightPink),
-                new("ライトイエロー", Brushes.LightYellow),
-                new("ライトグレー", Brushes.LightGray),
-                new("ライトコーラル", Brushes.LightCoral),
-                new("ラベンダー", Brushes.Lavender),
-                new("ライトシアン", Brushes.LightCyan),
-            ];
+            if (existingItem != null)
+            {
+                _originalStartTime = existingItem.StartTime;
+                _originalEndTime = existingItem.EndTime;
+            }
+
+            // カテゴリ（名前付きの色）の選択肢を初期化
+            List<CategoryInfo> source = (categories == null || categories.Count == 0)
+                ? CategoryInfo.CreateDefaults()
+                : [.. categories];
+            _colorOptions = [.. source.Select(c => new ColorOption(c.Name, c.Brush))];
+
+            // 既存アイテムの色がカテゴリに存在しない場合、その色も選択肢として残す
+            if (existingItem != null &&
+                _colorOptions.All(c => c.Brush.ToString() != existingItem.BackgroundColor.ToString()))
+            {
+                _colorOptions.Add(new ColorOption("（現在の色）", existingItem.BackgroundColor));
+            }
             ColorCombo.ItemsSource = _colorOptions;
 
-            // 時間コンボボックスを初期化（0〜23時、0〜55分を5分刻み）
+            // 時間コンボボックスを初期化（0〜23時、0〜55分を5分刻み。編集時は元の分も選択肢に含める）
             StartHourCombo.ItemsSource = Enumerable.Range(0, 24).Select(h => h.ToString("D2")).ToList();
             EndHourCombo.ItemsSource = Enumerable.Range(0, 24).Select(h => h.ToString("D2")).ToList();
-            var minutes = Enumerable.Range(0, 12).Select(m => (m * 5).ToString("D2")).ToList();
-            StartMinuteCombo.ItemsSource = minutes;
-            EndMinuteCombo.ItemsSource = minutes;
+            StartMinuteCombo.ItemsSource = BuildMinuteOptions(existingItem?.StartTime.Minute);
+            EndMinuteCombo.ItemsSource = BuildMinuteOptions(existingItem?.EndTime.Minute);
 
             if (existingItem != null)
             {
@@ -62,9 +99,9 @@ namespace TimeRenderer.Views.Dialogs
                 AllDayCheckBox.IsChecked = existingItem.IsAllDay;
 
                 StartHourCombo.SelectedItem = existingItem.StartTime.Hour.ToString("D2");
-                StartMinuteCombo.SelectedItem = (existingItem.StartTime.Minute / 5 * 5).ToString("D2");
+                StartMinuteCombo.SelectedItem = existingItem.StartTime.Minute.ToString("D2");
                 EndHourCombo.SelectedItem = existingItem.EndTime.Hour.ToString("D2");
-                EndMinuteCombo.SelectedItem = (existingItem.EndTime.Minute / 5 * 5).ToString("D2");
+                EndMinuteCombo.SelectedItem = existingItem.EndTime.Minute.ToString("D2");
 
                 // 色を選択
                 var matchingColor = _colorOptions.FirstOrDefault(c => c.Brush.ToString() == existingItem.BackgroundColor.ToString());
@@ -128,8 +165,8 @@ namespace TimeRenderer.Views.Dialogs
                 var endHour = int.Parse((string)EndHourCombo.SelectedItem);
                 var endMinute = int.Parse((string)EndMinuteCombo.SelectedItem);
 
-                startTime = date.AddHours(startHour).AddMinutes(startMinute);
-                endTime = date.AddHours(endHour).AddMinutes(endMinute);
+                startTime = ComposeDateTime(date, startHour, startMinute, _originalStartTime);
+                endTime = ComposeDateTime(date, endHour, endMinute, _originalEndTime);
 
                 // 終了時刻が開始時刻より前の場合、翌日とする
                 if (endTime <= startTime)

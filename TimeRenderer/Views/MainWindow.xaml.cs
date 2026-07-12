@@ -72,11 +72,17 @@ namespace TimeRenderer.Views
             contextMenu.Items.Add(new WinForms.ToolStripSeparator());
 
             // 終了
-            contextMenu.Items.Add("終了", null, (_, _) => 
+            contextMenu.Items.Add("終了", null, (_, _) =>
             {
+                // 記録中の場合は記録を保存してから終了する（黙って破棄しない）
+                if (ViewModel.IsRecording && ViewModel.ToggleRecordingCommand.CanExecute(null))
+                {
+                    ViewModel.ToggleRecordingCommand.Execute(null);
+                }
+
                 _isExiting = true;
                 _notifyIcon.Visible = false; // アイコンを消してから終了
-                System.Windows.Application.Current.Shutdown(); 
+                System.Windows.Application.Current.Shutdown();
             });
 
             _notifyIcon.ContextMenuStrip = contextMenu;
@@ -154,14 +160,26 @@ namespace TimeRenderer.Views
                 _notifyIcon.Visible = false;
                 _notifyIcon.Dispose();
             }
-            
+
             if (DataContext is MainViewModel vm)
             {
+                 vm.FlushMemoSave(); // デバウンス中の未保存メモを書き込む
                  vm.PropertyChanged -= ViewModel_PropertyChanged;
             }
 
             base.OnClosed(e);
         }
+
+        /// <summary>
+        /// UI要素の DataContext から編集・削除対象の ScheduleItem を取り出す。
+        /// 週/日ビューは日またぎ分割のため ScheduleSegment が DataContext になる。
+        /// </summary>
+        private static ScheduleItem? ResolveScheduleItem(object? dataContext) => dataContext switch
+        {
+            ScheduleItem item => item,
+            ScheduleSegment segment => segment.Item,
+            _ => null
+        };
 
         /// <summary>
         /// 「＋追加」ボタンのクリックイベント。
@@ -179,7 +197,8 @@ namespace TimeRenderer.Views
         /// </summary>
         private void ScheduleItem_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            if (e.ClickCount == 2 && sender is FrameworkElement element && element.DataContext is ScheduleItem item)
+            if (e.ClickCount == 2 && sender is FrameworkElement element &&
+                ResolveScheduleItem(element.DataContext) is ScheduleItem item)
             {
                 if (ViewModel.EditCommand.CanExecute(item))
                 {
@@ -239,7 +258,9 @@ namespace TimeRenderer.Views
         /// </summary>
         private void MonthCell_Clicked(object sender, RoutedEventArgs e)
         {
-            if (sender is Controls.CalendarMonthCellControl cell && cell.CellData != null)
+            // ルーティングイベントを CalendarGridView 上で購読しているため、
+            // sender ではなく e.Source からセルを特定する
+            if (e.Source is Controls.CalendarMonthCellControl cell && cell.CellData != null)
             {
                 if (ViewModel.AddScheduleItemAtDateCommand.CanExecute(cell.CellData.Date))
                 {
@@ -256,7 +277,7 @@ namespace TimeRenderer.Views
             if (sender is MenuItem menuItem &&
                 menuItem.Parent is ContextMenu contextMenu &&
                 contextMenu.PlacementTarget is FrameworkElement element &&
-                element.DataContext is ScheduleItem item)
+                ResolveScheduleItem(element.DataContext) is ScheduleItem item)
             {
                 if (ViewModel.EditCommand.CanExecute(item))
                 {
@@ -273,7 +294,7 @@ namespace TimeRenderer.Views
             if (sender is MenuItem menuItem &&
                 menuItem.Parent is ContextMenu contextMenu &&
                 contextMenu.PlacementTarget is FrameworkElement element &&
-                element.DataContext is ScheduleItem item)
+                ResolveScheduleItem(element.DataContext) is ScheduleItem item)
             {
                 if (ViewModel.DeleteCommand.CanExecute(item))
                 {
