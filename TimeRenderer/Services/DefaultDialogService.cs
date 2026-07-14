@@ -9,9 +9,9 @@ namespace TimeRenderer.Services;
 
 public class DefaultDialogService(Window owner) : IDialogService
 {
-    public ScheduleItem? ShowScheduleEditDialog(ScheduleItem? initialItem = null, IReadOnlyList<CategoryInfo>? categories = null)
+    public ScheduleItem? ShowScheduleEditDialog(ScheduleItem? initialItem = null, IReadOnlyList<CategoryInfo>? categories = null, IReadOnlyList<string>? titleSuggestions = null)
     {
-        ScheduleEditDialog dialog = new(initialItem, categories)
+        ScheduleEditDialog dialog = new(initialItem, categories, titleSuggestions)
         {
             Owner = owner
         };
@@ -26,9 +26,10 @@ public class DefaultDialogService(Window owner) : IDialogService
     public (string Title, MainViewModel.TimerOption SelectedOption)? ShowRecordingStartDialog(
         string defaultTitle,
         List<MainViewModel.TimerOption> timerOptions,
-        MainViewModel.TimerOption defaultOption)
+        MainViewModel.TimerOption defaultOption,
+        IReadOnlyList<string>? titleSuggestions = null)
     {
-        RecordingStartDialog dialog = new(defaultTitle, timerOptions, defaultOption)
+        RecordingStartDialog dialog = new(defaultTitle, timerOptions, defaultOption, titleSuggestions)
         {
             Owner = owner
         };

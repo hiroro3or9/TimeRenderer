@@ -218,7 +218,8 @@ public partial class MainViewModel
             IsDarkMode = IsDarkMode,
             ManualSprints = ManualSprints,
             EnabledDaysOfWeek = EnabledDaysOfWeek,
-            Categories = [.. Categories]
+            Categories = [.. Categories],
+            PinnedTitles = [.. PinnedTitles.Select(t => t.Text)]
         };
         Services.SettingsService.SaveSettings(settings);
     }
@@ -259,6 +260,7 @@ public partial class MainViewModel
             OnPropertyChanged(nameof(ManualSprints));
 
             LoadCategories(settings.Categories);
+            LoadPinnedTitles(settings.PinnedTitles);
 
             if (settings.EnabledDaysOfWeek != null && settings.EnabledDaysOfWeek.Count > 0)
             {

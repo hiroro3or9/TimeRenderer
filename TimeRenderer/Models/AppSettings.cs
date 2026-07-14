@@ -14,6 +14,8 @@ public class AppSettings
     public System.Collections.Generic.List<SprintInfo> ManualSprints { get; set; } = [];
     /// <summary>作業カテゴリ一覧（空の場合は既定値を使用）</summary>
     public System.Collections.Generic.List<CategoryInfo> Categories { get; set; } = [];
+    /// <summary>タイトル入力欄に常に表示する定型タイトル（null は未設定＝既定値を使用）</summary>
+    public System.Collections.Generic.List<string>? PinnedTitles { get; set; }
     public System.Collections.Generic.List<DayOfWeek> EnabledDaysOfWeek { get; set; } =
     [
         DayOfWeek.Monday,

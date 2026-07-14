@@ -13,10 +13,13 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
         
-        <!-- 作業タイトル -->
+        <!-- 作業タイトル（手入力＋ドロップダウン候補：定型タイトル・直近1か月のタイトル） -->
         <TextBlock Grid.Row="0" Text="作業タイトル:" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,6"/>
-        <TextBox x:Name="InputTextBox" Grid.Row="1" Text="{Binding InputText, UpdateSourceTrigger=PropertyChanged}" 
-                 Margin="0,0,0,16" VerticalAlignment="Top" Style="{StaticResource InputTextBoxStyle}"/>
+        <ComboBox x:Name="InputCombo" Grid.Row="1" IsEditable="True" IsTextSearchEnabled="False"
+                  ItemsSource="{Binding TitleSuggestions}"
+                  Text="{Binding InputText, UpdateSourceTrigger=PropertyChanged}"
+                  MaxDropDownHeight="240" FontSize="14" Padding="6,6"
+                  Margin="0,0,0,16" VerticalAlignment="Top"/>
         
         <!-- タイマー設定 -->
         <TextBlock Grid.Row="2" Text="タイマー設定:" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,6"/>

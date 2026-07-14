@@ -356,7 +356,9 @@ public partial class MainViewModel : INotifyPropertyChanged
         InitializeCategoryCommands();
         InitializeStatsCommands();
         InitializeSearchCommands();
+        InitializeTitleCommands();
         LoadCategories(null); // 既定カテゴリで初期化（LoadSettings で上書きされる）
+        LoadPinnedTitles(null); // 既定の定型タイトルで初期化（LoadSettings で上書きされる）
 
         ScheduleItems = [];
         ScheduleItems.CollectionChanged += OnScheduleItemsChanged;

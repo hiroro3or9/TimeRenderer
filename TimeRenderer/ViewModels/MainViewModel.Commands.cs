@@ -70,7 +70,7 @@ public partial class MainViewModel
             {
                 if (param is ScheduleItem item)
                 {
-                    var editedItem = _dialogService.ShowScheduleEditDialog(item, [.. Categories]);
+                    var editedItem = _dialogService.ShowScheduleEditDialog(item, [.. Categories], GetTitleSuggestions());
                     if (editedItem != null)
                     {
                         // プロパティごとの再計算・保存を避け、一括更新後に1回だけ実行する
@@ -349,7 +349,7 @@ public partial class MainViewModel
         else
         {
             string defaultTitle = $"作業ログ {DateTime.Now:HH:mm}";
-            var result = _dialogService.ShowRecordingStartDialog(defaultTitle, TimerOptions, SelectedTimerOption);
+            var result = _dialogService.ShowRecordingStartDialog(defaultTitle, TimerOptions, SelectedTimerOption, GetTitleSuggestions());
             if (result != null) // Cancel以外（OK押下時）は開始
             {
                 RecordingTitle = string.IsNullOrWhiteSpace(result.Value.Title) ? defaultTitle : result.Value.Title;
@@ -375,7 +375,7 @@ public partial class MainViewModel
     /// <summary>編集ダイアログを表示し、確定されたアイテムを追加する</summary>
     private void AddViaDialog(ScheduleItem? template)
     {
-        var result = _dialogService.ShowScheduleEditDialog(template, [.. Categories]);
+        var result = _dialogService.ShowScheduleEditDialog(template, [.. Categories], GetTitleSuggestions());
         if (result != null)
         {
             ScheduleItems.Add(result);
