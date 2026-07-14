@@ -1294,6 +1294,32 @@
                     <Button Content="＋ カテゴリを追加" Command="{Binding AddCategoryCommand}"
                             Style="{StaticResource BaseButtonStyle}" HorizontalAlignment="Stretch" Margin="0,0,0,20"/>
 
+                    <!-- 定型タイトル設定 -->
+                    <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Margin="0,0,0,16"/>
+                    <TextBlock Text="定型タイトル" FontWeight="SemiBold" FontSize="14" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                    <TextBlock Text="タイトル入力欄の候補に常に表示されます" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,10"/>
+                    <ItemsControl ItemsSource="{Binding PinnedTitles}" Margin="0,0,0,8">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,0,0,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0" Text="{Binding Text, UpdateSourceTrigger=LostFocus}"
+                                             Style="{StaticResource InputTextBoxStyle}" FontSize="12" VerticalAlignment="Center"/>
+                                    <Button Grid.Column="1" Content="✕" Margin="4,0,0,0"
+                                            Command="{Binding DataContext.DeletePinnedTitleCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding}"
+                                            Style="{StaticResource IconButtonStyle}" Foreground="{DynamicResource TextSecondaryBrush}"
+                                            Width="24" Height="24" Cursor="Hand"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <Button Content="＋ 定型タイトルを追加" Command="{Binding AddPinnedTitleCommand}"
+                            Style="{StaticResource BaseButtonStyle}" HorizontalAlignment="Stretch" Margin="0,0,0,20"/>
+
                     <!-- スプリント設定 -->
                     <StackPanel Visibility="{Binding IsSprintSettingsVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <TextBlock Text="スプリント設定 (手動)" FontWeight="SemiBold" FontSize="14" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,12"/>

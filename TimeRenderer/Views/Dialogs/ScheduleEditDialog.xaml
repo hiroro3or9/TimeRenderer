@@ -23,10 +23,11 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- タイトル -->
+        <!-- タイトル（手入力＋ドロップダウン候補：定型タイトル・直近1か月のタイトル） -->
         <StackPanel Grid.Row="0" Margin="0,0,0,16">
             <TextBlock Text="タイトル" Style="{StaticResource FieldLabelStyle}"/>
-            <TextBox x:Name="TitleTextBox" Style="{StaticResource InputTextBoxStyle}"/>
+            <ComboBox x:Name="TitleCombo" IsEditable="True" FontSize="14" Padding="6,6"
+                      IsTextSearchEnabled="False" MaxDropDownHeight="240"/>
         </StackPanel>
 
         <!-- 内容 -->

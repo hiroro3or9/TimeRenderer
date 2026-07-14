@@ -60,9 +60,13 @@ namespace TimeRenderer.Views.Dialogs
         /// コンストラクタ。既存アイテムを渡すと編集モード、nullなら新規追加モード。
         /// </summary>
         /// <param name="categories">カテゴリ一覧（null/空の場合は既定値を使用）</param>
-        public ScheduleEditDialog(ScheduleItem? existingItem = null, IReadOnlyList<CategoryInfo>? categories = null)
+        /// <param name="titleSuggestions">タイトル入力欄のドロップダウン候補（定型＋直近1か月）</param>
+        public ScheduleEditDialog(ScheduleItem? existingItem = null, IReadOnlyList<CategoryInfo>? categories = null, IReadOnlyList<string>? titleSuggestions = null)
         {
             InitializeComponent();
+
+            // タイトル候補（手入力も可能な編集可能コンボボックス）
+            TitleCombo.ItemsSource = titleSuggestions ?? [];
 
             if (existingItem != null)
             {
@@ -93,7 +97,7 @@ namespace TimeRenderer.Views.Dialogs
             if (existingItem != null)
             {
                 // 編集モード：既存値をフォームに設定
-                TitleTextBox.Text = existingItem.Title;
+                TitleCombo.Text = existingItem.Title;
                 ContentTextBox.Text = existingItem.Content;
                 DatePicker.SelectedDate = existingItem.StartTime.Date;
                 AllDayCheckBox.IsChecked = existingItem.IsAllDay;
@@ -128,7 +132,7 @@ namespace TimeRenderer.Views.Dialogs
         private void OkButton_Click(object sender, RoutedEventArgs e)
         {
             // バリデーション
-            if (string.IsNullOrWhiteSpace(TitleTextBox.Text))
+            if (string.IsNullOrWhiteSpace(TitleCombo.Text))
             {
                 MessageBox.Show("タイトルを入力してください。", "入力エラー", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
@@ -181,7 +185,7 @@ namespace TimeRenderer.Views.Dialogs
 
             ResultItem = new ScheduleItem
             {
-                Title = TitleTextBox.Text.Trim(),
+                Title = TitleCombo.Text.Trim(),
                 Content = ContentTextBox.Text.Trim(),
                 StartTime = startTime,
                 EndTime = endTime,
