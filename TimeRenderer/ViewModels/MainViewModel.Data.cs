@@ -203,86 +203,96 @@ public partial class MainViewModel
     public bool ShowSaturday { get => EnabledDaysOfWeek.Contains(DayOfWeek.Saturday); set => SetDayEnabled(DayOfWeek.Saturday, value); }
     public bool ShowSunday { get => EnabledDaysOfWeek.Contains(DayOfWeek.Sunday); set => SetDayEnabled(DayOfWeek.Sunday, value); }
 
+    // ============================================================
+    // 設定の保存と読込。
+    // 設定項目を追加するときは AppSettings / BuildSettings / ApplySettings
+    // の3箇所を必ずセットで更新すること（Build と Apply は対称になるよう並べている）。
+    // ============================================================
+
     private void SaveSettings()
     {
         if (!_isInitialized) return;
-
-        AppSettings settings = new()
-        {
-            IsMemoPanelVisible = IsMemoPanelVisible,
-            IsSettingsPanelVisible = IsSettingsPanelVisible,
-            IsMemoEditMode = IsMemoEditMode,
-            ViewMode = (int)CurrentViewMode,
-            DisplayStartHour = DisplayStartHour,
-            DisplayEndHour = DisplayEndHour,
-            IsDarkMode = IsDarkMode,
-            ManualSprints = ManualSprints,
-            EnabledDaysOfWeek = EnabledDaysOfWeek,
-            Categories = [.. Categories],
-            PinnedTitles = [.. PinnedTitles.Select(t => t.Text)]
-        };
-        Services.SettingsService.SaveSettings(settings);
+        Services.SettingsService.SaveSettings(BuildSettings());
     }
+
+    /// <summary>現在のVM状態から設定スナップショットを作る（ApplySettings と対称）</summary>
+    private AppSettings BuildSettings() => new()
+    {
+        IsMemoPanelVisible = IsMemoPanelVisible,
+        IsSettingsPanelVisible = IsSettingsPanelVisible,
+        IsMemoEditMode = IsMemoEditMode,
+        ViewMode = (int)CurrentViewMode,
+        DisplayStartHour = DisplayStartHour,
+        DisplayEndHour = DisplayEndHour,
+        IsDarkMode = IsDarkMode,
+        ManualSprints = ManualSprints,
+        EnabledDaysOfWeek = EnabledDaysOfWeek,
+        Categories = [.. Categories],
+        PinnedTitles = [.. PinnedTitles.Select(t => t.Text)]
+    };
 
     private void LoadSettings()
     {
         var settings = Services.SettingsService.LoadSettings();
         if (settings != null)
         {
-            _isMemoPanelVisible = settings.IsMemoPanelVisible;
-            OnPropertyChanged(nameof(IsMemoPanelVisible));
-
-            _isSettingsPanelVisible = settings.IsSettingsPanelVisible;
-            OnPropertyChanged(nameof(IsSettingsPanelVisible));
-
-            _isMemoEditMode = settings.IsMemoEditMode;
-            OnPropertyChanged(nameof(IsMemoEditMode));
-
-            // 設定ファイルが壊れていても不正な enum 値にならないよう検証する
-            _currentViewMode = Enum.IsDefined(typeof(ViewMode), settings.ViewMode)
-                ? (ViewMode)settings.ViewMode
-                : ViewMode.Day;
-            OnPropertyChanged(nameof(CurrentViewMode));
-            NotifyViewModeDependents();
-
-            _displayStartHour = Math.Clamp(settings.DisplayStartHour, 0, 23);
-            _displayEndHour = Math.Clamp(settings.DisplayEndHour, _displayStartHour + 1, 24);
-            OnPropertyChanged(nameof(DisplayStartHour));
-            OnPropertyChanged(nameof(DisplayEndHour));
-            OnPropertyChanged(nameof(ScheduleGridHeight));
-            InitializeTimeLabels();
-
-            _isDarkMode = settings.IsDarkMode;
-            App.ApplyTheme(_isDarkMode);
-            OnPropertyChanged(nameof(IsDarkMode));
-
-            _manualSprints = settings.ManualSprints ?? [];
-            OnPropertyChanged(nameof(ManualSprints));
-
-            LoadCategories(settings.Categories);
-            LoadPinnedTitles(settings.PinnedTitles);
-
-            if (settings.EnabledDaysOfWeek != null && settings.EnabledDaysOfWeek.Count > 0)
-            {
-                _enabledDaysOfWeek = settings.EnabledDaysOfWeek;
-            }
-            else
-                _enabledDaysOfWeek =
-                [
-                    DayOfWeek.Monday,
-                    DayOfWeek.Tuesday,
-                    DayOfWeek.Wednesday,
-                    DayOfWeek.Thursday,
-                    DayOfWeek.Friday,
-                    DayOfWeek.Saturday,
-                    DayOfWeek.Sunday
-                ];
-            NotifyShowDaysProperties();
-            OnPropertyChanged(nameof(EnabledDaysCount));
-            OnPropertyChanged(nameof(EnabledDayHeaders));
-
-            UpdateVisibleDays();
+            ApplySettings(settings);
         }
+    }
+
+    /// <summary>設定スナップショットをVMへ反映する（BuildSettings と対称）</summary>
+    private void ApplySettings(AppSettings settings)
+    {
+        _isMemoPanelVisible = settings.IsMemoPanelVisible;
+        OnPropertyChanged(nameof(IsMemoPanelVisible));
+
+        _isSettingsPanelVisible = settings.IsSettingsPanelVisible;
+        OnPropertyChanged(nameof(IsSettingsPanelVisible));
+
+        _isMemoEditMode = settings.IsMemoEditMode;
+        OnPropertyChanged(nameof(IsMemoEditMode));
+
+        // 設定ファイルが壊れていても不正な enum 値にならないよう検証する
+        _currentViewMode = Enum.IsDefined(typeof(ViewMode), settings.ViewMode)
+            ? (ViewMode)settings.ViewMode
+            : ViewMode.Day;
+        OnPropertyChanged(nameof(CurrentViewMode));
+        NotifyViewModeDependents();
+
+        _displayStartHour = Math.Clamp(settings.DisplayStartHour, 0, 23);
+        _displayEndHour = Math.Clamp(settings.DisplayEndHour, _displayStartHour + 1, 24);
+        OnPropertyChanged(nameof(DisplayStartHour));
+        OnPropertyChanged(nameof(DisplayEndHour));
+        OnPropertyChanged(nameof(ScheduleGridHeight));
+        InitializeTimeLabels();
+
+        _isDarkMode = settings.IsDarkMode;
+        App.ApplyTheme(_isDarkMode);
+        OnPropertyChanged(nameof(IsDarkMode));
+
+        _manualSprints = settings.ManualSprints ?? [];
+        OnPropertyChanged(nameof(ManualSprints));
+
+        LoadCategories(settings.Categories);
+        LoadPinnedTitles(settings.PinnedTitles);
+
+        _enabledDaysOfWeek = (settings.EnabledDaysOfWeek is { Count: > 0 } days)
+            ? days
+            :
+            [
+                DayOfWeek.Monday,
+                DayOfWeek.Tuesday,
+                DayOfWeek.Wednesday,
+                DayOfWeek.Thursday,
+                DayOfWeek.Friday,
+                DayOfWeek.Saturday,
+                DayOfWeek.Sunday
+            ];
+        NotifyShowDaysProperties();
+        OnPropertyChanged(nameof(EnabledDaysCount));
+        OnPropertyChanged(nameof(EnabledDayHeaders));
+
+        UpdateVisibleDays();
     }
 
 

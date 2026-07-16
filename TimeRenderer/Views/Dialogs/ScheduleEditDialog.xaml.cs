@@ -16,7 +16,7 @@ namespace TimeRenderer.Views.Dialogs
         /// <summary>
         /// 色選択肢を表すヘルパークラス
         /// </summary>
-        public record ColorOption(string Name, Brush Brush);
+        public record ColorOption(string Name, Brush Brush, string? CategoryId);
 
         /// <summary>
         /// 編集対象のスケジュールアイテム（ダイアログ結果）
@@ -78,13 +78,14 @@ namespace TimeRenderer.Views.Dialogs
             List<CategoryInfo> source = (categories == null || categories.Count == 0)
                 ? CategoryInfo.CreateDefaults()
                 : [.. categories];
-            _colorOptions = [.. source.Select(c => new ColorOption(c.Name, c.Brush))];
+            _colorOptions = [.. source.Select(c => new ColorOption(c.Name, c.Brush, c.Id))];
 
-            // 既存アイテムの色がカテゴリに存在しない場合、その色も選択肢として残す
+            // 既存アイテムがどのカテゴリにも一致しない場合、その色も選択肢として残す
             if (existingItem != null &&
+                _colorOptions.All(c => c.CategoryId != existingItem.CategoryId || existingItem.CategoryId == null) &&
                 _colorOptions.All(c => c.Brush.ToString() != existingItem.BackgroundColor.ToString()))
             {
-                _colorOptions.Add(new ColorOption("（現在の色）", existingItem.BackgroundColor));
+                _colorOptions.Add(new ColorOption("（現在の色）", existingItem.BackgroundColor, existingItem.CategoryId));
             }
             ColorCombo.ItemsSource = _colorOptions;
 
@@ -107,8 +108,12 @@ namespace TimeRenderer.Views.Dialogs
                 EndHourCombo.SelectedItem = existingItem.EndTime.Hour.ToString("D2");
                 EndMinuteCombo.SelectedItem = existingItem.EndTime.Minute.ToString("D2");
 
-                // 色を選択
-                var matchingColor = _colorOptions.FirstOrDefault(c => c.Brush.ToString() == existingItem.BackgroundColor.ToString());
+                // カテゴリを選択（ID一致を優先し、旧データは色一致でフォールバック）
+                var matchingColor =
+                    (existingItem.CategoryId != null
+                        ? _colorOptions.FirstOrDefault(c => c.CategoryId == existingItem.CategoryId)
+                        : null)
+                    ?? _colorOptions.FirstOrDefault(c => c.Brush.ToString() == existingItem.BackgroundColor.ToString());
                 ColorCombo.SelectedItem = matchingColor ?? _colorOptions[0];
             }
             else
@@ -190,7 +195,8 @@ namespace TimeRenderer.Views.Dialogs
                 StartTime = startTime,
                 EndTime = endTime,
                 IsAllDay = isAllDay,
-                BackgroundColor = selectedColor?.Brush ?? Brushes.LightBlue
+                BackgroundColor = selectedColor?.Brush ?? Brushes.LightBlue,
+                CategoryId = selectedColor?.CategoryId
             };
 
             DialogResult = true;

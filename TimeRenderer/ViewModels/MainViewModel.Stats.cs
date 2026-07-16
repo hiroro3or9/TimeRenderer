@@ -150,9 +150,11 @@ public partial class MainViewModel
 
         var (rangeStart, rangeEnd) = GetStatsRange();
 
-        // colorCode -> 合計時間 / 日付 -> (colorCode -> 時間)
+        // 集計キー：カテゴリID（未分類は "color:<コード>"）
+        // キー -> 合計時間 / 日付 -> (キー -> 時間) / キー -> 表示情報
         var categoryTotals = new Dictionary<string, double>();
         var dailyTotals = new Dictionary<DateTime, Dictionary<string, double>>();
+        var displayInfo = new Dictionary<string, (string Name, Brush Brush)>();
         int itemCount = 0;
 
         foreach (var item in ScheduleItems)
@@ -165,7 +167,15 @@ public partial class MainViewModel
             if (end <= start) continue;
 
             itemCount++;
-            var code = item.ColorCode;
+
+            var category = ResolveCategory(item);
+            var key = category?.Id ?? $"color:{item.ColorCode}";
+            if (!displayInfo.ContainsKey(key))
+            {
+                displayInfo[key] = category != null
+                    ? (category.Name, category.Brush)
+                    : ("未分類", CategoryInfo.CreateBrush(item.ColorCode));
+            }
 
             // 日単位に分割して集計（日またぎ対応）
             for (var d = start.Date; d < end; d = d.AddDays(1))
@@ -175,34 +185,35 @@ public partial class MainViewModel
                 if (segEnd <= segStart) continue;
 
                 var hours = (segEnd - segStart).TotalHours;
-                categoryTotals[code] = categoryTotals.GetValueOrDefault(code) + hours;
+                categoryTotals[key] = categoryTotals.GetValueOrDefault(key) + hours;
 
                 if (!dailyTotals.TryGetValue(d, out var perDay))
                 {
                     perDay = [];
                     dailyTotals[d] = perDay;
                 }
-                perDay[code] = perDay.GetValueOrDefault(code) + hours;
+                perDay[key] = perDay.GetValueOrDefault(key) + hours;
             }
         }
 
-        // カテゴリ表示順：登録順 → 未登録色（時間の多い順）
-        var orderedCodes = Categories.Select(c => c.ColorCode)
+        // カテゴリ表示順：登録順 → 未分類（時間の多い順）
+        var orderedKeys = Categories.Select(c => c.Id)
             .Where(categoryTotals.ContainsKey)
             .Concat(categoryTotals.Keys
-                .Where(code => Categories.All(c => c.ColorCode != code))
-                .OrderByDescending(code => categoryTotals[code]))
+                .Where(key => Categories.All(c => c.Id != key))
+                .OrderByDescending(key => categoryTotals[key]))
             .Distinct()
             .ToList();
 
         var grandTotal = categoryTotals.Values.Sum();
         var maxCategoryHours = categoryTotals.Count > 0 ? categoryTotals.Values.Max() : 0;
 
-        StatsCategoryItems = [.. orderedCodes.Select(code =>
+        StatsCategoryItems = [.. orderedKeys.Select(key =>
         {
-            var hours = categoryTotals[code];
+            var hours = categoryTotals[key];
             var percent = grandTotal > 0 ? hours / grandTotal * 100 : 0;
-            return new CategoryStat(GetCategoryName(code), CategoryInfo.CreateBrush(code), hours, Math.Max(maxCategoryHours, 0.001))
+            var (name, brush) = displayInfo[key];
+            return new CategoryStat(name, brush, hours, Math.Max(maxCategoryHours, 0.001))
             {
                 PercentText = $"{percent:0.#}%"
             };
@@ -223,14 +234,15 @@ public partial class MainViewModel
             if (perDay != null && maxDayHours > 0)
             {
                 // StackPanel(上→下)で下端揃えのため、表示順の逆順で積む（先頭カテゴリが一番下）
-                foreach (var code in orderedCodes.AsEnumerable().Reverse())
+                foreach (var key in orderedKeys.AsEnumerable().Reverse())
                 {
-                    if (!perDay.TryGetValue(code, out var hours) || hours <= 0) continue;
+                    if (!perDay.TryGetValue(key, out var hours) || hours <= 0) continue;
                     var height = hours / maxDayHours * DailyChartHeight;
+                    var (name, brush) = displayInfo[key];
                     segments.Add(new DailyStatSegment(
-                        CategoryInfo.CreateBrush(code),
+                        brush,
                         Math.Max(height, 2),
-                        $"{GetCategoryName(code)}: {FormatHours(hours)}"));
+                        $"{name}: {FormatHours(hours)}"));
                 }
             }
 
