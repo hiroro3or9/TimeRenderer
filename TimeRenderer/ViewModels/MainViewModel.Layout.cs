@@ -173,6 +173,34 @@ public partial class MainViewModel
         UpdateStats();
     }
 
+    /// <summary>
+    /// ドラッグ操作中のプレビュー反映。保存はせず、再レイアウトのみ行う
+    /// （マウス移動のたびにファイル書き込みが発生するのを防ぐ）。
+    /// </summary>
+    public bool UpdateItemTimesPreview(ScheduleItem item, DateTime newStart, DateTime newEnd)
+    {
+        if (item.StartTime == newStart && item.EndTime == newEnd) return false;
+
+        _isBatchUpdatingItem = true;
+        try
+        {
+            item.StartTime = newStart;
+            item.EndTime = newEnd;
+        }
+        finally
+        {
+            _isBatchUpdatingItem = false;
+        }
+        RecalculateLayout();
+        return true;
+    }
+
+    /// <summary>ドラッグ確定時（マウスアップ）にデータを保存する</summary>
+    public void CommitItemDrag()
+    {
+        SaveData();
+    }
+
     private void RecalculateLayout()
     {
         var newAllDayItems = new List<ScheduleItem>();

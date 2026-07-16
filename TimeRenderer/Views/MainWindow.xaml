@@ -336,6 +336,13 @@
                 <!-- 右側：モード切替 -->
                 <StackPanel Orientation="Horizontal" Grid.Column="2" HorizontalAlignment="Right">
 
+                    <!-- 記録中タイトル（記録中のみ表示・その場で変更可能） -->
+                    <TextBox Text="{Binding RecordingTitle, UpdateSourceTrigger=PropertyChanged}"
+                             Width="160" VerticalAlignment="Center" Margin="0,0,8,0"
+                             Style="{StaticResource InputTextBoxStyle}" FontSize="12"
+                             ToolTip="記録中のタイトル（停止時にこの内容で保存されます）"
+                             Visibility="{Binding IsRecording, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
                     <!-- 記録ボタン -->
                     <Button Command="{Binding ToggleRecordingCommand}" Margin="0,0,15,0" BorderBrush="{DynamicResource DangerBrush}">
                         <Button.Style>
@@ -499,6 +506,7 @@
                                             <Border.ContextMenu>
                                                 <ContextMenu>
                                                     <MenuItem Header="編集" Click="EditMenuItem_Click"/>
+                                                    <MenuItem Header="この内容で記録開始" Click="ResumeRecordingMenuItem_Click"/>
                                                     <MenuItem Header="削除" Click="DeleteMenuItem_Click"/>
                                                 </ContextMenu>
                                             </Border.ContextMenu>
@@ -706,6 +714,7 @@
                                                 <Grid.ContextMenu>
                                                     <ContextMenu>
                                                         <MenuItem Header="編集" Click="EditMenuItem_Click"/>
+                                                    <MenuItem Header="この内容で記録開始" Click="ResumeRecordingMenuItem_Click"/>
                                                         <MenuItem Header="削除" Click="DeleteMenuItem_Click"/>
                                                     </ContextMenu>
                                                 </Grid.ContextMenu>
@@ -857,6 +866,7 @@
                                     <Grid.ContextMenu>
                                         <ContextMenu>
                                             <MenuItem Header="編集" Click="EditMenuItem_Click"/>
+                                                    <MenuItem Header="この内容で記録開始" Click="ResumeRecordingMenuItem_Click"/>
                                             <MenuItem Header="削除" Click="DeleteMenuItem_Click"/>
                                         </ContextMenu>
                                     </Grid.ContextMenu>

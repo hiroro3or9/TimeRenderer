@@ -65,12 +65,12 @@ namespace TimeRenderer.Helpers
                 typeof(ScrollViewerHelper),
                 new PropertyMetadata(null));
 
-        private static AutoScrollState GetAutoScrollState(DependencyObject obj)
+        private static AutoScrollState? GetAutoScrollState(DependencyObject obj)
         {
-            return (AutoScrollState)obj.GetValue(AutoScrollStateProperty);
+            return (AutoScrollState?)obj.GetValue(AutoScrollStateProperty);
         }
 
-        private static void SetAutoScrollState(DependencyObject obj, AutoScrollState value)
+        private static void SetAutoScrollState(DependencyObject obj, AutoScrollState? value)
         {
             obj.SetValue(AutoScrollStateProperty, value);
         }
@@ -149,7 +149,7 @@ namespace TimeRenderer.Helpers
             scrollViewer.CaptureMouse();
 
             SetAutoScrollState(scrollViewer, state);
-            UpdateCursor(scrollViewer, state);
+            UpdateCursor(scrollViewer);
         }
 
         private static void DisableAutoScroll(ScrollViewer scrollViewer)
@@ -168,10 +168,7 @@ namespace TimeRenderer.Helpers
                     scrollViewer.ReleaseMouseCapture();
                 }
 
-                if (state.IndicatorPopup != null)
-                {
-                    state.IndicatorPopup.IsOpen = false;
-                }
+                state.IndicatorPopup.IsOpen = false;
 
                 scrollViewer.Cursor = Cursors.Arrow; // カーソルを通常に戻す
                 SetAutoScrollState(scrollViewer, null);
@@ -214,7 +211,7 @@ namespace TimeRenderer.Helpers
                 {
                     var currentPoint = e.GetPosition(scrollViewer);
                     state.CurrentOffset = currentPoint - state.StartPoint;
-                    UpdateCursor(scrollViewer, state);
+                    UpdateCursor(scrollViewer);
                 }
             }
         }
@@ -236,7 +233,7 @@ namespace TimeRenderer.Helpers
             }
         }
 
-        private static void UpdateCursor(ScrollViewer scrollViewer, AutoScrollState state)
+        private static void UpdateCursor(ScrollViewer scrollViewer)
         {
             // 現在のスクロール可能状態に応じてカーソル画像を変更
             bool canScrollV = scrollViewer.ScrollableHeight > 0;
@@ -378,8 +375,8 @@ namespace TimeRenderer.Helpers
         public Point StartPoint { get; set; }
         public Point ScreenStartPoint { get; set; }
         public Vector CurrentOffset { get; set; }
-        public Popup IndicatorPopup { get; set; }
-        public DispatcherTimer Timer { get; set; }
+        public required Popup IndicatorPopup { get; set; }
+        public required DispatcherTimer Timer { get; set; }
         public bool IsDragMode { get; set; }
     }
 }
