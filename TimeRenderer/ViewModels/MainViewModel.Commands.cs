@@ -16,6 +16,7 @@ public partial class MainViewModel
     public ICommand ToggleMemoPanelCommand { get; private set; } = null!;
     public ICommand ToggleSettingsPanelCommand { get; private set; } = null!;
     public ICommand ToggleRecordingCommand { get; private set; } = null!;
+    public ICommand StartRecordingFromItemCommand { get; private set; } = null!;
     public ICommand DeleteCommand { get; private set; } = null!;
     public ICommand AddCommand { get; private set; } = null!;
     public ICommand AddScheduleItemAtDateCommand { get; private set; } = null!;
@@ -121,6 +122,17 @@ public partial class MainViewModel
         });
 
         ToggleRecordingCommand = new RelayCommand(_ => ToggleRecording());
+
+        StartRecordingFromItemCommand = new RelayCommand(
+            param =>
+            {
+                if (param is ScheduleItem item)
+                {
+                    StartRecordingFromItem(item);
+                }
+            },
+            param => param is ScheduleItem
+        );
 
         ShowAddSprintFormCommand = new RelayCommand(_ =>
         {
@@ -313,6 +325,31 @@ public partial class MainViewModel
         return CurrentDate.AddDays(amount * 14);
     }
 
+    /// <summary>
+    /// 「この内容で記録開始」用：記録アイテム作成時に使う色（null なら既定の記録カテゴリ色）
+    /// </summary>
+    private string? _recordingColorCode;
+
+    /// <summary>
+    /// 選択したアイテムと同じタイトル・色で新しい記録を開始する。
+    /// 記録中だった場合は現在の記録を保存してから開始する。
+    /// </summary>
+    private void StartRecordingFromItem(ScheduleItem item)
+    {
+        if (IsRecording)
+        {
+            ToggleRecording(); // 現在の記録を停止・保存
+        }
+
+        RecordingTitle = item.Title;
+        _recordingColorCode = item.ColorCode;
+        IsRecording = true;
+        RecordingStartTime = DateTime.Now;
+        RecordingDuration = TimeSpan.Zero;
+        IsCountdownMode = false;
+        CountdownRemaining = null;
+    }
+
     private void ToggleRecording()
     {
         if (IsRecording)
@@ -332,7 +369,7 @@ public partial class MainViewModel
                     Content = $"記録時間: {(int)duration.TotalHours}:{duration.Minutes:D2}",
                     StartTime = startTime,
                     EndTime = endTime,
-                    ColorCode = RecordingCategory?.ColorCode ?? Brushes.DarkOrange.ToString(),
+                    ColorCode = _recordingColorCode ?? RecordingCategory?.ColorCode ?? Brushes.DarkOrange.ToString(),
                     ColumnIndex = 0
                 };
 
@@ -343,11 +380,13 @@ public partial class MainViewModel
             RecordingStartTime = null;
             RecordingDuration = TimeSpan.Zero;
             RecordingTitle = "";
+            _recordingColorCode = null;
             IsCountdownMode = false;
             CountdownRemaining = null;
         }
         else
         {
+            _recordingColorCode = null;
             string defaultTitle = $"作業ログ {DateTime.Now:HH:mm}";
             var result = _dialogService.ShowRecordingStartDialog(defaultTitle, TimerOptions, SelectedTimerOption, GetTitleSuggestions());
             if (result != null) // Cancel以外（OK押下時）は開始

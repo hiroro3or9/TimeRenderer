@@ -37,6 +37,7 @@ namespace TimeRenderer.Views
             // 検索結果ジャンプ時のスクロール要求を購読
             viewModel.ScrollToTimeRequested += OnScrollToTimeRequested;
 
+            InitializeDragHandlers();
             SetupNotifyIcon();
         }
 
@@ -196,18 +197,26 @@ namespace TimeRenderer.Views
         }
 
         /// <summary>
-        /// スケジュールアイテムのダブルクリックイベント。(週表示/日表示用)
+        /// スケジュールアイテムのマウス押下イベント。(週表示/日表示用)
+        /// ダブルクリックで編集、シングルクリックはドラッグ操作の候補として記録する。
         /// </summary>
         private void ScheduleItem_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             if (e.ClickCount == 2 && sender is FrameworkElement element &&
                 ResolveScheduleItem(element.DataContext) is ScheduleItem item)
             {
+                EndDrag(commit: false); // 1クリック目で記録したドラッグ候補を破棄
                 if (ViewModel.EditCommand.CanExecute(item))
                 {
                     ViewModel.EditCommand.Execute(item);
                 }
                 e.Handled = true;
+            }
+            else if (e.ClickCount == 1 && sender is FrameworkElement el &&
+                     el.DataContext is ScheduleSegment segment)
+            {
+                // 日/週ビューの通常アイテムのみドラッグ対象（終日・月・TLは対象外）
+                BeginPotentialDrag(el, segment, e);
             }
         }
 
@@ -240,8 +249,17 @@ namespace TimeRenderer.Views
                     }
                 };
                 
+                MenuItem resumeItem = new() { Header = "この内容で記録開始" };
+                resumeItem.Click += (s, args) =>
+                {
+                    if (ViewModel.StartRecordingFromItemCommand.CanExecute(e.Item))
+                    {
+                        ViewModel.StartRecordingFromItemCommand.Execute(e.Item);
+                    }
+                };
+
                 MenuItem deleteItem = new() { Header = "削除" };
-                deleteItem.Click += (s, args) => 
+                deleteItem.Click += (s, args) =>
                 {
                     if (ViewModel.DeleteCommand.CanExecute(e.Item))
                     {
@@ -250,6 +268,7 @@ namespace TimeRenderer.Views
                 };
 
                 contextMenu.Items.Add(editItem);
+                contextMenu.Items.Add(resumeItem);
                 contextMenu.Items.Add(deleteItem);
                 
                 contextMenu.IsOpen = true;
@@ -285,6 +304,24 @@ namespace TimeRenderer.Views
                 if (ViewModel.EditCommand.CanExecute(item))
                 {
                     ViewModel.EditCommand.Execute(item);
+                }
+            }
+        }
+
+        /// <summary>
+        /// コンテキストメニュー「この内容で記録開始」のクリックイベント。
+        /// 選択したアイテムと同じタイトル・色で新しい記録を開始する。
+        /// </summary>
+        private void ResumeRecordingMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is MenuItem menuItem &&
+                menuItem.Parent is ContextMenu contextMenu &&
+                contextMenu.PlacementTarget is FrameworkElement element &&
+                ResolveScheduleItem(element.DataContext) is ScheduleItem item)
+            {
+                if (ViewModel.StartRecordingFromItemCommand.CanExecute(item))
+                {
+                    ViewModel.StartRecordingFromItemCommand.Execute(item);
                 }
             }
         }
