@@ -207,7 +207,7 @@ public partial class MainViewModel
         var newSegments = new List<ScheduleSegment>();
 
         // 色フィルタで非表示のカテゴリを除いたアイテムのみを描画対象にする
-        var visibleItems = ScheduleItems.Where(x => IsColorVisible(x.ColorCode)).ToList();
+        var visibleItems = ScheduleItems.Where(IsItemVisible).ToList();
 
         foreach (var item in visibleItems)
         {
@@ -310,7 +310,7 @@ public partial class MainViewModel
         var rangeEnd = TimelineSprints[^1].EndDate.Date.AddDays(1);
 
         TimelineItems = [.. ScheduleItems
-            .Where(x => IsColorVisible(x.ColorCode))
+            .Where(IsItemVisible)
             .Where(x => x.EndTime >= rangeStart && x.StartTime < rangeEnd)
             .OrderBy(x => x.StartTime)];
     }

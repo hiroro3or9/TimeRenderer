@@ -69,6 +69,17 @@ public class ScheduleItem : INotifyPropertyChanged
         set => SetProperty(ref _backgroundColor, value);
     }
 
+    private string? _categoryId;
+    /// <summary>
+    /// 所属カテゴリのID（CategoryInfo.Id）。null は旧データ等の未設定を表し、
+    /// その場合は色（ColorCode）からのフォールバック解決が行われる。
+    /// </summary>
+    public string? CategoryId
+    {
+        get => _categoryId;
+        set => SetProperty(ref _categoryId, value);
+    }
+
     public string ColorCode
     {
         get => _backgroundColor.ToString();

@@ -12,6 +12,12 @@ namespace TimeRenderer.Models;
 /// </summary>
 public class CategoryInfo : INotifyPropertyChanged
 {
+    /// <summary>
+    /// カテゴリの一意ID。アイテムとの紐付けに使用する（色はIDではなく表示属性）。
+    /// 旧形式の設定ファイル（Id なし）はデシリアライズ時にこの初期値で自動採番される。
+    /// </summary>
+    public string Id { get; set; } = Guid.NewGuid().ToString("N");
+
     private string _name = string.Empty;
     public string Name
     {

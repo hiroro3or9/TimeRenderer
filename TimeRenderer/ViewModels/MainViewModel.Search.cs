@@ -157,14 +157,4 @@ public partial class MainViewModel
 
     /// <summary>いずれかのカテゴリが非表示になっているか（フィルタ適用中か）。</summary>
     public bool IsColorFilterActive => Categories.Any(c => !c.IsFilterEnabled);
-
-    /// <summary>
-    /// 指定した色コードのアイテムを表示するか判定する。
-    /// カテゴリに紐づかない色（未分類）は常に表示する。
-    /// </summary>
-    private bool IsColorVisible(string colorCode)
-    {
-        var category = Categories.FirstOrDefault(c => c.ColorCode == colorCode);
-        return category == null || category.IsFilterEnabled;
-    }
 }

@@ -61,7 +61,8 @@ public partial class MainViewModel
                     StartTime = date.Date.AddHours(9),
                     EndTime = date.Date.AddHours(10),
                     Title = "新しい予定",
-                    ColorCode = Categories.FirstOrDefault()?.ColorCode ?? Brushes.LightBlue.ToString()
+                    ColorCode = Categories.FirstOrDefault()?.ColorCode ?? Brushes.LightBlue.ToString(),
+                    CategoryId = Categories.FirstOrDefault()?.Id
                 });
             }
         });
@@ -84,6 +85,7 @@ public partial class MainViewModel
                             item.EndTime = editedItem.EndTime;
                             item.IsAllDay = editedItem.IsAllDay;
                             item.BackgroundColor = editedItem.BackgroundColor;
+                            item.CategoryId = editedItem.CategoryId;
                         }
                         finally
                         {
@@ -330,6 +332,9 @@ public partial class MainViewModel
     /// </summary>
     private string? _recordingColorCode;
 
+    /// <summary>「この内容で記録開始」用：記録アイテムに引き継ぐカテゴリID</summary>
+    private string? _recordingCategoryId;
+
     /// <summary>
     /// 選択したアイテムと同じタイトル・色で新しい記録を開始する。
     /// 記録中だった場合は現在の記録を保存してから開始する。
@@ -343,6 +348,7 @@ public partial class MainViewModel
 
         RecordingTitle = item.Title;
         _recordingColorCode = item.ColorCode;
+        _recordingCategoryId = item.CategoryId ?? ResolveCategory(item)?.Id;
         IsRecording = true;
         RecordingStartTime = DateTime.Now;
         RecordingDuration = TimeSpan.Zero;
@@ -370,6 +376,7 @@ public partial class MainViewModel
                     StartTime = startTime,
                     EndTime = endTime,
                     ColorCode = _recordingColorCode ?? RecordingCategory?.ColorCode ?? Brushes.DarkOrange.ToString(),
+                    CategoryId = _recordingCategoryId ?? RecordingCategory?.Id,
                     ColumnIndex = 0
                 };
 
@@ -381,12 +388,14 @@ public partial class MainViewModel
             RecordingDuration = TimeSpan.Zero;
             RecordingTitle = "";
             _recordingColorCode = null;
+            _recordingCategoryId = null;
             IsCountdownMode = false;
             CountdownRemaining = null;
         }
         else
         {
             _recordingColorCode = null;
+            _recordingCategoryId = null;
             string defaultTitle = $"作業ログ {DateTime.Now:HH:mm}";
             var result = _dialogService.ShowRecordingStartDialog(defaultTitle, TimerOptions, SelectedTimerOption, GetTitleSuggestions());
             if (result != null) // Cancel以外（OK押下時）は開始

@@ -73,9 +73,8 @@ public partial class MainViewModel
                         category.PropertyChanged -= OnCategoryPropertyChanged;
                         Categories.Remove(category);
                         SaveSettings();
-                        UpdateStats();
                         OnPropertyChanged(nameof(IsColorFilterActive));
-                        RecalculateLayout();
+                        RecalculateLayout(); // 内部で UpdateStats も実行される
                     }
                 }
             },
@@ -122,11 +121,28 @@ public partial class MainViewModel
         }
     }
 
-    /// <summary>カラーコードからカテゴリ名を引く（未登録の色は「未分類」）</summary>
-    public string GetCategoryName(string colorCode)
+    /// <summary>
+    /// アイテムの所属カテゴリを解決する。
+    /// CategoryId（一意ID）を優先し、未設定の旧データは色コードでフォールバックする。
+    /// </summary>
+    public CategoryInfo? ResolveCategory(ScheduleItem item)
     {
-        var category = Categories.FirstOrDefault(c => c.ColorCode == colorCode);
-        return category?.Name ?? "未分類";
+        if (!string.IsNullOrEmpty(item.CategoryId))
+        {
+            var byId = Categories.FirstOrDefault(c => c.Id == item.CategoryId);
+            if (byId != null) return byId;
+        }
+        return Categories.FirstOrDefault(c => c.ColorCode == item.ColorCode);
+    }
+
+    /// <summary>
+    /// 色フィルタでこのアイテムを表示するか判定する。
+    /// どのカテゴリにも紐づかないアイテム（未分類）は常に表示する。
+    /// </summary>
+    public bool IsItemVisible(ScheduleItem item)
+    {
+        var category = ResolveCategory(item);
+        return category == null || category.IsFilterEnabled;
     }
 
     /// <summary>記録機能で使う既定カテゴリ（「記録」があればそれ、なければ先頭）</summary>
