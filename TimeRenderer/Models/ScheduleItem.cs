@@ -80,6 +80,51 @@ public class ScheduleItem : INotifyPropertyChanged
         set => SetProperty(ref _categoryId, value);
     }
 
+    private string? _routineId;
+    /// <summary>
+    /// このアイテムの生成元となった定期予定（RoutineScheduleItem.Id）。
+    /// 手動で追加・記録されたアイテムは null。
+    /// リマインダー通知・自動記録開始の対象判定や、定期予定の重複生成防止に使用する。
+    /// </summary>
+    public string? RoutineId
+    {
+        get => _routineId;
+        set => SetProperty(ref _routineId, value);
+    }
+
+    private bool _remindAtStart;
+    /// <summary>
+    /// 手動登録した単発予定用：開始時刻になったらリマインダー通知を表示する。
+    /// 定期予定から生成されたアイテム（RoutineId あり）はルーティン側の設定が優先される。
+    /// </summary>
+    public bool RemindAtStart
+    {
+        get => _remindAtStart;
+        set => SetProperty(ref _remindAtStart, value);
+    }
+
+    private bool _autoStartRecording;
+    /// <summary>
+    /// 手動登録した単発予定用：開始時刻になったら確認なしで記録を自動開始する。
+    /// RemindAtStart より優先される。
+    /// </summary>
+    public bool AutoStartRecording
+    {
+        get => _autoStartRecording;
+        set => SetProperty(ref _autoStartRecording, value);
+    }
+
+    private bool _forceStartRecording;
+    /// <summary>
+    /// 自動開始時に既に記録中でも現在の記録を停止・保存して強制的に開始する。
+    /// AutoStartRecording が true のときのみ有効。false なら記録中はリマインダー通知にフォールバックする。
+    /// </summary>
+    public bool ForceStartRecording
+    {
+        get => _forceStartRecording;
+        set => SetProperty(ref _forceStartRecording, value);
+    }
+
     public string ColorCode
     {
         get => _backgroundColor.ToString();

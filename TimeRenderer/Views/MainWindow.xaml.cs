@@ -216,6 +216,41 @@ namespace TimeRenderer.Views
         }
 
         /// <summary>
+        /// 日/週ビューの空白部分のダブルクリックイベント。
+        /// クリック位置の日付・時刻（30分スナップ）を初期値として予定追加ダイアログを開く。
+        /// 予定バー上のダブルクリックはバー側の編集処理が e.Handled にするためここには届かない。
+        /// </summary>
+        private void ScheduleBackground_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ClickCount != 2) return;
+            if (sender is not Grid grid || grid.ActualWidth <= 0) return;
+
+            // 念のため：予定バー上のクリックは対象外（バー側のダブルクリック編集を優先）
+            if (e.OriginalSource is DependencyObject src && FindScheduleItemRoot(src) != null) return;
+
+            var days = ViewModel.VisibleDays;
+            if (days.Count == 0) return;
+
+            var pos = e.GetPosition(grid);
+
+            // X座標 → 日付列
+            double colWidth = grid.ActualWidth / days.Count;
+            int col = Math.Clamp((int)(pos.X / colWidth), 0, days.Count - 1);
+            var date = days[col].Date;
+
+            // Y座標 → 時刻（表示開始時刻を考慮し、30分単位にスナップ）
+            double hours = pos.Y / PixelsPerHour + ViewModel.DisplayStartHour;
+            double snapped = Math.Clamp(Math.Floor(hours * 2) / 2, 0, 23.5);
+            var start = date.AddHours(snapped);
+
+            if (ViewModel.AddScheduleItemAtTimeCommand.CanExecute(start))
+            {
+                ViewModel.AddScheduleItemAtTimeCommand.Execute(start);
+            }
+            e.Handled = true;
+        }
+
+        /// <summary>
         /// スケジュールアイテムのマウス押下イベント。(週表示/日表示用)
         /// ダブルクリックで編集、シングルクリックはドラッグ操作の候補として記録する。
         /// </summary>

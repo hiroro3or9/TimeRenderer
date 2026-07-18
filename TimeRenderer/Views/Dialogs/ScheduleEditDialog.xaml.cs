@@ -115,6 +115,10 @@ namespace TimeRenderer.Views.Dialogs
                         : null)
                     ?? _colorOptions.FirstOrDefault(c => c.Brush.ToString() == existingItem.BackgroundColor.ToString());
                 ColorCombo.SelectedItem = matchingColor ?? _colorOptions[0];
+
+                RemindCheckBox.IsChecked = existingItem.RemindAtStart;
+                AutoStartCheckBox.IsChecked = existingItem.AutoStartRecording;
+                ForceStartCheckBox.IsChecked = existingItem.ForceStartRecording;
             }
             else
             {
@@ -196,7 +200,11 @@ namespace TimeRenderer.Views.Dialogs
                 EndTime = endTime,
                 IsAllDay = isAllDay,
                 BackgroundColor = selectedColor?.Brush ?? Brushes.LightBlue,
-                CategoryId = selectedColor?.CategoryId
+                CategoryId = selectedColor?.CategoryId,
+                // 終日予定は時刻の概念がないためリマインダー対象外
+                RemindAtStart = !isAllDay && (RemindCheckBox.IsChecked ?? false),
+                AutoStartRecording = !isAllDay && (AutoStartCheckBox.IsChecked ?? false),
+                ForceStartRecording = !isAllDay && (AutoStartCheckBox.IsChecked ?? false) && (ForceStartCheckBox.IsChecked ?? false)
             };
 
             DialogResult = true;
@@ -213,6 +221,8 @@ namespace TimeRenderer.Views.Dialogs
             bool isTimeEnabled = !(AllDayCheckBox.IsChecked ?? false);
             StartTimePanel?.IsEnabled = isTimeEnabled;
             EndTimePanel?.IsEnabled = isTimeEnabled;
+            // 終日予定はリマインダー対象外のため入力も無効化する
+            ReminderPanel?.IsEnabled = isTimeEnabled;
         }
     }
 }

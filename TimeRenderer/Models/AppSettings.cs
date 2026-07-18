@@ -16,6 +16,8 @@ public class AppSettings
     public System.Collections.Generic.List<CategoryInfo> Categories { get; set; } = [];
     /// <summary>タイトル入力欄に常に表示する定型タイトル（null は未設定＝既定値を使用）</summary>
     public System.Collections.Generic.List<string>? PinnedTitles { get; set; }
+    /// <summary>定期予定（ルーティン）のテンプレート一覧</summary>
+    public System.Collections.Generic.List<RoutineScheduleItem> RoutineSchedules { get; set; } = [];
     public System.Collections.Generic.List<DayOfWeek> EnabledDaysOfWeek { get; set; } =
     [
         DayOfWeek.Monday,

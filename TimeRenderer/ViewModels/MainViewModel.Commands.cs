@@ -20,6 +20,7 @@ public partial class MainViewModel
     public ICommand DeleteCommand { get; private set; } = null!;
     public ICommand AddCommand { get; private set; } = null!;
     public ICommand AddScheduleItemAtDateCommand { get; private set; } = null!;
+    public ICommand AddScheduleItemAtTimeCommand { get; private set; } = null!;
     public ICommand EditCommand { get; private set; } = null!;
     public ICommand PreviousCommand { get; private set; } = null!;
     public ICommand NextCommand { get; private set; } = null!;
@@ -67,6 +68,22 @@ public partial class MainViewModel
             }
         });
 
+        // 日/週ビューの空白部分ダブルクリック用：時刻付きの日時から予定を追加する
+        AddScheduleItemAtTimeCommand = new RelayCommand(dateObj =>
+        {
+            if (dateObj is DateTime start)
+            {
+                AddViaDialog(new ScheduleItem
+                {
+                    StartTime = start,
+                    EndTime = start.AddHours(1),
+                    Title = "新しい予定",
+                    ColorCode = Categories.FirstOrDefault()?.ColorCode ?? Brushes.LightBlue.ToString(),
+                    CategoryId = Categories.FirstOrDefault()?.Id
+                });
+            }
+        });
+
         EditCommand = new RelayCommand(
             param =>
             {
@@ -86,6 +103,9 @@ public partial class MainViewModel
                             item.IsAllDay = editedItem.IsAllDay;
                             item.BackgroundColor = editedItem.BackgroundColor;
                             item.CategoryId = editedItem.CategoryId;
+                            item.RemindAtStart = editedItem.RemindAtStart;
+                            item.AutoStartRecording = editedItem.AutoStartRecording;
+                            item.ForceStartRecording = editedItem.ForceStartRecording;
                         }
                         finally
                         {
@@ -336,10 +356,21 @@ public partial class MainViewModel
     private string? _recordingCategoryId;
 
     /// <summary>
+    /// 予定アイテムから記録を開始した場合の「消費」対象。
+    /// 停止時にこのアイテム自体を実績（実際の開始〜終了時刻）に更新し、新規アイテムは作らない。
+    /// null の場合は従来どおり停止時に新規アイテムを作成する。
+    /// </summary>
+    private ScheduleItem? _recordingSourceItem;
+
+    /// <summary>
     /// 選択したアイテムと同じタイトル・色で新しい記録を開始する。
     /// 記録中だった場合は現在の記録を保存してから開始する。
     /// </summary>
-    private void StartRecordingFromItem(ScheduleItem item)
+    /// <param name="consumeItem">
+    /// true の場合、渡された予定アイテム自体を記録の実績として使う（停止時に時刻を上書きし、別アイテムを作らない）。
+    /// リマインダー通知・自動開始からの記録開始で使用する。
+    /// </param>
+    private void StartRecordingFromItem(ScheduleItem item, bool consumeItem = false)
     {
         if (IsRecording)
         {
@@ -349,6 +380,7 @@ public partial class MainViewModel
         RecordingTitle = item.Title;
         _recordingColorCode = item.ColorCode;
         _recordingCategoryId = item.CategoryId ?? ResolveCategory(item)?.Id;
+        _recordingSourceItem = consumeItem ? item : null;
         IsRecording = true;
         RecordingStartTime = DateTime.Now;
         RecordingDuration = TimeSpan.Zero;
@@ -367,20 +399,49 @@ public partial class MainViewModel
                 var duration = endTime - startTime;
 
                 var title = string.IsNullOrWhiteSpace(RecordingTitle) ? $"作業ログ {startTime:HH:mm}" : RecordingTitle;
+                // TimeSpan の "hh" は24時間で桁落ちするため総時間数で表記する
+                var durationText = $"記録時間: {(int)duration.TotalHours}:{duration.Minutes:D2}";
 
-                ScheduleItem newItem = new()
+                var source = _recordingSourceItem;
+                _recordingSourceItem = null;
+
+                if (source != null && ScheduleItems.Contains(source))
                 {
-                    Title = title,
-                    // TimeSpan の "hh" は24時間で桁落ちするため総時間数で表記する
-                    Content = $"記録時間: {(int)duration.TotalHours}:{duration.Minutes:D2}",
-                    StartTime = startTime,
-                    EndTime = endTime,
-                    ColorCode = _recordingColorCode ?? RecordingCategory?.ColorCode ?? Brushes.DarkOrange.ToString(),
-                    CategoryId = _recordingCategoryId ?? RecordingCategory?.Id,
-                    ColumnIndex = 0
-                };
+                    // 予定アイテムから開始した記録：予定自体を実績に更新する（別アイテムを作らない）
+                    _isBatchUpdatingItem = true;
+                    try
+                    {
+                        source.Title = title;
+                        source.StartTime = startTime;
+                        source.EndTime = endTime;
+                        // ユーザーが予定に書いたメモは残し、空の場合のみ記録時間を書き込む
+                        if (string.IsNullOrWhiteSpace(source.Content))
+                        {
+                            source.Content = durationText;
+                        }
+                    }
+                    finally
+                    {
+                        _isBatchUpdatingItem = false;
+                    }
+                    RecalculateLayout();
+                    SaveData();
+                }
+                else
+                {
+                    ScheduleItem newItem = new()
+                    {
+                        Title = title,
+                        Content = durationText,
+                        StartTime = startTime,
+                        EndTime = endTime,
+                        ColorCode = _recordingColorCode ?? RecordingCategory?.ColorCode ?? Brushes.DarkOrange.ToString(),
+                        CategoryId = _recordingCategoryId ?? RecordingCategory?.Id,
+                        ColumnIndex = 0
+                    };
 
-                ScheduleItems.Add(newItem);
+                    ScheduleItems.Add(newItem);
+                }
             }
 
             IsRecording = false;
@@ -389,6 +450,7 @@ public partial class MainViewModel
             RecordingTitle = "";
             _recordingColorCode = null;
             _recordingCategoryId = null;
+            _recordingSourceItem = null;
             IsCountdownMode = false;
             CountdownRemaining = null;
         }
@@ -396,6 +458,7 @@ public partial class MainViewModel
         {
             _recordingColorCode = null;
             _recordingCategoryId = null;
+            _recordingSourceItem = null;
             string defaultTitle = $"作業ログ {DateTime.Now:HH:mm}";
             var result = _dialogService.ShowRecordingStartDialog(defaultTitle, TimerOptions, SelectedTimerOption, GetTitleSuggestions());
             if (result != null) // Cancel以外（OK押下時）は開始

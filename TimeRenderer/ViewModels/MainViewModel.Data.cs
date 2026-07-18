@@ -228,7 +228,8 @@ public partial class MainViewModel
         ManualSprints = ManualSprints,
         EnabledDaysOfWeek = EnabledDaysOfWeek,
         Categories = [.. Categories],
-        PinnedTitles = [.. PinnedTitles.Select(t => t.Text)]
+        PinnedTitles = [.. PinnedTitles.Select(t => t.Text)],
+        RoutineSchedules = Routines
     };
 
     private void LoadSettings()
@@ -276,6 +277,9 @@ public partial class MainViewModel
         LoadCategories(settings.Categories);
         LoadPinnedTitles(settings.PinnedTitles);
 
+        _routines = settings.RoutineSchedules ?? [];
+        OnPropertyChanged(nameof(Routines));
+
         _enabledDaysOfWeek = (settings.EnabledDaysOfWeek is { Count: > 0 } days)
             ? days
             :
@@ -293,6 +297,7 @@ public partial class MainViewModel
         OnPropertyChanged(nameof(EnabledDayHeaders));
 
         UpdateVisibleDays();
+        EnsureRoutineOccurrences(CurrentDate);
     }
 
 
