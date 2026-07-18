@@ -16,6 +16,16 @@ public interface IDialogService
     ScheduleItem? ShowScheduleEditDialog(ScheduleItem? initialItem = null, IReadOnlyList<CategoryInfo>? categories = null, IReadOnlyList<string>? titleSuggestions = null);
 
     /// <summary>
+    /// 定期予定（ルーティン）編集ダイアログを開き、結果のルーティンを返します。
+    /// キャンセルされた場合はnullを返します。
+    /// </summary>
+    /// <param name="initialRoutine">編集対象のルーティン。新規作成時はnull</param>
+    /// <param name="categories">選択可能なカテゴリ一覧</param>
+    /// <param name="titleSuggestions">タイトル入力欄のドロップダウン候補</param>
+    /// <returns>追加または更新されたRoutineScheduleItem。キャンセルされた場合はnull</returns>
+    RoutineScheduleItem? ShowRoutineEditDialog(RoutineScheduleItem? initialRoutine = null, IReadOnlyList<CategoryInfo>? categories = null, IReadOnlyList<string>? titleSuggestions = null);
+
+    /// <summary>
     /// 記録開始ダイアログを開き、入力されたタイトルと選択されたタイマーオプションを返します。
     /// キャンセルされた場合はnullを返します。
     /// </summary>

@@ -23,6 +23,20 @@ public class DefaultDialogService(Window owner) : IDialogService
         return null;
     }
 
+    public RoutineScheduleItem? ShowRoutineEditDialog(RoutineScheduleItem? initialRoutine = null, IReadOnlyList<CategoryInfo>? categories = null, IReadOnlyList<string>? titleSuggestions = null)
+    {
+        RoutineEditDialog dialog = new(initialRoutine, categories, titleSuggestions)
+        {
+            Owner = owner
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            return dialog.ResultRoutine;
+        }
+        return null;
+    }
+
     public (string Title, MainViewModel.TimerOption SelectedOption)? ShowRecordingStartDialog(
         string defaultTitle,
         List<MainViewModel.TimerOption> timerOptions,

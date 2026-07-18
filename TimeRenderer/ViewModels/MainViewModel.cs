@@ -136,6 +136,7 @@ public partial class MainViewModel : INotifyPropertyChanged
                 var oldWeekStart = CurrentWeekStart;
                 _currentDate = value;
                 UpdateVisibleDays();
+                EnsureRoutineOccurrences(value);
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(CurrentWeekStart));
                 OnPropertyChanged(nameof(DateDisplay));
@@ -394,6 +395,7 @@ public partial class MainViewModel : INotifyPropertyChanged
         InitializeStatsCommands();
         InitializeSearchCommands();
         InitializeTitleCommands();
+        InitializeRoutineCommands();
         LoadCategories(null); // 既定カテゴリで初期化（LoadSettings で上書きされる）
         LoadPinnedTitles(null); // 既定の定型タイトルで初期化（LoadSettings で上書きされる）
 
@@ -427,6 +429,7 @@ public partial class MainViewModel : INotifyPropertyChanged
         timer.Tick += (s, e) =>
         {
             CurrentTime = DateTime.Now;
+            CheckReminders(CurrentTime);
             if (IsRecording && RecordingStartTime.HasValue)
             {
                 RecordingDuration = CurrentTime - RecordingStartTime.Value;
