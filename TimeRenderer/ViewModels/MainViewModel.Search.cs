@@ -92,20 +92,12 @@ public partial class MainViewModel
 
     public string SearchResultCountText => HasSearchResults ? $"{SearchResults.Count} 件" : "該当なし";
 
-    private bool _isSearchResultsOpen;
-    public bool IsSearchResultsOpen
-    {
-        get => _isSearchResultsOpen;
-        set => SetProperty(ref _isSearchResultsOpen, value);
-    }
-
     private void UpdateSearchResults()
     {
         var query = _searchQuery?.Trim() ?? string.Empty;
         if (query.Length == 0)
         {
             SearchResults = [];
-            IsSearchResultsOpen = false;
             return;
         }
 
@@ -119,24 +111,10 @@ public partial class MainViewModel
                 .Take(MaxSearchResults)
                 .Select(x => new SearchResultVm(x))
         ];
-
-        // 該当0件でも「該当なし」を見せるためポップアップは開く
-        IsSearchResultsOpen = true;
-    }
-
-    /// <summary>検索ボックス再フォーカス時など、必要に応じてポップアップを開き直す。</summary>
-    public void ReopenSearchResultsIfAny()
-    {
-        if (!string.IsNullOrEmpty(_searchQuery?.Trim()))
-        {
-            IsSearchResultsOpen = true;
-        }
     }
 
     private void JumpToItem(ScheduleItem item)
     {
-        IsSearchResultsOpen = false;
-
         var targetDate = item.StartTime.Date;
         if (targetDate < CurrentDate.Date)
             TransitionDirection = Controls.TransitionDirection.Backward;

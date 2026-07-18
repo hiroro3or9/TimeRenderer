@@ -42,6 +42,42 @@ public partial class MainViewModel : INotifyPropertyChanged
         Stats
     }
 
+    /// <summary>ツールバーの表示切替ドロップダウン用の選択肢</summary>
+    public sealed record ViewModeOption(ViewMode Mode, string Label)
+    {
+        public override string ToString() => Label;
+    }
+
+    public IReadOnlyList<ViewModeOption> ViewModeOptions { get; } =
+    [
+        new(ViewMode.Day, "日"),
+        new(ViewMode.Week, "週"),
+        new(ViewMode.Month, "月"),
+        new(ViewMode.Sprint, "スプリント"),
+        new(ViewMode.SprintTimeline, "タイムライン"),
+        new(ViewMode.Stats, "統計"),
+    ];
+
+    /// <summary>現在の表示モードに対応するドロップダウン選択項目</summary>
+    public ViewModeOption SelectedViewModeOption
+    {
+        get
+        {
+            foreach (var option in ViewModeOptions)
+            {
+                if (option.Mode == CurrentViewMode) return option;
+            }
+            return ViewModeOptions[0];
+        }
+        set
+        {
+            if (value != null)
+            {
+                CurrentViewMode = value.Mode;
+            }
+        }
+    }
+
     public static List<int> StartHourOptions => [.. Enumerable.Range(0, 24)];
     public static List<int> EndHourOptions => [.. Enumerable.Range(1, 24)];
 
@@ -280,6 +316,7 @@ public partial class MainViewModel : INotifyPropertyChanged
     private void NotifyViewModeDependents()
     {
         OnPropertyChanged(nameof(DateDisplay));
+        OnPropertyChanged(nameof(SelectedViewModeOption));
         OnPropertyChanged(nameof(IsDayMode));
         OnPropertyChanged(nameof(IsWeekMode));
         OnPropertyChanged(nameof(IsMonthMode));
