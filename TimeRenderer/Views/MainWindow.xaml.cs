@@ -39,6 +39,25 @@ namespace TimeRenderer.Views
 
             InitializeDragHandlers();
             SetupNotifyIcon();
+
+            // 検索/フィルタのポップアップをトグルボタンの右端に揃えて表示する
+            SearchFlyout.CustomPopupPlacementCallback = PlaceDropdownRightAligned;
+            FilterPopup.CustomPopupPlacementCallback = PlaceDropdownRightAligned;
+        }
+
+        /// <summary>
+        /// ポップアップをターゲット（トグルボタン）の下・右端揃えで配置する。
+        /// 固定オフセットと違い、画面端での自動補正と干渉しない。
+        /// </summary>
+        private static System.Windows.Controls.Primitives.CustomPopupPlacement[] PlaceDropdownRightAligned(
+            System.Windows.Size popupSize, System.Windows.Size targetSize, System.Windows.Point offset)
+        {
+            return
+            [
+                new System.Windows.Controls.Primitives.CustomPopupPlacement(
+                    new System.Windows.Point(targetSize.Width - popupSize.Width, targetSize.Height + 4),
+                    System.Windows.Controls.Primitives.PopupPrimaryAxis.Horizontal)
+            ];
         }
 
         private void SetupNotifyIcon()
@@ -346,13 +365,56 @@ namespace TimeRenderer.Views
         /// <summary>
         /// 検索ボックスに再フォーカスした際、入力が残っていれば結果ポップアップを開き直す。
         /// </summary>
-        private void SearchTextBox_GotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+        // ===== 検索フライアウト / 色フィルタ ポップアップ =====
+
+        // StaysOpen=False のポップアップは「外側クリック」で先に閉じるため、
+        // トグルボタン自身をクリックして閉じようとすると
+        // 閉じる → 同じクリックで再チェック → 即再オープン、となり閉じられない。
+        // 直前にポップアップが閉じた時刻を覚えておき、その直後のクリックを無効化する。
+        private DateTime _searchFlyoutClosedAt;
+        private DateTime _filterPopupClosedAt;
+
+        private static bool JustClosed(DateTime closedAt) =>
+            (DateTime.UtcNow - closedAt).TotalMilliseconds < 250;
+
+        private void SearchFlyout_Closed(object? sender, EventArgs e) => _searchFlyoutClosedAt = DateTime.UtcNow;
+        private void FilterPopup_Closed(object? sender, EventArgs e) => _filterPopupClosedAt = DateTime.UtcNow;
+
+        private void SearchToggle_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            // フォーカスを与えたクリック自体が「ポップアップ外のクリック」と誤判定され、
-            // 開いた直後に即閉じてしまう（StaysOpen=False の競合）。
-            // クリック（入力イベント）の処理が終わってから開くよう遅延させる。
-            Dispatcher.BeginInvoke(new Action(() => ViewModel.ReopenSearchResultsIfAny()),
-                System.Windows.Threading.DispatcherPriority.Background);
+            if (JustClosed(_searchFlyoutClosedAt)) e.Handled = true;
+        }
+
+        private void FilterToggle_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (JustClosed(_filterPopupClosedAt)) e.Handled = true;
+        }
+
+        /// <summary>検索トグルON：フライアウトを開いて入力フォーカスを移す</summary>
+        private void SearchToggle_Checked(object sender, RoutedEventArgs e)
+        {
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                SearchTextBox.Focus();
+                SearchTextBox.SelectAll();
+            }), System.Windows.Threading.DispatcherPriority.Input);
+        }
+
+        /// <summary>Esc キーで検索フライアウトを閉じる</summary>
+        private void SearchFlyout_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (e.Key == Key.Escape)
+            {
+                SearchToggle.IsChecked = false;
+                e.Handled = true;
+            }
+        }
+
+        /// <summary>検索結果クリック：ジャンプ実行後にフライアウトを閉じる</summary>
+        private void SearchResultButton_Click(object sender, RoutedEventArgs e)
+        {
+            // コマンド（ジャンプ）の実行が終わってから閉じる
+            Dispatcher.BeginInvoke(new Action(() => SearchToggle.IsChecked = false));
         }
 
         /// <summary>
