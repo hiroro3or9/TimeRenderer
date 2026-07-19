@@ -36,6 +36,8 @@ namespace TimeRenderer.Views
             viewModel.PropertyChanged += ViewModel_PropertyChanged;
             // 検索結果ジャンプ時のスクロール要求を購読
             viewModel.ScrollToTimeRequested += OnScrollToTimeRequested;
+            // リマインダー発生時、アプリが非アクティブならトレイのバルーン通知でも知らせる
+            viewModel.PendingReminders.CollectionChanged += PendingReminders_CollectionChanged;
 
             InitializeDragHandlers();
             SetupNotifyIcon();
@@ -73,21 +75,18 @@ namespace TimeRenderer.Views
             // ダブルクリックでウィンドウ表示
             _notifyIcon.DoubleClick += (_, _) => ShowWindow();
 
+            // バルーン通知クリックでウィンドウ表示（リマインダーから記録開始ボタンへ誘導）
+            _notifyIcon.BalloonTipClicked += (_, _) => ShowWindow();
+
             // コンテキストメニュー
             WinForms.ContextMenuStrip contextMenu = new();
             
             // 表示
             contextMenu.Items.Add("表示", null, (_, _) => ShowWindow());
             
-            // 記録開始/停止
+            // 記録開始/停止（トレイからはダイアログを出さずに即開始する）
             _recordMenuItem = new("記録開始");
-            _recordMenuItem.Click += (_, _) =>
-            {
-                if (ViewModel.ToggleRecordingCommand.CanExecute(null))
-                {
-                    ViewModel.ToggleRecordingCommand.Execute(null);
-                }
-            };
+            _recordMenuItem.Click += (_, _) => ViewModel.QuickToggleRecording();
             contextMenu.Items.Add(_recordMenuItem);
             
             // セパレーター
@@ -116,6 +115,38 @@ namespace TimeRenderer.Views
             {
                 UpdateContextMenu();
             }
+            else if (e.PropertyName == nameof(MainViewModel.AutoStartNotice))
+            {
+                // 自動記録開始をアプリ外でも知らせる（アプリを見ていないときこそ必要な通知）
+                if (!string.IsNullOrEmpty(ViewModel.AutoStartNotice) && !IsActive)
+                {
+                    ShowTrayBalloon("自動記録開始", ViewModel.AutoStartNotice);
+                }
+            }
+        }
+
+        /// <summary>
+        /// リマインダー追加時：アプリが非アクティブ（最小化・トレイ常駐・背面）なら
+        /// トレイのバルーン通知でも知らせる。クリックでウィンドウが開き、バナーから記録開始できる。
+        /// </summary>
+        private void PendingReminders_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+        {
+            if (e.Action != System.Collections.Specialized.NotifyCollectionChangedAction.Add || e.NewItems == null) return;
+            if (IsActive) return; // アプリを見ているときはアプリ内バナーで十分
+
+            foreach (ScheduleItem item in e.NewItems)
+            {
+                ShowTrayBalloon($"「{item.Title}」の開始時刻です", "クリックすると記録を開始できます");
+            }
+        }
+
+        /// <summary>トレイのバルーン通知（Windows 10/11 ではトースト通知として表示される）</summary>
+        private void ShowTrayBalloon(string title, string text)
+        {
+            if (_notifyIcon is { Visible: true })
+            {
+                _notifyIcon.ShowBalloonTip(5000, title, text, WinForms.ToolTipIcon.Info);
+            }
         }
 
 
@@ -126,9 +157,11 @@ namespace TimeRenderer.Views
                 // UIスレッドで実行
                 Dispatcher.Invoke(() =>
                 {
+                    // 登録に成功したグローバルホットキーをメニューに併記する（診断も兼ねる）
+                    var hotkeySuffix = RegisteredHotkeyText != null ? $" ({RegisteredHotkeyText})" : "";
                     if (ViewModel.IsRecording)
                     {
-                        _recordMenuItem.Text = "■ 停止";
+                        _recordMenuItem.Text = "■ 停止" + hotkeySuffix;
                         if (ViewModel.IsCountdownMode && ViewModel.CountdownRemaining.HasValue)
                         {
                             _notifyIcon.Text = $"TimeRenderer - 作業中 (残り {ViewModel.CountdownRemaining.Value:hh\\:mm\\:ss})"; 
@@ -140,7 +173,7 @@ namespace TimeRenderer.Views
                     }
                     else
                     {
-                        _recordMenuItem.Text = "● 記録開始";
+                        _recordMenuItem.Text = "● 記録開始" + hotkeySuffix;
                         _notifyIcon.Text = "TimeRenderer";
                     }
                 });
@@ -177,6 +210,8 @@ namespace TimeRenderer.Views
 
         protected override void OnClosed(EventArgs e)
         {
+            UnregisterGlobalHotkey();
+
             if (_notifyIcon != null)
             {
                 _notifyIcon.Visible = false;
@@ -188,6 +223,7 @@ namespace TimeRenderer.Views
                  vm.FlushMemoSave(); // デバウンス中の未保存メモを書き込む
                  vm.PropertyChanged -= ViewModel_PropertyChanged;
                  vm.ScrollToTimeRequested -= OnScrollToTimeRequested;
+                 vm.PendingReminders.CollectionChanged -= PendingReminders_CollectionChanged;
             }
 
             base.OnClosed(e);

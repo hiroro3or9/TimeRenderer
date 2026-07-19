@@ -419,6 +419,9 @@ public partial class MainViewModel : INotifyPropertyChanged
 
 
 
+    /// <summary>リマインダー・自動開始チェックを最後に実行した時刻（10秒間隔の間引き用）</summary>
+    private DateTime _lastReminderCheck = DateTime.MinValue;
+
     private void StartClock()
     {
         CurrentTime = DateTime.Now;
@@ -429,7 +432,13 @@ public partial class MainViewModel : INotifyPropertyChanged
         timer.Tick += (s, e) =>
         {
             CurrentTime = DateTime.Now;
-            CheckReminders(CurrentTime);
+
+            // リマインダー・自動開始のチェックは10秒間隔に間引く（時計表示の500msごとには不要）
+            if (CurrentTime - _lastReminderCheck >= TimeSpan.FromSeconds(10))
+            {
+                _lastReminderCheck = CurrentTime;
+                CheckReminders(CurrentTime);
+            }
             if (IsRecording && RecordingStartTime.HasValue)
             {
                 RecordingDuration = CurrentTime - RecordingStartTime.Value;
