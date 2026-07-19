@@ -388,6 +388,29 @@ public partial class MainViewModel
         CountdownRemaining = null;
     }
 
+    /// <summary>
+    /// ダイアログを表示せずに記録を即開始／停止する（グローバルホットキー・トレイメニュー用）。
+    /// 開始時のタイトルは既定値（作業ログ HH:mm）になり、記録中に画面上で変更できる。
+    /// </summary>
+    public void QuickToggleRecording()
+    {
+        if (IsRecording)
+        {
+            ToggleRecording(); // 停止・保存（消費対象の予定があればそれを更新）
+            return;
+        }
+
+        _recordingColorCode = null;
+        _recordingCategoryId = null;
+        _recordingSourceItem = null;
+        RecordingTitle = $"作業ログ {DateTime.Now:HH:mm}";
+        IsRecording = true;
+        RecordingStartTime = DateTime.Now;
+        RecordingDuration = TimeSpan.Zero;
+        IsCountdownMode = false;
+        CountdownRemaining = null;
+    }
+
     private void ToggleRecording()
     {
         if (IsRecording)
