@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 using MouseButtonEventArgs = System.Windows.Input.MouseButtonEventArgs;
 using UserControl = System.Windows.Controls.UserControl;
@@ -50,11 +50,8 @@ namespace TimeRenderer.Views
 
         private void OnUnloaded(object sender, RoutedEventArgs e)
         {
-            if (_subscribedViewModel != null)
-            {
-                _subscribedViewModel.ScrollToTimeRequested -= OnScrollToTimeRequested;
-                _subscribedViewModel = null;
-            }
+            _subscribedViewModel?.ScrollToTimeRequested -= OnScrollToTimeRequested;
+            _subscribedViewModel = null;
         }
 
         // ===== スクロール =====

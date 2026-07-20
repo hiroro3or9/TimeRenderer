@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Runtime.InteropServices;
 using System.Windows.Threading;
 
@@ -88,7 +88,7 @@ public sealed partial class AwayDetector : IDisposable
     /// GetTickCount は約49.7日で一周するため、符号なしの引き算で差を取る
     /// （uint の減算は自然に一周をまたいで正しい差になる）。
     /// </summary>
-    public TimeSpan GetIdleTime()
+    public static TimeSpan GetIdleTime()
     {
         var info = new LASTINPUTINFO { cbSize = (uint)Marshal.SizeOf<LASTINPUTINFO>() };
         if (!GetLastInputInfo(ref info)) return TimeSpan.Zero;

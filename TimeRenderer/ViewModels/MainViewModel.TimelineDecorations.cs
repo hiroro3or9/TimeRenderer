@@ -63,7 +63,7 @@ public partial class MainViewModel
             };
 
             if (estimated <= MaxTickCount) break;
-            unit = unit + 1;
+            unit++;
         }
 
         return unit;
@@ -342,8 +342,8 @@ public partial class MainViewModel
         private set => SetProperty(ref _timelineDensityBars, value);
     }
 
-    /// <summary>ヒートバー帯の高さ</summary>
-    public double TimelineDensityHeight => 34.0;
+    /// <summary>ヒートバー帯の高さ（XAML がバインドするためインスタンスプロパティ）</summary>
+    public double TimelineDensityHeight { get; } = 34.0;
 
     private void BuildDensityBars(TimelineScale scale, IReadOnlyList<ScheduleItem> items)
     {

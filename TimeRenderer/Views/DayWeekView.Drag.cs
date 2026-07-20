@@ -271,7 +271,7 @@ namespace TimeRenderer.Views
         /// アイテム上のホバー位置に応じてカーソルを切り替える（端＝上下リサイズ、中央＝手のひら）。
         /// XAMLのイベント配線を使わず、マウス位置の要素から予定バーを特定する。
         /// </summary>
-        private void UpdateHoverCursor(MouseEventArgs e)
+        private static void UpdateHoverCursor(MouseEventArgs e)
         {
             if (e.OriginalSource is not DependencyObject source) return;
 
@@ -286,7 +286,7 @@ namespace TimeRenderer.Views
         /// マウス下の要素から、予定バーのテンプレートルート（DataContext が ScheduleSegment の Grid）を探す。
         /// バーの外（Canvas 以上）に達したら null。
         /// </summary>
-        private static FrameworkElement? FindScheduleItemRoot(DependencyObject source)
+        private static Grid? FindScheduleItemRoot(DependencyObject source)
         {
             var node = source;
             while (node != null)

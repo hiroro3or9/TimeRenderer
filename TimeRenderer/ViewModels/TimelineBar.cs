@@ -49,7 +49,8 @@ public sealed class TimelineBar : INotifyPropertyChanged
     /// <summary>マウス判定に使う幅（描画幅より広くとり、細いバーでも掴めるようにする）</summary>
     public double HitWidth => Math.Max(ActualWidth, MinHitWidth);
 
-    public double Height => BarHeight;
+    // XAML がバインドするためインスタンスプロパティ（CA1822 回避で自動プロパティ化）
+    public double Height { get; } = BarHeight;
 
     /// <summary>割り当てられたレーン番号（0始まり）</summary>
     public int Lane { get; init; }

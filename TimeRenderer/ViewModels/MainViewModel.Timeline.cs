@@ -260,9 +260,9 @@ public partial class MainViewModel
             if (ReferenceEquals(_selectedItem, value)) return;
 
             // 選択はアイテム自身が持つ（日/週/月/タイムラインで共通にするため）
-            if (_selectedItem != null) _selectedItem.IsSelected = false;
+            _selectedItem?.IsSelected = false;
             _selectedItem = value;
-            if (_selectedItem != null) _selectedItem.IsSelected = true;
+            _selectedItem?.IsSelected = true;
 
             OnPropertyChanged();
             RefreshBarStates();
@@ -402,7 +402,7 @@ public partial class MainViewModel
         }
         else
         {
-            lanes = new Dictionary<ScheduleItem, int>();
+            lanes = [];
 
             switch (_timelineGroupMode)
             {

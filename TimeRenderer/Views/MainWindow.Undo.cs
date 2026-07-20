@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Input;
 
 using KeyEventArgs = System.Windows.Input.KeyEventArgs;
@@ -42,7 +42,7 @@ namespace TimeRenderer.Views
             e.Handled = true;
         }
 
-        private static void Execute(ICommand command)
+        private static void Execute(Helpers.RelayCommand command)
         {
             if (command.CanExecute(null)) command.Execute(null);
         }

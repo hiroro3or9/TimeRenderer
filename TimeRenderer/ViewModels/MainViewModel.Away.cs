@@ -38,7 +38,7 @@ public partial class MainViewModel
         {
             if (SetProperty(ref _isAwayDetectionEnabled, value))
             {
-                if (_awayDetector != null) _awayDetector.IsEnabled = value;
+                _awayDetector?.IsEnabled = value;
                 if (!value) ClearAwayState();
                 SaveSettings();
             }
@@ -89,7 +89,7 @@ public partial class MainViewModel
             var clamped = Math.Clamp(value, 1, 240);
             if (SetProperty(ref _awayThresholdMinutes, clamped))
             {
-                if (_awayDetector != null) _awayDetector.IdleThreshold = TimeSpan.FromMinutes(clamped);
+                _awayDetector?.IdleThreshold = TimeSpan.FromMinutes(clamped);
                 SaveSettings();
             }
         }
@@ -366,7 +366,7 @@ public partial class MainViewModel
     }
 
     /// <summary>「常に除外する」設定のときに、何を差し引いたかを知らせる文言</summary>
-    private static string BuildAutoExcludeNotice(IReadOnlyList<AwayPeriod> periods)
+    private static string BuildAutoExcludeNotice(List<AwayPeriod> periods)
     {
         var total = TimeSpan.FromTicks(periods.Sum(p => p.Duration.Ticks));
         var text = total.TotalHours >= 1
