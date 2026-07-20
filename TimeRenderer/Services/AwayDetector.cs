@@ -24,7 +24,7 @@ namespace TimeRenderer.Services;
 /// 検知した期間は <see cref="AwayDetected"/> で通知する。
 /// どう扱うか（記録から除くかなど）は利用側の判断に委ねる。
 /// </summary>
-public sealed class AwayDetector : IDisposable
+public sealed partial class AwayDetector : IDisposable
 {
     [StructLayout(LayoutKind.Sequential)]
     private struct LASTINPUTINFO
@@ -33,12 +33,13 @@ public sealed class AwayDetector : IDisposable
         public uint dwTime;
     }
 
-    [DllImport("user32.dll")]
+    // LibraryImport: コンパイル時にマーシャリングコードを生成する（SYSLIB1054 対応）
+    [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool GetLastInputInfo(ref LASTINPUTINFO plii);
+    private static partial bool GetLastInputInfo(ref LASTINPUTINFO plii);
 
-    [DllImport("kernel32.dll")]
-    private static extern uint GetTickCount();
+    [LibraryImport("kernel32.dll")]
+    private static partial uint GetTickCount();
 
     /// <summary>無操作の判定間隔</summary>
     private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(5);

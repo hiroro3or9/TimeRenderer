@@ -27,11 +27,15 @@ namespace TimeRenderer.Views
         private const uint VkR = 0x52;
         private const uint VkF9 = 0x78;
 
-        [DllImport("user32.dll", SetLastError = true)]
-        private static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
+        // LibraryImport: コンパイル時にマーシャリングコードを生成する（SYSLIB1054 対応）。
+        // bool の戻り値は既定でマーシャリングされないため、Win32 BOOL を明示する
+        [LibraryImport("user32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static partial bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
 
-        [DllImport("user32.dll", SetLastError = true)]
-        private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
+        [LibraryImport("user32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static partial bool UnregisterHotKey(IntPtr hWnd, int id);
 
         private HwndSource? _hwndSource;
         private bool _hotkeyRegistered;

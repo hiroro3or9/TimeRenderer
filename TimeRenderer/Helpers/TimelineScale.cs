@@ -15,7 +15,7 @@ namespace TimeRenderer.Helpers;
 /// 時刻→X座標を線形変換する。丸めを行わないため、30分の記録は30分ぶんの幅で描画され、
 /// スプリントの長さの違いもそのまま幅に反映される。
 /// </summary>
-public sealed class TimelineScale
+public sealed class TimelineScale(DateTime origin, DateTime end, double pixelsPerDay)
 {
     /// <summary>1日あたりのピクセル数の下限（これ以上ズームアウトさせない）</summary>
     public const double MinPixelsPerDay = 8.0;
@@ -27,20 +27,13 @@ public sealed class TimelineScale
     public const double DefaultPixelsPerDay = 120.0;
 
     /// <summary>X=0 に対応する時刻（表示範囲の開始。日付境界に揃える）</summary>
-    public DateTime Origin { get; }
+    public DateTime Origin { get; } = origin;
 
     /// <summary>X=TotalWidth に対応する時刻（表示範囲の終端）</summary>
-    public DateTime End { get; }
+    public DateTime End { get; } = end < origin ? origin : end;
 
     /// <summary>1日あたりのピクセル数</summary>
-    public double PixelsPerDay { get; }
-
-    public TimelineScale(DateTime origin, DateTime end, double pixelsPerDay)
-    {
-        Origin = origin;
-        End = end < origin ? origin : end;
-        PixelsPerDay = Math.Clamp(pixelsPerDay, MinPixelsPerDay, MaxPixelsPerDay);
-    }
+    public double PixelsPerDay { get; } = Math.Clamp(pixelsPerDay, MinPixelsPerDay, MaxPixelsPerDay);
 
     /// <summary>1時間あたりのピクセル数</summary>
     public double PixelsPerHour => PixelsPerDay / 24.0;
