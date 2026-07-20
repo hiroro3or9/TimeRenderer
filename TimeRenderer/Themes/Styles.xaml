@@ -1,5 +1,7 @@
-<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:conv="clr-namespace:TimeRenderer.Converters"
+                    xmlns:sys="clr-namespace:System;assembly=mscorlib">
 
     <ResourceDictionary.MergedDictionaries>
         <ResourceDictionary Source="Colors.xaml"/>
@@ -648,6 +650,124 @@
                 <Setter Property="Template" Value="{StaticResource HorizontalScrollBarTemplate}" />
             </Trigger>
         </Style.Triggers>
+    </Style>
+
+    <!-- ============================================================
+         共有リソース（コンバーター・ビュー横断で使うスタイル）。
+         MainWindow をビュー単位の UserControl に分割した際、
+         各ビューから StaticResource で参照できるようアプリレベルへ移動した。
+         ============================================================ -->
+    <!-- PixelsPerHour は LayoutConstants.PixelsPerHour を既定値として使う（XAML側で上書きしない） -->
+    <conv:TimeToPositionConverter x:Key="TimeToPositionConverter"/>
+    <conv:DurationToHeightConverter x:Key="DurationToHeightConverter"/>
+    <conv:DateToPagePositionConverter x:Key="DateToPagePositionConverter"/>
+    <conv:DateToPageVisibilityConverter x:Key="DateToPageVisibilityConverter"/>
+    <conv:IndexToTopMarginConverter x:Key="IndexToTopMarginConverter" ItemHeight="24"/>
+    <conv:DateToVisibleDaysConverter x:Key="DateToVisibleDaysConverter"/>
+    <sys:Int32 x:Key="Zero">0</sys:Int32>
+    <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+    <conv:InvertedBooleanToVisibilityConverter x:Key="InvertedBooleanToVisibilityConverter"/>
+    <conv:InverseBooleanConverter x:Key="InverseBooleanConverter"/>
+    <conv:LShapeGeometryConverter x:Key="LShapeGeometryConverter"/>
+
+
+    <!-- Segmented Control RadioButton Style -->
+    <Style x:Key="SegmentedRadioButtonBase" TargetType="RadioButton">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
+        <Setter Property="Padding" Value="12,6"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <Border x:Name="border" 
+                            Background="{TemplateBinding Background}" 
+                            BorderBrush="{TemplateBinding BorderBrush}" 
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{TemplateBinding Tag}"> <!-- TagプロパティをCornerRadiusとして悪用 -->
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="border" Property="Background" Value="{DynamicResource PrimaryBrush}"/>
+                            <Setter Property="Foreground" Value="White"/>
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="border" Property="Background" Value="{DynamicResource PrimarySubtleBrush}"/>
+                        </Trigger>
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsChecked" Value="True"/>
+                                <Condition Property="IsMouseOver" Value="True"/>
+                            </MultiTrigger.Conditions>
+                            <Setter TargetName="border" Property="Background" Value="{DynamicResource PrimaryDarkBrush}"/>
+                        </MultiTrigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="SegmentedLeftStyle" TargetType="RadioButton" BasedOn="{StaticResource SegmentedRadioButtonBase}">
+        <Setter Property="Tag" Value="4,0,0,4"/> <!-- Left Corner -->
+        <Setter Property="BorderThickness" Value="1,1,0,1"/>
+    </Style>
+
+    <Style x:Key="SegmentedMiddleStyle" TargetType="RadioButton" BasedOn="{StaticResource SegmentedRadioButtonBase}">
+        <Setter Property="Tag" Value="0,0,0,0"/> <!-- No Corner -->
+        <Setter Property="BorderThickness" Value="1,1,0,1"/>
+        <Setter Property="Margin" Value="-1,0,0,0"/>
+    </Style>
+
+    <Style x:Key="SegmentedRightStyle" TargetType="RadioButton" BasedOn="{StaticResource SegmentedRadioButtonBase}">
+        <Setter Property="Tag" Value="0,4,4,0"/> <!-- Right Corner -->
+        <Setter Property="BorderThickness" Value="1,1,1,1"/> <!-- 境界線が太くなるのを防ぐため左側も描画し、重なりを考慮するか、0,1,1,1にするか。ここでは左ボーダーありにして、並べたときに重なるようにマージン調整する手もあるが、シンプルに 1,1,1,1 で左隣のボーダーと重なるように Margin="-1,0,0,0" するのが綺麗に見える。 -->
+        <Setter Property="Margin" Value="-1,0,0,0"/>
+    </Style>
+    <!-- 統計ビュー：カテゴリ別横棒グラフ用スタイル -->
+    <Style x:Key="StatsBarStyle" TargetType="ProgressBar">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ProgressBar">
+                    <Grid>
+                        <Border Background="{DynamicResource BackgroundBrush}" CornerRadius="4"
+                                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"/>
+                        <Border x:Name="PART_Track"/>
+                        <Border x:Name="PART_Indicator" Background="{TemplateBinding Foreground}"
+                                CornerRadius="4" HorizontalAlignment="Left" Margin="1"/>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <conv:DayOfWeekToBrushConverter x:Key="DayOfWeekToBrushConverter"/>
+    <conv:DateToBackgroundBrushConverter x:Key="DateToBackgroundBrushConverter"/>
+    <conv:BrushToContrastTextConverter x:Key="BrushToContrastTextConverter"/>
+
+    <!-- 検索結果1行分のボタン（行全体がクリック可能・ホバーで強調） -->
+    <Style x:Key="SearchResultButtonStyle" TargetType="Button">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="10,8"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="bd" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Stretch"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource PrimarySubtleBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
 </ResourceDictionary>

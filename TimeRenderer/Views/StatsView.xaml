@@ -1,0 +1,124 @@
+﻿<UserControl x:Class="TimeRenderer.Views.StatsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:helpers="clr-namespace:TimeRenderer.Helpers">
+        <!-- 統計表示用の領域 -->
+        <Grid Background="{DynamicResource SurfaceBrush}">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" helpers:ScrollViewerHelper.EnableMiddleButtonScroll="True">
+                <StackPanel Margin="24" MaxWidth="960">
+
+                    <!-- 期間切替 + サマリー -->
+                    <Grid Margin="0,0,0,20">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Orientation="Horizontal" Grid.Column="0">
+                            <RadioButton Content="週" Command="{Binding ChangeStatsPeriodCommand}" CommandParameter="Week"
+                                         IsChecked="{Binding IsStatsWeekPeriod, Mode=OneWay}" GroupName="StatsPeriod"
+                                         Style="{StaticResource SegmentedLeftStyle}"/>
+                            <RadioButton Content="月" Command="{Binding ChangeStatsPeriodCommand}" CommandParameter="Month"
+                                         IsChecked="{Binding IsStatsMonthPeriod, Mode=OneWay}" GroupName="StatsPeriod"
+                                         Style="{StaticResource SegmentedMiddleStyle}"/>
+                            <RadioButton Content="スプリント" Command="{Binding ChangeStatsPeriodCommand}" CommandParameter="Sprint"
+                                         IsChecked="{Binding IsStatsSprintPeriod, Mode=OneWay}" GroupName="StatsPeriod"
+                                         Style="{StaticResource SegmentedRightStyle}"/>
+                        </StackPanel>
+                        <TextBlock Grid.Column="2" Text="{Binding StatsSummaryText}" VerticalAlignment="Center"
+                                   FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    </Grid>
+
+                    <!-- データなし -->
+                    <TextBlock Text="この期間に記録はありません（終日の予定は集計対象外です）"
+                               Foreground="{DynamicResource TextMutedBrush}" FontSize="13" Margin="0,8,0,24"
+                               Visibility="{Binding HasStatsData, Converter={StaticResource InvertedBooleanToVisibilityConverter}}"/>
+
+                    <!-- カテゴリ別作業時間 -->
+                    <StackPanel Visibility="{Binding HasStatsData, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <TextBlock Text="カテゴリ別作業時間" FontWeight="SemiBold" FontSize="14"
+                                   Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,12"/>
+                        <ItemsControl ItemsSource="{Binding StatsCategoryItems}" Margin="0,0,0,28">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="150"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="64"/>
+                                            <ColumnDefinition Width="56"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Orientation="Horizontal" Grid.Column="0" VerticalAlignment="Center">
+                                            <Border Width="14" Height="14" Background="{Binding Brush}" CornerRadius="3"
+                                                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Margin="0,0,8,0"/>
+                                            <TextBlock Text="{Binding Name}" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}"
+                                                       TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                        <ProgressBar Grid.Column="1" Value="{Binding Hours, Mode=OneWay}" Maximum="{Binding MaxHours, Mode=OneWay}"
+                                                     Height="18" Foreground="{Binding Brush}" Style="{StaticResource StatsBarStyle}"/>
+                                        <TextBlock Grid.Column="2" Text="{Binding HoursText}" FontSize="13" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="3" Text="{Binding PercentText}" FontSize="12"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- 日別の推移（積み上げ棒グラフ） -->
+                        <TextBlock Text="日別の推移" FontWeight="SemiBold" FontSize="14"
+                                   Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,12"/>
+                        <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="0,0,0,0">
+                            <ItemsControl ItemsSource="{Binding StatsDailyItems}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <UniformGrid Rows="1"/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="1,0">
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="16"/>
+                                                <RowDefinition Height="180"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+                                            <!-- 合計時間ラベル -->
+                                            <TextBlock Grid.Row="0" Text="{Binding TotalText}" FontSize="9"
+                                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,2"/>
+                                            <!-- 積み上げバー -->
+                                            <ItemsControl Grid.Row="1" ItemsSource="{Binding Segments}" VerticalAlignment="Bottom" Margin="3,0">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Border Height="{Binding HeightPx}" Background="{Binding Brush}"
+                                                                BorderBrush="{DynamicResource SurfaceBrush}" BorderThickness="0,0,0,1"
+                                                                ToolTip="{Binding ToolTipText}"/>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                            <!-- 日付ラベル -->
+                                            <TextBlock Grid.Row="2" Text="{Binding Label}" FontSize="10" Margin="0,4,0,0"
+                                                       HorizontalAlignment="Center" TextTrimming="CharacterEllipsis">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsToday}" Value="True">
+                                                                <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
+                                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Border>
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+</UserControl>

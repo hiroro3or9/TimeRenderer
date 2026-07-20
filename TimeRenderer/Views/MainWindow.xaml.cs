@@ -34,13 +34,10 @@ namespace TimeRenderer.Views
             
             // ViewModelのプロパティ変更監視
             viewModel.PropertyChanged += ViewModel_PropertyChanged;
-            // 検索結果ジャンプ時のスクロール要求を購読
-            viewModel.ScrollToTimeRequested += OnScrollToTimeRequested;
             // リマインダー発生時、アプリが非アクティブならトレイのバルーン通知でも知らせる
             viewModel.PendingReminders.CollectionChanged += PendingReminders_CollectionChanged;
 
-            InitializeDragHandlers();
-            InitializeTimelineHandlers(viewModel);
+            // 各ビュー（DayWeekView / TimelineView 等）は自身の Loaded で VM のイベントを購読する
             SetupNotifyIcon();
 
             // 検索/フィルタのポップアップをトグルボタンの右端に揃えて表示する
@@ -232,26 +229,12 @@ namespace TimeRenderer.Views
                  vm.FlushMemoSave(); // デバウンス中の未保存メモを書き込む
                  vm.FlushDataSave(); // デバウンス中の未保存の予定データを書き込む
                  vm.PropertyChanged -= ViewModel_PropertyChanged;
-                 vm.ScrollToTimeRequested -= OnScrollToTimeRequested;
                  vm.PendingReminders.CollectionChanged -= PendingReminders_CollectionChanged;
                  vm.DisposeAwayDetection(); // 監視タイマーと SystemEvents の購読を解除する
-                 DetachTimelineHandlers(vm);
             }
 
             base.OnClosed(e);
         }
-
-        /// <summary>
-        /// UI要素の DataContext から編集・削除対象の ScheduleItem を取り出す。
-        /// 週/日ビューは日またぎ分割のため ScheduleSegment が DataContext になる。
-        /// </summary>
-        private static ScheduleItem? ResolveScheduleItem(object? dataContext) => dataContext switch
-        {
-            ScheduleItem item => item,
-            ScheduleSegment segment => segment.Item,
-            ViewModels.TimelineBar bar => bar.Item,
-            _ => null
-        };
 
         /// <summary>
         /// 「＋追加」ボタンのクリックイベント。
@@ -261,36 +244,6 @@ namespace TimeRenderer.Views
             if (ViewModel.AddCommand.CanExecute(null))
             {
                 ViewModel.AddCommand.Execute(null);
-            }
-        }
-
-        /// <summary>
-        /// スケジュールアイテムのマウス押下イベント。(週表示/日表示用)
-        /// ダブルクリックで編集、シングルクリックはドラッグ操作の候補として記録する。
-        /// </summary>
-        private void ScheduleItem_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            if (e.ClickCount == 2 && sender is FrameworkElement element &&
-                ResolveScheduleItem(element.DataContext) is ScheduleItem item)
-            {
-                EndDrag(commit: false); // 1クリック目で記録したドラッグ候補を破棄
-                if (ViewModel.EditCommand.CanExecute(item))
-                {
-                    ViewModel.EditCommand.Execute(item);
-                }
-                e.Handled = true;
-            }
-            else if (e.ClickCount == 1 && sender is FrameworkElement el &&
-                     el.DataContext is ScheduleSegment segment)
-            {
-                // ドラッグ候補の登録を先に済ませる。
-                // 選択より後にすると、選択に伴う再レイアウトで el がツリーから外れ、
-                // 親 Canvas を辿れずドラッグが登録されないことがある
-                BeginPotentialDrag(el, segment, e);
-
-                // クリックで選択する（キーボード操作の起点になる）
-                ViewModel.SelectedItem = segment.Item;
-                MainScrollViewer?.Focus();
             }
         }
 
@@ -366,58 +319,6 @@ namespace TimeRenderer.Views
         }
 
         /// <summary>
-        /// コンテキストメニュー「編集」のクリックイベント
-        /// </summary>
-        private void EditMenuItem_Click(object sender, RoutedEventArgs e)
-        {
-            if (sender is MenuItem menuItem &&
-                menuItem.Parent is ContextMenu contextMenu &&
-                contextMenu.PlacementTarget is FrameworkElement element &&
-                ResolveScheduleItem(element.DataContext) is ScheduleItem item)
-            {
-                if (ViewModel.EditCommand.CanExecute(item))
-                {
-                    ViewModel.EditCommand.Execute(item);
-                }
-            }
-        }
-
-        /// <summary>
-        /// コンテキストメニュー「この内容で記録開始」のクリックイベント。
-        /// 選択したアイテムと同じタイトル・色で新しい記録を開始する。
-        /// </summary>
-        private void ResumeRecordingMenuItem_Click(object sender, RoutedEventArgs e)
-        {
-            if (sender is MenuItem menuItem &&
-                menuItem.Parent is ContextMenu contextMenu &&
-                contextMenu.PlacementTarget is FrameworkElement element &&
-                ResolveScheduleItem(element.DataContext) is ScheduleItem item)
-            {
-                if (ViewModel.StartRecordingFromItemCommand.CanExecute(item))
-                {
-                    ViewModel.StartRecordingFromItemCommand.Execute(item);
-                }
-            }
-        }
-
-        /// <summary>
-        /// コンテキストメニュー「削除」のクリックイベント
-        /// </summary>
-        private void DeleteMenuItem_Click(object sender, RoutedEventArgs e)
-        {
-            if (sender is MenuItem menuItem &&
-                menuItem.Parent is ContextMenu contextMenu &&
-                contextMenu.PlacementTarget is FrameworkElement element &&
-                ResolveScheduleItem(element.DataContext) is ScheduleItem item)
-            {
-                if (ViewModel.DeleteCommand.CanExecute(item))
-                {
-                    ViewModel.DeleteCommand.Execute(item);
-                }
-            }
-        }
-
-        /// <summary>
         /// 検索ボックスに再フォーカスした際、入力が残っていれば結果ポップアップを開き直す。
         /// </summary>
         // ===== 検索フライアウト / 色フィルタ ポップアップ =====
@@ -472,30 +373,5 @@ namespace TimeRenderer.Views
             Dispatcher.BeginInvoke(new Action(() => SearchToggle.IsChecked = false));
         }
 
-        /// <summary>指定時刻が画面の縦中央に来るよう、日/週ビューをスクロールする</summary>
-        private void ScrollDayViewToTime(DateTime time)
-        {
-            double pixelsPerHour = Helpers.LayoutConstants.PixelsPerHour;
-            double y = ((time.Hour - ViewModel.DisplayStartHour) * pixelsPerHour)
-                     + (time.Minute * (pixelsPerHour / 60.0));
-            double targetOffset = Math.Max(0, y - (MainScrollViewer.ViewportHeight / 2));
-            MainScrollViewer.ScrollToVerticalOffset(targetOffset);
-        }
-
-        /// <summary>
-        /// 検索結果から日ビューへジャンプした後、該当時刻が画面中央に来るようスクロールする。
-        /// ビュー切替・レイアウト確定後に実行する必要があるため Dispatcher で遅延させる。
-        /// </summary>
-        private void OnScrollToTimeRequested(object? sender, DateTime time)
-        {
-            Dispatcher.BeginInvoke(new Action(() => ScrollDayViewToTime(time)),
-                System.Windows.Threading.DispatcherPriority.Loaded);
-        }
-
-        private void Window_Loaded(object sender, RoutedEventArgs e)
-        {
-            // 起動時に現在時刻までスクロール
-            ScrollDayViewToTime(DateTime.Now);
-        }
     }
 }

@@ -1,0 +1,538 @@
+﻿<UserControl x:Class="TimeRenderer.Views.TimelineView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:helpers="clr-namespace:TimeRenderer.Helpers">
+
+        <!--
+            スプリントタイムライン表示用の領域。
+
+            時間軸は「1日 = TimelinePixelsPerDay ピクセル」の連続スケール。
+            表示範囲を画面幅に押し込まないため、横スクロールとズーム（Ctrl+ホイール）で
+            解像度を確保する。バーの幅は実際の時間量に比例し、時刻も丸めない。
+
+            構成:
+              行0  操作バー（行のまとめ方・ズーム）
+              行1  ルーラー（上段=スプリント / 下段=ズーム連動の目盛り）
+              行2  本体（外側=縦スクロール、内側=横スクロール）
+              行3  密度ヒートバー（日別の記録時間。横スクロールに追従）
+            ルーラーとヒートバーは本体とは別の ScrollViewer なので、
+            コードビハインドで水平オフセットを同期している。
+        -->
+        <Grid Background="{DynamicResource SurfaceBrush}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="52"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- ===== 操作バー ===== -->
+            <Border Grid.Row="0" Background="{DynamicResource BackgroundBrush}"
+                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="10,6">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="行" VerticalAlignment="Center" Margin="0,0,6,0" FontSize="11"
+                               Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    <ComboBox Width="110" VerticalAlignment="Center"
+                              ItemsSource="{Binding TimelineGroupModeOptions}"
+                              SelectedItem="{Binding SelectedTimelineGroupModeOption}"/>
+
+                    <Rectangle Width="1" Margin="14,3" Fill="{DynamicResource BorderBrush}"/>
+
+                    <TextBlock Text="範囲" VerticalAlignment="Center" Margin="0,0,6,0" FontSize="11"
+                               Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    <ComboBox Width="60" VerticalAlignment="Center"
+                              ToolTip="表示するスプリント数"
+                              ItemsSource="{Binding TimelineSpanOptions}"
+                              SelectedItem="{Binding SelectedTimelineSpanOption}"/>
+                    <TextBlock Text="スプリント" VerticalAlignment="Center" Margin="4,0,0,0" FontSize="11"
+                               Foreground="{DynamicResource TextSecondaryBrush}"/>
+
+                    <Rectangle Width="1" Margin="14,3" Fill="{DynamicResource BorderBrush}"/>
+
+                    <TextBlock Text="表示幅" VerticalAlignment="Center" Margin="0,0,6,0" FontSize="11"
+                               Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    <ItemsControl ItemsSource="{Binding TimelineZoomPresets}" VerticalAlignment="Center">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button Content="{Binding Label}" Padding="9,3" Margin="0,0,4,0" Cursor="Hand"
+                                        Command="{Binding DataContext.TimelineZoomPresetCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                        CommandParameter="{Binding}"/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <Button Content="−" Width="26" Padding="0,3" Margin="10,0,3,0" Cursor="Hand"
+                            ToolTip="ズームアウト" Command="{Binding TimelineZoomOutCommand}"/>
+                    <Button Content="＋" Width="26" Padding="0,3" Margin="0,0,8,0" Cursor="Hand"
+                            ToolTip="ズームイン" Command="{Binding TimelineZoomInCommand}"/>
+                    <TextBlock Text="{Binding TimelineZoomText}" VerticalAlignment="Center" FontSize="11"
+                               Foreground="{DynamicResource TextSecondaryBrush}"/>
+
+                    <TextBlock VerticalAlignment="Center" Margin="18,0,0,0" FontSize="11"
+                               Foreground="{DynamicResource TextSecondaryBrush}"
+                               Text="Ctrl+ホイール ズーム / Shift+ホイール 横移動 / ←→ 選択 / Enter 編集 / F フィット / T 今日"/>
+                </StackPanel>
+            </Border>
+
+            <!-- ===== ルーラー（上段: スプリント / 下段: ズーム連動の目盛り） ===== -->
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- 左端ラベル列ぶんの余白（カテゴリ別モード以外は幅0） -->
+                <Border Grid.Column="0" Width="{Binding TimelineLabelColumnWidth}"
+                        Background="{DynamicResource BackgroundBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,1,1"/>
+
+                <ScrollViewer Grid.Column="1" x:Name="TimelineHeaderScroll"
+                              HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled"
+                              Background="{DynamicResource BackgroundBrush}">
+                    <Grid Width="{Binding TimelineContentWidth}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="30"/>
+                            <RowDefinition Height="22"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- 上段: スプリント名・期間・サマリー -->
+                        <ItemsControl Grid.Row="0" ItemsSource="{Binding TimelineSprintBands}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <Canvas/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemContainerStyle>
+                                <Style TargetType="ContentPresenter">
+                                    <Setter Property="Canvas.Left" Value="{Binding X}"/>
+                                    <Setter Property="Canvas.Top" Value="0"/>
+                                </Style>
+                            </ItemsControl.ItemContainerStyle>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <!-- 幅はスプリントの実日数に比例する（長さの違いがそのまま出る） -->
+                                    <Border Width="{Binding Width}" Height="30" Padding="6,0"
+                                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,1,1">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Background" Value="Transparent"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                                                        <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <Grid>
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center"
+                                                        VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Name}" FontWeight="Bold" FontSize="12"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                                <TextBlock Text="{Binding RangeText}" FontSize="10" Margin="6,0,0,0"
+                                                           VerticalAlignment="Center"
+                                                           Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                            </StackPanel>
+
+                                            <!-- 幅に余裕があるときだけ、合計時間と上位カテゴリを出す -->
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"
+                                                        VerticalAlignment="Center"
+                                                        Visibility="{Binding ShowSummary, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                <TextBlock Text="{Binding SummaryText}" FontSize="10"
+                                                           Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                                <TextBlock Text="{Binding TopCategoryText}" FontSize="10" Margin="6,0,0,0"
+                                                           Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- 下段: ズーム倍率に応じて 時刻 / 日 / 週 / 月 に切り替わる目盛り -->
+                        <ItemsControl Grid.Row="1" ItemsSource="{Binding TimelineTicks}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <Canvas/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemContainerStyle>
+                                <Style TargetType="ContentPresenter">
+                                    <Setter Property="Canvas.Left" Value="{Binding X}"/>
+                                    <Setter Property="Canvas.Top" Value="0"/>
+                                </Style>
+                            </ItemsControl.ItemContainerStyle>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Width="{Binding Width}" Height="22">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Background" Value="Transparent"/>
+                                                <Setter Property="BorderBrush" Value="Transparent"/>
+                                                <Setter Property="BorderThickness" Value="1,0,0,0"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsEmphasized}" Value="True">
+                                                        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding IsToday}" Value="True">
+                                                        <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <TextBlock Text="{Binding Label}" FontSize="10" Margin="4,0,0,0"
+                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsToday}" Value="True">
+                                                            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+                                                            <Setter Property="FontWeight" Value="Bold"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Grid>
+                </ScrollViewer>
+            </Grid>
+
+            <!-- ===== 本体 ===== -->
+            <ScrollViewer Grid.Row="2" x:Name="TimelineVerticalScroll"
+                          VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                          Focusable="True" PreviewKeyDown="TimelineRoot_PreviewKeyDown"
+                          helpers:ScrollViewerHelper.EnableMiddleButtonScroll="True">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- カテゴリ別モードの固定ラベル列（横スクロールしても残る） -->
+                    <Border Grid.Column="0" Width="{Binding TimelineLabelColumnWidth}"
+                            Height="{Binding TimelineContentHeight}"
+                            Background="{DynamicResource BackgroundBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,1,0">
+                        <ItemsControl ItemsSource="{Binding TimelineLaneGroups}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <Canvas/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemContainerStyle>
+                                <Style TargetType="ContentPresenter">
+                                    <Setter Property="Canvas.Left" Value="0"/>
+                                    <Setter Property="Canvas.Top" Value="{Binding Y}"/>
+                                </Style>
+                            </ItemsControl.ItemContainerStyle>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Width="149" Height="{Binding Height}" Padding="8,0"
+                                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Rectangle Width="4" Height="20" RadiusX="2" RadiusY="2"
+                                                       Fill="{Binding Brush}" Margin="0,0,8,0"/>
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding Name}" FontWeight="Bold" FontSize="12"
+                                                           TextTrimming="CharacterEllipsis" MaxWidth="110"
+                                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                                <TextBlock FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}">
+                                                    <Run Text="{Binding TotalText, Mode=OneWay}"/>
+                                                    <Run Text=" ・ "/>
+                                                    <Run Text="{Binding Count, Mode=OneWay}"/>
+                                                    <Run Text="件"/>
+                                                </TextBlock>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Border>
+
+                    <ScrollViewer Grid.Column="1" x:Name="TimelineBodyScroll"
+                                  HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
+                                  ScrollChanged="TimelineBodyScroll_ScrollChanged"
+                                  PreviewMouseWheel="TimelineBodyScroll_PreviewMouseWheel">
+                        <!-- ドラッグ操作の基準面。バーもこの座標系で位置を計算する -->
+                        <Grid x:Name="TimelineSurface"
+                              Width="{Binding TimelineContentWidth}" Height="{Binding TimelineContentHeight}"
+                              Background="Transparent"
+                              MouseLeftButtonDown="TimelineSurface_MouseLeftButtonDown"
+                              MouseMove="TimelineSurface_MouseMove"
+                              MouseLeftButtonUp="TimelineSurface_MouseLeftButtonUp">
+
+                            <!-- 日単位の背景（土日・無効曜日のシェード、日/週の罫線、今日の強調） -->
+                            <ItemsControl ItemsSource="{Binding TimelineDayColumns}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <Canvas/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemContainerStyle>
+                                    <Style TargetType="ContentPresenter">
+                                        <Setter Property="Canvas.Left" Value="{Binding X}"/>
+                                        <Setter Property="Canvas.Top" Value="0"/>
+                                    </Style>
+                                </ItemsControl.ItemContainerStyle>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Width="{Binding Width}"
+                                                Height="{Binding DataContext.TimelineContentHeight, RelativeSource={RelativeSource AncestorType=Window}}">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Background" Value="Transparent"/>
+                                                    <Setter Property="BorderBrush" Value="Transparent"/>
+                                                    <Setter Property="BorderThickness" Value="0"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Kind}" Value="Weekend">
+                                                            <Setter Property="Background" Value="{DynamicResource BackgroundBrush}"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding Kind}" Value="Disabled">
+                                                            <Setter Property="Background" Value="{DynamicResource BackgroundBrush}"/>
+                                                            <Setter Property="Opacity" Value="0.6"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding Kind}" Value="Today">
+                                                            <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding ShowDayLine}" Value="True">
+                                                            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+                                                            <Setter Property="BorderThickness" Value="1,0,0,0"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <!-- スプリント境界 -->
+                            <ItemsControl ItemsSource="{Binding TimelineSprintBands}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <Canvas/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemContainerStyle>
+                                    <Style TargetType="ContentPresenter">
+                                        <Setter Property="Canvas.Left" Value="{Binding X}"/>
+                                        <Setter Property="Canvas.Top" Value="0"/>
+                                    </Style>
+                                </ItemsControl.ItemContainerStyle>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Width="{Binding Width}"
+                                                Height="{Binding DataContext.TimelineContentHeight, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                Background="Transparent"
+                                                BorderBrush="{DynamicResource TextSecondaryBrush}" BorderThickness="1,0,0,0"/>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <!-- カテゴリ別モードの行帯（交互に薄く塗って群の区切りを示す） -->
+                            <ItemsControl ItemsSource="{Binding TimelineLaneGroups}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <Canvas/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemContainerStyle>
+                                    <Style TargetType="ContentPresenter">
+                                        <Setter Property="Canvas.Left" Value="0"/>
+                                        <Setter Property="Canvas.Top" Value="{Binding Y}"/>
+                                    </Style>
+                                </ItemsControl.ItemContainerStyle>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Height="{Binding Height}"
+                                                Width="{Binding DataContext.TimelineContentWidth, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Background" Value="Transparent"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsAlternate}" Value="True">
+                                                            <Setter Property="Background" Value="{DynamicResource BackgroundBrush}"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <!-- 予定バー -->
+                            <ItemsControl ItemsSource="{Binding TimelineBars}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <Canvas/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemContainerStyle>
+                                    <Style TargetType="ContentPresenter">
+                                        <Setter Property="Canvas.Left" Value="{Binding X}"/>
+                                        <Setter Property="Canvas.Top" Value="{Binding Y}"/>
+                                    </Style>
+                                </ItemsControl.ItemContainerStyle>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <!--
+                                            外側の Grid は「掴める幅」(HitWidth)。
+                                            内側の Border は「実際の時間量に対応する幅」(DrawWidth)。
+                                            両者を分けることで、見た目の正確さとクリックしやすさを両立する。
+                                        -->
+                                        <Grid x:Name="BarRoot" Width="{Binding HitWidth}" Height="{Binding Height}"
+                                              Background="Transparent" Cursor="Hand"
+                                              ToolTip="{Binding ToolTipText}"
+                                              ToolTipService.InitialShowDelay="250"
+                                              ToolTipService.ShowDuration="20000"
+                                              MouseLeftButtonDown="TimelineBar_MouseLeftButtonDown">
+                                            <Grid.ContextMenu>
+                                                <ContextMenu>
+                                                    <MenuItem Header="編集" Click="EditMenuItem_Click"/>
+                                                    <MenuItem Header="この内容で記録開始" Click="ResumeRecordingMenuItem_Click"/>
+                                                    <MenuItem Header="削除" Click="DeleteMenuItem_Click"/>
+                                                </ContextMenu>
+                                            </Grid.ContextMenu>
+
+                                            <Border x:Name="BarBody" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                                    Width="{Binding DrawWidth}" Height="{Binding Height}"
+                                                    CornerRadius="3" BorderThickness="1"
+                                                    BorderBrush="{DynamicResource BorderBrush}"
+                                                    Background="{Binding Background}">
+                                                <!-- 収まるときだけバー内にタイトルを描く -->
+                                                <TextBlock Text="{Binding Title}" FontWeight="Bold" FontSize="12"
+                                                           Margin="6,0" VerticalAlignment="Center"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           Visibility="{Binding IsLabelInside, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                                           Foreground="{Binding Background, Converter={StaticResource BrushToContrastTextConverter}}"/>
+                                            </Border>
+
+                                            <!-- 収まらないときはバーの右隣に出す（バーの幅は正しいまま保つ） -->
+                                            <TextBlock Text="{Binding Title}" FontSize="12"
+                                                       HorizontalAlignment="Left" VerticalAlignment="Center"
+                                                       Margin="{Binding OutsideLabelMargin}"
+                                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                                       Visibility="{Binding IsLabelInside, Converter={StaticResource InvertedBooleanToVisibilityConverter}}"/>
+                                        </Grid>
+
+                                        <DataTemplate.Triggers>
+                                            <!-- ホバーは判定領域全体で反応させる（細いバーでも効くように） -->
+                                            <Trigger SourceName="BarRoot" Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="BarBody" Property="BorderBrush"
+                                                        Value="{DynamicResource TextSecondaryBrush}"/>
+                                            </Trigger>
+                                            <!-- 選択中は太い外枠で示す（キーボード操作の現在位置） -->
+                                            <DataTrigger Binding="{Binding Item.IsSelected}" Value="True">
+                                                <Setter TargetName="BarBody" Property="BorderBrush"
+                                                        Value="{DynamicResource TextPrimaryBrush}"/>
+                                                <Setter TargetName="BarBody" Property="BorderThickness" Value="2"/>
+                                            </DataTrigger>
+                                            <!-- 検索中の非ヒットは減光してヒットを浮き立たせる -->
+                                            <DataTrigger Binding="{Binding IsDimmed}" Value="True">
+                                                <Setter TargetName="BarRoot" Property="Opacity" Value="0.2"/>
+                                            </DataTrigger>
+                                        </DataTemplate.Triggers>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <!-- 範囲ドラッグ中のプレビュー（位置と幅はコードビハインドが設定する） -->
+                            <Border x:Name="TimelineRangePreview" Visibility="Collapsed"
+                                    HorizontalAlignment="Left" VerticalAlignment="Stretch"
+                                    Width="0" IsHitTestVisible="False"
+                                    Background="{DynamicResource BorderBrush}" Opacity="0.35"
+                                    BorderBrush="{DynamicResource TextPrimaryBrush}" BorderThickness="1"/>
+
+                            <!-- 現在時刻ライン -->
+                            <Grid HorizontalAlignment="Left" VerticalAlignment="Stretch" Width="2"
+                                  IsHitTestVisible="False"
+                                  Margin="{Binding TimelineNowMargin}"
+                                  Visibility="{Binding IsTimelineNowVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <Rectangle Fill="#EF4444" Width="2" VerticalAlignment="Stretch"/>
+                                <Border Background="#EF4444" CornerRadius="2" Padding="3,1"
+                                        VerticalAlignment="Top" HorizontalAlignment="Left" Margin="0,0,0,0">
+                                    <TextBlock Text="{Binding TimelineNowText}" FontSize="9" Foreground="White"/>
+                                </Border>
+                            </Grid>
+                        </Grid>
+                    </ScrollViewer>
+                </Grid>
+            </ScrollViewer>
+
+            <!-- 範囲外インジケータ（本体の左右端に重ねる） -->
+            <Button Grid.Row="2" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="8,8,0,0"
+                    Padding="8,3" Cursor="Hand" FontSize="11"
+                    Content="{Binding TimelineOverflowBeforeText}"
+                    ToolTip="表示範囲より前の記録へ移動"
+                    Command="{Binding TimelineJumpOverflowCommand}" CommandParameter="before"
+                    Visibility="{Binding HasTimelineOverflowBefore, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+            <Button Grid.Row="2" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,8,20,0"
+                    Padding="8,3" Cursor="Hand" FontSize="11"
+                    Content="{Binding TimelineOverflowAfterText}"
+                    ToolTip="表示範囲より後の記録へ移動"
+                    Command="{Binding TimelineJumpOverflowCommand}" CommandParameter="after"
+                    Visibility="{Binding HasTimelineOverflowAfter, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
+            <!-- 空状態 -->
+            <TextBlock Grid.Row="2" Text="この期間に記録はありません"
+                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                       Foreground="{DynamicResource TextSecondaryBrush}"
+                       Visibility="{Binding IsTimelineEmpty, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
+            <!-- ===== 密度ヒートバー（日別の記録時間。ズームアウト時の全体把握用） ===== -->
+            <Grid Grid.Row="3" Background="{DynamicResource BackgroundBrush}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <Border Grid.Column="0" Width="{Binding TimelineLabelColumnWidth}"
+                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,1,0">
+                    <TextBlock Text="記録量" FontSize="10" VerticalAlignment="Center" Margin="8,0"
+                               Foreground="{DynamicResource TextSecondaryBrush}"/>
+                </Border>
+
+                <ScrollViewer Grid.Column="1" x:Name="TimelineDensityScroll"
+                              HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled">
+                    <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0">
+                        <ItemsControl ItemsSource="{Binding TimelineDensityBars}"
+                                      Width="{Binding TimelineContentWidth}"
+                                      Height="{Binding TimelineDensityHeight}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <Canvas/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemContainerStyle>
+                                <Style TargetType="ContentPresenter">
+                                    <Setter Property="Canvas.Left" Value="{Binding X}"/>
+                                    <Setter Property="Canvas.Bottom" Value="4"/>
+                                </Style>
+                            </ItemsControl.ItemContainerStyle>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Width="{Binding Width}" Height="{Binding BarHeight}"
+                                            VerticalAlignment="Bottom" CornerRadius="1"
+                                            Background="{DynamicResource TextSecondaryBrush}" Opacity="0.55"
+                                            ToolTip="{Binding ToolTipText}"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Border>
+                </ScrollViewer>
+            </Grid>
+        </Grid>
+</UserControl>

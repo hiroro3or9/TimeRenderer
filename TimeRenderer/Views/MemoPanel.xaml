@@ -1,0 +1,85 @@
+﻿<UserControl x:Class="TimeRenderer.Views.MemoPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:helpers="clr-namespace:TimeRenderer.Helpers"
+             xmlns:markdig="clr-namespace:Markdig.Wpf;assembly=Markdig.Wpf">
+        <!-- メモパネル -->
+        <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1,0,0,0"
+                ClipToBounds="True">
+            <Border.Style>
+                <Style TargetType="Border">
+                    <Setter Property="Width" Value="400"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsMemoPanelVisible}" Value="False">
+                            <DataTrigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetProperty="Width" To="0" Duration="0:0:0.1">
+                                            <DoubleAnimation.EasingFunction>
+                                                <QuadraticEase EasingMode="EaseOut"/>
+                                            </DoubleAnimation.EasingFunction>
+                                        </DoubleAnimation>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </DataTrigger.EnterActions>
+                            <DataTrigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetProperty="Width" To="400" Duration="0:0:0.1">
+                                            <DoubleAnimation.EasingFunction>
+                                                <QuadraticEase EasingMode="EaseOut"/>
+                                            </DoubleAnimation.EasingFunction>
+                                        </DoubleAnimation>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </DataTrigger.ExitActions>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
+            <Grid Width="400">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/> <!-- Header -->
+                    <RowDefinition Height="*"/>    <!-- Content -->
+                </Grid.RowDefinitions>
+                
+                <!-- ヘッダー -->
+                <Border Grid.Row="0" Background="{DynamicResource BackgroundBrush}" Padding="10" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        
+                        <TextBlock Text="メモ (Markdown)" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" Grid.Column="0"/>
+                        
+                        <!-- モード切替 -->
+                        <StackPanel Orientation="Horizontal" Grid.Column="1" HorizontalAlignment="Right" Margin="0,0,20,0">
+                             <RadioButton Content="編集" IsChecked="{Binding IsMemoEditMode}" GroupName="MemoMode"
+                                          Style="{StaticResource SegmentedLeftStyle}"/>
+                             <RadioButton Content="表示" IsChecked="{Binding IsMemoEditMode, Converter={StaticResource InverseBooleanConverter}}" GroupName="MemoMode"
+                                          Style="{StaticResource SegmentedRightStyle}"/>
+                        </StackPanel>
+
+                        <Button Grid.Column="2" Content="×" Command="{Binding ToggleMemoPanelCommand}" 
+                                Style="{StaticResource IconButtonStyle}"
+                                Background="Transparent" BorderThickness="0" Foreground="{DynamicResource TextSecondaryBrush}" Cursor="Hand" Width="24" Height="24"/>
+                    </Grid>
+                </Border>
+                
+                <!-- エディタ -->
+                <TextBox Grid.Row="1" Text="{Binding MemoText, UpdateSourceTrigger=PropertyChanged}" 
+                         AcceptsReturn="True" TextWrapping="Wrap" Padding="12" BorderThickness="0"
+                         FontFamily="Consolas, Meiryo UI" FontSize="14" VerticalScrollBarVisibility="Auto" Background="Transparent"
+                         Visibility="{Binding IsMemoEditMode, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
+                <!-- プレビュー -->
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="12" Background="Transparent"
+                              Visibility="{Binding IsMemoEditMode, Converter={StaticResource InvertedBooleanToVisibilityConverter}}"
+                              helpers:ScrollViewerHelper.EnableMiddleButtonScroll="True">
+                    <markdig:MarkdownViewer Markdown="{Binding MemoText}"/>
+                </ScrollViewer>
+            </Grid>
+        </Border>
+</UserControl>

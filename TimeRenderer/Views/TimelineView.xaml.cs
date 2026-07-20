@@ -16,7 +16,7 @@ using TimeRenderer.ViewModels;
 namespace TimeRenderer.Views
 {
     /// <summary>
-    /// スプリントタイムラインビューの操作。
+    /// スプリントタイムラインビュー（UserControl）。ビュー内の操作を担当する。
     ///
     /// - Ctrl+ホイール: ズーム（カーソル位置の時刻を固定したまま倍率を変える）
     /// - Shift+ホイール: 横スクロール
@@ -27,8 +27,17 @@ namespace TimeRenderer.Views
     /// 日/週ビューのドラッグ（MainWindow.Drag.cs）は Canvas と縦軸を前提にしているため、
     /// そちらを一般化せず、横軸専用の処理としてここに独立して実装している。
     /// </summary>
-    public partial class MainWindow
+    public partial class TimelineView : System.Windows.Controls.UserControl
     {
+        private MainViewModel ViewModel => (MainViewModel)DataContext;
+        private MainViewModel? _subscribedViewModel;
+
+        public TimelineView()
+        {
+            InitializeComponent();
+            Loaded += OnLoaded;
+            Unloaded += OnUnloaded;
+        }
         private const double ZoomStepFactor = 1.15;
         private const double HorizontalScrollStep = 120.0;
         private const double DragThresholdX = 4.0;
@@ -51,17 +60,37 @@ namespace TimeRenderer.Views
 
         // ===== 初期化 =====
 
-        private void InitializeTimelineHandlers(MainViewModel viewModel)
+        /// <summary>選択追従・フィット要求の購読。DataContext（MainViewModel）はウィンドウから継承される</summary>
+        private void OnLoaded(object sender, RoutedEventArgs e)
         {
-            viewModel.TimelineScrollToItemRequested += OnTimelineScrollToItemRequested;
-            viewModel.TimelineFitToItemRequested += OnTimelineFitToItemRequested;
+            if (_subscribedViewModel == null && DataContext is MainViewModel vm)
+            {
+                _subscribedViewModel = vm;
+                vm.TimelineScrollToItemRequested += OnTimelineScrollToItemRequested;
+                vm.TimelineFitToItemRequested += OnTimelineFitToItemRequested;
+            }
         }
 
-        private void DetachTimelineHandlers(MainViewModel viewModel)
+        private void OnUnloaded(object sender, RoutedEventArgs e)
         {
-            viewModel.TimelineScrollToItemRequested -= OnTimelineScrollToItemRequested;
-            viewModel.TimelineFitToItemRequested -= OnTimelineFitToItemRequested;
+            if (_subscribedViewModel != null)
+            {
+                _subscribedViewModel.TimelineScrollToItemRequested -= OnTimelineScrollToItemRequested;
+                _subscribedViewModel.TimelineFitToItemRequested -= OnTimelineFitToItemRequested;
+                _subscribedViewModel = null;
+            }
         }
+
+        // ===== コンテキストメニュー =====
+
+        private void EditMenuItem_Click(object sender, RoutedEventArgs e) =>
+            ScheduleItemMenu.ExecuteOnMenuTarget(sender, ViewModel.EditCommand);
+
+        private void ResumeRecordingMenuItem_Click(object sender, RoutedEventArgs e) =>
+            ScheduleItemMenu.ExecuteOnMenuTarget(sender, ViewModel.StartRecordingFromItemCommand);
+
+        private void DeleteMenuItem_Click(object sender, RoutedEventArgs e) =>
+            ScheduleItemMenu.ExecuteOnMenuTarget(sender, ViewModel.DeleteCommand);
 
         // ===== スクロールの同期 =====
 

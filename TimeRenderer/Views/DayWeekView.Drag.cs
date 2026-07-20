@@ -19,7 +19,7 @@ namespace TimeRenderer.Views
     /// ドラッグ中は VM の UpdateItemTimesPreview で再レイアウトのみ行い、
     /// マウスアップ時に CommitItemDrag で1回だけ保存する。
     /// </summary>
-    public partial class MainWindow
+    public partial class DayWeekView
     {
         private enum DragMode { None, Move, ResizeTop, ResizeBottom }
 
@@ -40,11 +40,11 @@ namespace TimeRenderer.Views
         private DateTime _dragOrigEnd;
         private int _dragOrigColumn = -1;       // 掴んだセグメントの列インデックス
 
-        /// <summary>コンストラクタから呼ぶ：ウィンドウレベルのドラッグ用イベントを購読する</summary>
+        /// <summary>コンストラクタから呼ぶ：ビュー全体のドラッグ用トンネルイベントを購読する</summary>
         private void InitializeDragHandlers()
         {
-            PreviewMouseMove += Window_PreviewMouseMoveForDrag;
-            PreviewMouseLeftButtonUp += Window_PreviewMouseLeftButtonUpForDrag;
+            PreviewMouseMove += View_PreviewMouseMoveForDrag;
+            PreviewMouseLeftButtonUp += View_PreviewMouseLeftButtonUpForDrag;
         }
 
         /// <summary>
@@ -92,7 +92,7 @@ namespace TimeRenderer.Views
             return DragMode.Move;
         }
 
-        private void Window_PreviewMouseMoveForDrag(object sender, MouseEventArgs e)
+        private void View_PreviewMouseMoveForDrag(object sender, MouseEventArgs e)
         {
             if (_dragItem == null || _dragCanvas == null)
             {
@@ -206,7 +206,7 @@ namespace TimeRenderer.Views
             ViewModel.UpdateItemTimesPreview(_dragItem, newStart, newEnd);
         }
 
-        private void Window_PreviewMouseLeftButtonUpForDrag(object sender, MouseButtonEventArgs e)
+        private void View_PreviewMouseLeftButtonUpForDrag(object sender, MouseButtonEventArgs e)
         {
             if (_dragItem == null) return;
             EndDrag(commit: _dragStarted);

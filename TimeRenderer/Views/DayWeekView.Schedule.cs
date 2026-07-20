@@ -22,7 +22,7 @@ namespace TimeRenderer.Views
     /// 予定バーのドラッグ（移動・伸縮）は MainWindow.Drag.cs が担当する。
     /// こちらは「何もない場所」を起点にした操作だけを扱う。
     /// </summary>
-    public partial class MainWindow
+    public partial class DayWeekView
     {
         /// <summary>この距離を超えて動いたら範囲ドラッグとみなす</summary>
         private const double RangeDragThresholdY = 5.0;
@@ -35,6 +35,11 @@ namespace TimeRenderer.Views
         private bool _rangeDragStarted;
         private double _rangeStartY;
         private DateTime _rangeAnchor;
+
+        private static void Execute(System.Windows.Input.ICommand command)
+        {
+            if (command.CanExecute(null)) command.Execute(null);
+        }
 
         // ===== キーボード =====
 
