@@ -225,6 +225,13 @@ public partial class MainViewModel
         DisplayStartHour = DisplayStartHour,
         DisplayEndHour = DisplayEndHour,
         IsDarkMode = IsDarkMode,
+        TimelinePixelsPerDay = TimelinePixelsPerDay,
+        TimelineGroupMode = (int)CurrentTimelineGroupMode,
+        TimelineSprintCount = TimelineSprintCount,
+        IsAwayDetectionEnabled = IsAwayDetectionEnabled,
+        AwayThresholdMinutes = AwayThresholdMinutes,
+        AwayHandlingMode = (int)CurrentAwayHandlingMode,
+        SnapMinutes = SnapMinutes,
         ManualSprints = ManualSprints,
         EnabledDaysOfWeek = EnabledDaysOfWeek,
         Categories = [.. Categories],
@@ -271,6 +278,44 @@ public partial class MainViewModel
         App.ApplyTheme(_isDarkMode);
         OnPropertyChanged(nameof(IsDarkMode));
 
+        // 設定ファイルが壊れていても極端な倍率にならないようクランプする
+        _timelinePixelsPerDay = Math.Clamp(
+            settings.TimelinePixelsPerDay <= 0 ? Helpers.TimelineScale.DefaultPixelsPerDay : settings.TimelinePixelsPerDay,
+            Helpers.TimelineScale.MinPixelsPerDay,
+            Helpers.TimelineScale.MaxPixelsPerDay);
+        OnPropertyChanged(nameof(TimelinePixelsPerDay));
+        OnPropertyChanged(nameof(TimelineZoomText));
+
+        _timelineGroupMode = Enum.IsDefined(typeof(TimelineGroupMode), settings.TimelineGroupMode)
+            ? (TimelineGroupMode)settings.TimelineGroupMode
+            : TimelineGroupMode.Packed;
+        OnPropertyChanged(nameof(CurrentTimelineGroupMode));
+        OnPropertyChanged(nameof(SelectedTimelineGroupModeOption));
+        OnPropertyChanged(nameof(IsTimelineCategoryMode));
+        OnPropertyChanged(nameof(TimelineLabelColumnWidth));
+
+        _timelineSprintCount = Math.Clamp(
+            settings.TimelineSprintCount <= 0 ? 5 : settings.TimelineSprintCount, 1, 25);
+        OnPropertyChanged(nameof(TimelineSprintCount));
+        OnPropertyChanged(nameof(SelectedTimelineSpanOption));
+
+        _isAwayDetectionEnabled = settings.IsAwayDetectionEnabled;
+        _awayThresholdMinutes = Math.Clamp(
+            settings.AwayThresholdMinutes <= 0 ? 10 : settings.AwayThresholdMinutes, 1, 240);
+        OnPropertyChanged(nameof(IsAwayDetectionEnabled));
+        OnPropertyChanged(nameof(AwayThresholdMinutes));
+
+        _awayHandlingMode = Enum.IsDefined(typeof(AwayHandlingMode), settings.AwayHandlingMode)
+            ? (AwayHandlingMode)settings.AwayHandlingMode
+            : AwayHandlingMode.Ask;
+        OnPropertyChanged(nameof(CurrentAwayHandlingMode));
+        OnPropertyChanged(nameof(SelectedAwayHandlingOption));
+
+        ApplyAwaySettings();
+
+        _snapMinutes = Math.Clamp(settings.SnapMinutes <= 0 ? 15 : settings.SnapMinutes, 1, 60);
+        OnPropertyChanged(nameof(SnapMinutes));
+
         _manualSprints = settings.ManualSprints ?? [];
         OnPropertyChanged(nameof(ManualSprints));
 
@@ -301,18 +346,109 @@ public partial class MainViewModel
     }
 
 
+    private DispatcherTimer? _dataSaveTimer;
+    private bool _hasPendingDataSave;
+
+    /// <summary>
+    /// 予定データの保存を予約する。
+    ///
+    /// 変更のたびに全件を書き出すと、編集が続く間ずっとファイルを書き換え続けることになり、
+    /// 破損の窓もディスクI/Oも増える。短い間隔でまとめて1回にする。
+    /// アプリ終了時は <see cref="FlushDataSave"/> で確実に書き出す。
+    /// </summary>
     private void SaveData()
     {
         // 初期化中・ロード中の保存を抑止する
         // （起動時の Clear で空リストがファイルに書き込まれ、データ消失の危険があった）
         if (!_isInitialized || _isLoadingData) return;
 
+        // 読み込みに失敗している状態で保存すると、
+        // 壊れたファイルの上に「空のデータ」を確定させてしまう
+        if (IsDataLoadFailed) return;
+
+        _hasPendingDataSave = true;
+
+        if (_dataSaveTimer == null)
+        {
+            _dataSaveTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(700) };
+            _dataSaveTimer.Tick += (_, _) => FlushDataSave();
+        }
+
+        _dataSaveTimer.Stop();
+        _dataSaveTimer.Start();
+    }
+
+    /// <summary>保留中の予定データ保存を即時実行する（アプリ終了時などに呼ぶ）</summary>
+    public void FlushDataSave()
+    {
+        _dataSaveTimer?.Stop();
+        if (!_hasPendingDataSave) return;
+
+        _hasPendingDataSave = false;
         Services.FilePersistenceService.SaveData(ScheduleItems);
     }
 
+    private bool _isDataLoadFailed;
+    /// <summary>
+    /// 予定データを読み込めなかったか。
+    /// この間は保存を止める。空の状態を書き出すと、
+    /// 壊れたファイルの上に「記録が無い」という結果を確定させてしまうため。
+    /// </summary>
+    public bool IsDataLoadFailed
+    {
+        get => _isDataLoadFailed;
+        private set
+        {
+            if (SetProperty(ref _isDataLoadFailed, value))
+            {
+                OnPropertyChanged(nameof(HasDataNotice));
+            }
+        }
+    }
+
+    private string? _dataNotice;
+    /// <summary>読み込みの異常をユーザーへ知らせるメッセージ（正常時は null）</summary>
+    public string? DataNotice
+    {
+        get => _dataNotice;
+        private set
+        {
+            if (SetProperty(ref _dataNotice, value))
+            {
+                OnPropertyChanged(nameof(HasDataNotice));
+            }
+        }
+    }
+
+    public bool HasDataNotice => !string.IsNullOrEmpty(DataNotice);
+
+    /// <summary>通知バナーを閉じる（読み込み失敗の場合は保存停止も解除しない）</summary>
+    public RelayCommand DismissDataNoticeCommand => _dismissDataNoticeCommand ??=
+        new RelayCommand(_ => DataNotice = null);
+    private RelayCommand? _dismissDataNoticeCommand;
+
+    /// <summary>データフォルダをエクスプローラーで開く（バックアップを手動で確認するため）</summary>
+    public RelayCommand OpenDataFolderCommand => _openDataFolderCommand ??=
+        new RelayCommand(_ =>
+        {
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = Services.JsonFileRepository.DataDirectory,
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Open data folder failed: {ex.Message}");
+            }
+        });
+    private RelayCommand? _openDataFolderCommand;
+
     private void LoadData()
     {
-        var items = Services.FilePersistenceService.LoadData();
+        var result = Services.FilePersistenceService.LoadData();
 
         _isLoadingData = true;
         try
@@ -323,7 +459,7 @@ public partial class MainViewModel
                 old.PropertyChanged -= OnScheduleItemPropertyChanged;
             }
             ScheduleItems.Clear();
-            foreach (var item in items)
+            foreach (var item in result.Items)
             {
                 ScheduleItems.Add(item);
             }
@@ -332,7 +468,39 @@ public partial class MainViewModel
         {
             _isLoadingData = false;
         }
+
+        ApplyLoadStatus(result);
+
+        // 履歴が指しているインスタンスは読み込みで入れ替わっているため捨てる
+        ClearUndoHistory();
+
         RecalculateLayout();
+    }
+
+    /// <summary>読み込み結果に応じて、通知と保存の可否を決める</summary>
+    private void ApplyLoadStatus(Services.FilePersistenceService.ScheduleLoadResult result)
+    {
+        switch (result.Status)
+        {
+            case Services.LoadStatus.RecoveredFromBackup:
+                // 復元できているので保存は続行してよい
+                IsDataLoadFailed = false;
+                DataNotice = result.Message;
+                break;
+
+            case Services.LoadStatus.Failed:
+                // ここで保存を許すと、壊れたファイルを空データで確定させてしまう
+                IsDataLoadFailed = true;
+                DataNotice = (result.Message ?? "予定データを読み込めませんでした。") +
+                             "\nデータを保護するため、このセッションでは保存を停止しています。" +
+                             "\nデータフォルダのバックアップ（.bak）を確認してください。";
+                break;
+
+            default:
+                IsDataLoadFailed = false;
+                DataNotice = null;
+                break;
+        }
     }
 
     private void SaveMemos()

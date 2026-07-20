@@ -195,6 +195,7 @@ public partial class MainViewModel : INotifyPropertyChanged
             if (SetProperty(ref _isRecording, value))
             {
                 OnPropertyChanged(nameof(RecordingDurationText));
+                OnPropertyChanged(nameof(ShowAwayBanner));
             }
         }
     }
@@ -396,6 +397,8 @@ public partial class MainViewModel : INotifyPropertyChanged
         InitializeSearchCommands();
         InitializeTitleCommands();
         InitializeRoutineCommands();
+        InitializeUndo();
+        InitializeAwayDetection();
         LoadCategories(null); // 既定カテゴリで初期化（LoadSettings で上書きされる）
         LoadPinnedTitles(null); // 既定の定型タイトルで初期化（LoadSettings で上書きされる）
 
@@ -432,6 +435,9 @@ public partial class MainViewModel : INotifyPropertyChanged
         timer.Tick += (s, e) =>
         {
             CurrentTime = DateTime.Now;
+
+            // タイムラインの現在時刻ライン（内部で1分程度に間引かれる）
+            UpdateTimelineNowLine(CurrentTime);
 
             // リマインダー・自動開始のチェックは10秒間隔に間引く（時計表示の500msごとには不要）
             if (CurrentTime - _lastReminderCheck >= TimeSpan.FromSeconds(10))
@@ -478,10 +484,15 @@ public partial class MainViewModel : INotifyPropertyChanged
             foreach (ScheduleItem item in e.OldItems)
             {
                 item.PropertyChanged -= OnScheduleItemPropertyChanged;
+
+                // 消えたアイテムを選択したままにしない。
+                // 残すと Enter や Delete が「もう存在しないアイテム」に対して働く
+                if (ReferenceEquals(item, SelectedItem)) SelectedItem = null;
             }
         }
 
         if (_isLoadingData) return; // ロード中は再計算・保存を抑止（LoadData 完了時に一括実行）
+        if (IsApplyingUndo) return; // 取り消し・やり直しの適用中は AfterUndoRedo でまとめて実行
 
         RecalculateLayout();
         SaveData();
@@ -489,9 +500,18 @@ public partial class MainViewModel : INotifyPropertyChanged
 
     private void OnScheduleItemPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        // ColumnIndex は RecalculateLayout 内で書き換えられる表示用プロパティのため無視（再帰防止）
-        if (e.PropertyName == nameof(ScheduleItem.ColumnIndex)) return;
+        // 表示専用のプロパティは再計算・保存の対象外にする。
+        // - ColumnIndex: RecalculateLayout 内で書き換えられる（再帰防止）
+        // - IsSelected : 選択のたびにレイアウトを作り直すと、
+        //                クリックした要素がツリーから外れてドラッグ開始に失敗する。
+        //                データでもないので保存も不要
+        // - ToolTipText: Title/StartTime などの変更に伴って発火する派生通知。
+        //                元のプロパティ側で既に再計算されるため二重に走らせない
+        if (e.PropertyName is nameof(ScheduleItem.ColumnIndex)
+                           or nameof(ScheduleItem.IsSelected)
+                           or nameof(ScheduleItem.ToolTipText)) return;
         if (_isBatchUpdatingItem) return; // EditCommand 等の一括更新中は完了時にまとめて処理
+        if (IsApplyingUndo) return;       // 取り消し・やり直しの適用中は AfterUndoRedo でまとめて実行
 
         // タイトル・色などの変更も月ビュー（独自描画セル）や週ビューのセグメントへ反映する必要がある
         RecalculateLayout();

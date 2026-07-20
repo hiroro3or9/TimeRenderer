@@ -48,4 +48,14 @@ public interface IDialogService
     /// 通知メッセージダイアログ（OKボタンのみ）を表示します。
     /// </summary>
     void ShowMessage(string message, string title);
+
+    /// <summary>
+    /// 記録中に検知した離席を提示し、記録から除外するかを確認します。
+    /// </summary>
+    /// <returns>離席時間を除外する場合は true</returns>
+    bool ShowAwayReviewDialog(
+        string recordTitle,
+        DateTime recordStart,
+        DateTime recordEnd,
+        IReadOnlyList<AwayPeriod> awayPeriods);
 }

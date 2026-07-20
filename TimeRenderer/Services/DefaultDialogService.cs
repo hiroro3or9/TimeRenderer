@@ -71,4 +71,21 @@ public class DefaultDialogService(Window owner) : IDialogService
     {
         MessageBox.Show(owner, message, title, MessageBoxButton.OK, MessageBoxImage.Warning);
     }
+
+    public bool ShowAwayReviewDialog(
+        string recordTitle,
+        System.DateTime recordStart,
+        System.DateTime recordEnd,
+        IReadOnlyList<AwayPeriod> awayPeriods)
+    {
+        AwayReviewDialog dialog = new(recordTitle, recordStart, recordEnd, awayPeriods)
+        {
+            Owner = owner
+        };
+
+        // ウィンドウがトレイへ隠れている状態でも確認できるよう、必要なら表示に戻す
+        if (!owner.IsVisible) owner.Show();
+
+        return dialog.ShowDialog() == true && dialog.ShouldExclude;
+    }
 }

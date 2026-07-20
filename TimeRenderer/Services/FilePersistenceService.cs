@@ -16,9 +16,36 @@ public static class FilePersistenceService
 
     public static void SaveData(IEnumerable<ScheduleItem> items) => JsonFileRepository.SaveToFileSync(ScheduleFilePath, items);
 
-    public static ObservableCollection<ScheduleItem> LoadData()
+    /// <summary>予定データの読み込み結果</summary>
+    /// <param name="Items">読み込めたアイテム（失敗時は空）</param>
+    /// <param name="Status">読み込みの結果種別</param>
+    /// <param name="Message">復旧・失敗の説明（正常時は null）</param>
+    public record ScheduleLoadResult(
+        ObservableCollection<ScheduleItem> Items,
+        LoadStatus Status,
+        string? Message);
+
+    /// <summary>
+    /// 予定データを読み込む。
+    ///
+    /// サンプルデータへ差し替えるのは「ファイルが存在しない」＝真の初回起動のときだけ。
+    /// 読み込み失敗（破損）でサンプルに差し替えると、
+    /// 次の保存で本物の記録がサンプルに上書きされてしまうため、
+    /// 失敗は失敗として呼び出し側へ伝える。
+    /// </summary>
+    public static ScheduleLoadResult LoadData()
     {
-        return JsonFileRepository.LoadFromFileSync<ObservableCollection<ScheduleItem>>(ScheduleFilePath) ?? LoadSampleData();
+        var result = JsonFileRepository.LoadFromFileSync<ObservableCollection<ScheduleItem>>(ScheduleFilePath);
+
+        return result.Status switch
+        {
+            LoadStatus.NotFound => new ScheduleLoadResult(LoadSampleData(), LoadStatus.NotFound, null),
+
+            LoadStatus.Loaded or LoadStatus.RecoveredFromBackup =>
+                new ScheduleLoadResult(result.Value ?? [], result.Status, result.Message),
+
+            _ => new ScheduleLoadResult([], LoadStatus.Failed, result.Message)
+        };
     }
 
     public static void SaveMemos(Dictionary<DateTime, string> memos)
@@ -29,7 +56,7 @@ public static class FilePersistenceService
 
     public static Dictionary<DateTime, string> LoadMemos()
     {
-        var serializableDict = JsonFileRepository.LoadFromFileSync<Dictionary<string, string>>(MemosFilePath);
+        var serializableDict = JsonFileRepository.LoadFromFileSync<Dictionary<string, string>>(MemosFilePath).Value;
         if (serializableDict == null) return [];
 
         // カルチャ非依存で解析し、壊れたキーは読み飛ばす

@@ -8,5 +8,5 @@ public static class SettingsService
 
     public static void SaveSettings(AppSettings settings) => JsonFileRepository.SaveToFileSync(SettingsFilePath, settings);
 
-    public static AppSettings? LoadSettings() => JsonFileRepository.LoadFromFileSync<AppSettings>(SettingsFilePath);
+    public static AppSettings? LoadSettings() => JsonFileRepository.LoadFromFileSync<AppSettings>(SettingsFilePath).Value;
 }

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Media;
@@ -18,7 +18,10 @@ public class ScheduleItem : INotifyPropertyChanged
     public string Title
     {
         get => _title;
-        set => SetProperty(ref _title, value);
+        set
+        {
+            if (SetProperty(ref _title, value)) OnPropertyChanged(nameof(ToolTipText));
+        }
     }
 
     private DateTime _startTime;
@@ -30,6 +33,7 @@ public class ScheduleItem : INotifyPropertyChanged
             if (SetProperty(ref _startTime, value))
             {
                 OnPropertyChanged(nameof(DurationHours));
+                OnPropertyChanged(nameof(ToolTipText));
             }
         }
     }
@@ -43,6 +47,7 @@ public class ScheduleItem : INotifyPropertyChanged
             if (SetProperty(ref _endTime, value))
             {
                 OnPropertyChanged(nameof(DurationHours));
+                OnPropertyChanged(nameof(ToolTipText));
             }
         }
     }
@@ -51,14 +56,20 @@ public class ScheduleItem : INotifyPropertyChanged
     public bool IsAllDay
     {
         get => _isAllDay;
-        set => SetProperty(ref _isAllDay, value);
+        set
+        {
+            if (SetProperty(ref _isAllDay, value)) OnPropertyChanged(nameof(ToolTipText));
+        }
     }
 
     private string _content = string.Empty;
     public string Content
     {
         get => _content;
-        set => SetProperty(ref _content, value);
+        set
+        {
+            if (SetProperty(ref _content, value)) OnPropertyChanged(nameof(ToolTipText));
+        }
     }
 
     private Brush _backgroundColor = Brushes.LightBlue;
@@ -145,6 +156,19 @@ public class ScheduleItem : INotifyPropertyChanged
         }
     }
 
+    private bool _isSelected;
+    /// <summary>
+    /// 選択中か（キーボード操作の現在位置）。
+    /// ビューごとに別々の選択を持つと、表示を切り替えたときに選択が消えて混乱するため、
+    /// アイテム自身に持たせて日/週/月/タイムラインで共通にする。
+    /// </summary>
+    [JsonIgnore]
+    public bool IsSelected
+    {
+        get => _isSelected;
+        set => SetProperty(ref _isSelected, value);
+    }
+
     // 表示用プロパティ：列インデックス（終日イベントの縦積み位置に使用）
     private int _columnIndex;
     [JsonIgnore]
@@ -156,6 +180,57 @@ public class ScheduleItem : INotifyPropertyChanged
 
     [JsonIgnore]
     public double DurationHours => (EndTime - StartTime).TotalHours;
+
+    /// <summary>
+    /// ホバー時に出す詳細テキスト。
+    /// 短い予定はバーが数ピクセルしかなく、タイトルも時刻も潰れて読めないため、
+    /// 日/週ビューとタイムラインの両方でこれを唯一の情報源として使う。
+    /// </summary>
+    [JsonIgnore]
+    public string ToolTipText => BuildToolTipText();
+
+    private string BuildToolTipText()
+    {
+        var duration = EndTime - StartTime;
+        if (duration < TimeSpan.Zero) duration = TimeSpan.Zero;
+
+        var lines = new System.Collections.Generic.List<string>
+        {
+            string.IsNullOrWhiteSpace(Title) ? "(無題)" : Title
+        };
+
+        if (IsAllDay)
+        {
+            lines.Add(StartTime.Date == EndTime.Date || StartTime.Date == EndTime.Date.AddDays(-1)
+                ? $"{StartTime:MM/dd (ddd)} 終日"
+                : $"{StartTime:MM/dd} 〜 {EndTime.AddDays(-1):MM/dd} 終日");
+        }
+        else if (StartTime.Date == EndTime.Date)
+        {
+            lines.Add($"{StartTime:MM/dd (ddd) HH:mm} 〜 {EndTime:HH:mm}");
+        }
+        else
+        {
+            lines.Add($"{StartTime:MM/dd (ddd) HH:mm} 〜 {EndTime:MM/dd (ddd) HH:mm}");
+        }
+
+        if (!IsAllDay)
+        {
+            lines.Add(duration.TotalHours >= 1
+                ? $"所要 {duration.TotalHours:0.#} 時間"
+                : $"所要 {duration.TotalMinutes:0} 分");
+        }
+
+        if (!string.IsNullOrWhiteSpace(Content))
+        {
+            var memo = Content.Replace("\r", "").Replace("\n", " ").Trim();
+            if (memo.Length > 60) memo = string.Concat(memo.AsSpan(0, 60), "…");
+            lines.Add("");
+            lines.Add(memo);
+        }
+
+        return string.Join("\n", lines);
+    }
 
     public event PropertyChangedEventHandler? PropertyChanged;
     protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)

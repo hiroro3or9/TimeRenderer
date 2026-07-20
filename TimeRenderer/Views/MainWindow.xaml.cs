@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -40,6 +40,7 @@ namespace TimeRenderer.Views
             viewModel.PendingReminders.CollectionChanged += PendingReminders_CollectionChanged;
 
             InitializeDragHandlers();
+            InitializeTimelineHandlers(viewModel);
             SetupNotifyIcon();
 
             // 検索/フィルタのポップアップをトグルボタンの右端に揃えて表示する
@@ -201,6 +202,14 @@ namespace TimeRenderer.Views
         {
             if (!_isExiting)
             {
+                // トレイへ隠すだけで終了しないが、ユーザーの区切りではあるので
+                // デバウンス中の未保存分をここで確定させておく
+                if (DataContext is MainViewModel hiding)
+                {
+                    hiding.FlushMemoSave();
+                    hiding.FlushDataSave();
+                }
+
                 e.Cancel = true;
                 Hide();
                 return;
@@ -221,9 +230,12 @@ namespace TimeRenderer.Views
             if (DataContext is MainViewModel vm)
             {
                  vm.FlushMemoSave(); // デバウンス中の未保存メモを書き込む
+                 vm.FlushDataSave(); // デバウンス中の未保存の予定データを書き込む
                  vm.PropertyChanged -= ViewModel_PropertyChanged;
                  vm.ScrollToTimeRequested -= OnScrollToTimeRequested;
                  vm.PendingReminders.CollectionChanged -= PendingReminders_CollectionChanged;
+                 vm.DisposeAwayDetection(); // 監視タイマーと SystemEvents の購読を解除する
+                 DetachTimelineHandlers(vm);
             }
 
             base.OnClosed(e);
@@ -237,6 +249,7 @@ namespace TimeRenderer.Views
         {
             ScheduleItem item => item,
             ScheduleSegment segment => segment.Item,
+            ViewModels.TimelineBar bar => bar.Item,
             _ => null
         };
 
@@ -249,41 +262,6 @@ namespace TimeRenderer.Views
             {
                 ViewModel.AddCommand.Execute(null);
             }
-        }
-
-        /// <summary>
-        /// 日/週ビューの空白部分のダブルクリックイベント。
-        /// クリック位置の日付・時刻（30分スナップ）を初期値として予定追加ダイアログを開く。
-        /// 予定バー上のダブルクリックはバー側の編集処理が e.Handled にするためここには届かない。
-        /// </summary>
-        private void ScheduleBackground_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            if (e.ClickCount != 2) return;
-            if (sender is not Grid grid || grid.ActualWidth <= 0) return;
-
-            // 念のため：予定バー上のクリックは対象外（バー側のダブルクリック編集を優先）
-            if (e.OriginalSource is DependencyObject src && FindScheduleItemRoot(src) != null) return;
-
-            var days = ViewModel.VisibleDays;
-            if (days.Count == 0) return;
-
-            var pos = e.GetPosition(grid);
-
-            // X座標 → 日付列
-            double colWidth = grid.ActualWidth / days.Count;
-            int col = Math.Clamp((int)(pos.X / colWidth), 0, days.Count - 1);
-            var date = days[col].Date;
-
-            // Y座標 → 時刻（表示開始時刻を考慮し、30分単位にスナップ）
-            double hours = pos.Y / PixelsPerHour + ViewModel.DisplayStartHour;
-            double snapped = Math.Clamp(Math.Floor(hours * 2) / 2, 0, 23.5);
-            var start = date.AddHours(snapped);
-
-            if (ViewModel.AddScheduleItemAtTimeCommand.CanExecute(start))
-            {
-                ViewModel.AddScheduleItemAtTimeCommand.Execute(start);
-            }
-            e.Handled = true;
         }
 
         /// <summary>
@@ -305,8 +283,14 @@ namespace TimeRenderer.Views
             else if (e.ClickCount == 1 && sender is FrameworkElement el &&
                      el.DataContext is ScheduleSegment segment)
             {
-                // 日/週ビューの通常アイテムのみドラッグ対象（終日・月・TLは対象外）
+                // ドラッグ候補の登録を先に済ませる。
+                // 選択より後にすると、選択に伴う再レイアウトで el がツリーから外れ、
+                // 親 Canvas を辿れずドラッグが登録されないことがある
                 BeginPotentialDrag(el, segment, e);
+
+                // クリックで選択する（キーボード操作の起点になる）
+                ViewModel.SelectedItem = segment.Item;
+                MainScrollViewer?.Focus();
             }
         }
 

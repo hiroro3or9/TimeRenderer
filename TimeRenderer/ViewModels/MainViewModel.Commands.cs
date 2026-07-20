@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Windows.Input;
 using System.Windows.Media;
 using TimeRenderer.Services;
@@ -21,6 +21,8 @@ public partial class MainViewModel
     public ICommand AddCommand { get; private set; } = null!;
     public ICommand AddScheduleItemAtDateCommand { get; private set; } = null!;
     public ICommand AddScheduleItemAtTimeCommand { get; private set; } = null!;
+    /// <summary>期間（開始・終了）を指定して予定を追加する。タイムラインの範囲ドラッグ用</summary>
+    public ICommand AddScheduleItemInRangeCommand { get; private set; } = null!;
     public ICommand EditCommand { get; private set; } = null!;
     public ICommand PreviousCommand { get; private set; } = null!;
     public ICommand NextCommand { get; private set; } = null!;
@@ -44,6 +46,8 @@ public partial class MainViewModel
                 {
                     if (_dialogService.ShowConfirmationDialog($"「{item.Title}」を削除しますか？", "削除確認"))
                     {
+                        // 元の位置も履歴に残すため、取り除く前に記録する
+                        RecordRemove(item);
                         ScheduleItems.Remove(item);
                     }
                 }
@@ -84,6 +88,24 @@ public partial class MainViewModel
             }
         });
 
+        // タイムラインの空き領域を横ドラッグしたとき用：期間を指定して予定を追加する
+        AddScheduleItemInRangeCommand = new RelayCommand(param =>
+        {
+            if (param is not ValueTuple<DateTime, DateTime> range) return;
+
+            var (start, end) = range;
+            if (end <= start) end = start.AddHours(1);
+
+            AddViaDialog(new ScheduleItem
+            {
+                StartTime = start,
+                EndTime = end,
+                Title = "新しい予定",
+                ColorCode = Categories.FirstOrDefault()?.ColorCode ?? Brushes.LightBlue.ToString(),
+                CategoryId = Categories.FirstOrDefault()?.Id
+            });
+        });
+
         EditCommand = new RelayCommand(
             param =>
             {
@@ -92,6 +114,9 @@ public partial class MainViewModel
                     var editedItem = _dialogService.ShowScheduleEditDialog(item, [.. Categories], GetTitleSuggestions());
                     if (editedItem != null)
                     {
+                        // 取り消し用に、変更前の状態を控えておく
+                        var before = ItemSnapshot.Capture(item);
+
                         // プロパティごとの再計算・保存を避け、一括更新後に1回だけ実行する
                         _isBatchUpdatingItem = true;
                         try
@@ -111,6 +136,7 @@ public partial class MainViewModel
                         {
                             _isBatchUpdatingItem = false;
                         }
+                        RecordModify(item, before, "編集");
                         RecalculateLayout();
                         SaveData();
                     }
@@ -381,6 +407,7 @@ public partial class MainViewModel
         _recordingColorCode = item.ColorCode;
         _recordingCategoryId = item.CategoryId ?? ResolveCategory(item)?.Id;
         _recordingSourceItem = consumeItem ? item : null;
+        ClearAwayState(); // 前回の記録で拾った離席を持ち越さない
         IsRecording = true;
         RecordingStartTime = DateTime.Now;
         RecordingDuration = TimeSpan.Zero;
@@ -404,6 +431,7 @@ public partial class MainViewModel
         _recordingCategoryId = null;
         _recordingSourceItem = null;
         RecordingTitle = $"作業ログ {DateTime.Now:HH:mm}";
+        ClearAwayState(); // 前回の記録で拾った離席を持ち越さない
         IsRecording = true;
         RecordingStartTime = DateTime.Now;
         RecordingDuration = TimeSpan.Zero;
@@ -419,51 +447,24 @@ public partial class MainViewModel
             {
                 var endTime = DateTime.Now;
                 var startTime = RecordingStartTime.Value;
-                var duration = endTime - startTime;
 
                 var title = string.IsNullOrWhiteSpace(RecordingTitle) ? $"作業ログ {startTime:HH:mm}" : RecordingTitle;
-                // TimeSpan の "hh" は24時間で桁落ちするため総時間数で表記する
-                var durationText = $"記録時間: {(int)duration.TotalHours}:{duration.Minutes:D2}";
 
                 var source = _recordingSourceItem;
                 _recordingSourceItem = null;
 
-                if (source != null && ScheduleItems.Contains(source))
+                // 離席を検知していれば、ここでユーザーに扱いを確認する。
+                // 「除く」を選ぶと、離席をまたぐ記録は複数の区間に分かれる
+                var segments = ResolveRecordingSegments(title, startTime, endTime);
+
+                if (segments.Count == 0)
                 {
-                    // 予定アイテムから開始した記録：予定自体を実績に更新する（別アイテムを作らない）
-                    _isBatchUpdatingItem = true;
-                    try
-                    {
-                        source.Title = title;
-                        source.StartTime = startTime;
-                        source.EndTime = endTime;
-                        // ユーザーが予定に書いたメモは残し、空の場合のみ記録時間を書き込む
-                        if (string.IsNullOrWhiteSpace(source.Content))
-                        {
-                            source.Content = durationText;
-                        }
-                    }
-                    finally
-                    {
-                        _isBatchUpdatingItem = false;
-                    }
-                    RecalculateLayout();
-                    SaveData();
+                    // 記録全体が離席だった（ユーザーが除外を選んだ結果）
+                    ShowAutoStartNotice($"「{title}」は全体が離席だったため、記録しませんでした");
                 }
                 else
                 {
-                    ScheduleItem newItem = new()
-                    {
-                        Title = title,
-                        Content = durationText,
-                        StartTime = startTime,
-                        EndTime = endTime,
-                        ColorCode = _recordingColorCode ?? RecordingCategory?.ColorCode ?? Brushes.DarkOrange.ToString(),
-                        CategoryId = _recordingCategoryId ?? RecordingCategory?.Id,
-                        ColumnIndex = 0
-                    };
-
-                    ScheduleItems.Add(newItem);
+                    SaveRecordingSegments(title, source, segments);
                 }
             }
 
@@ -513,6 +514,7 @@ public partial class MainViewModel
         if (result != null)
         {
             ScheduleItems.Add(result);
+            RecordAdd(result);
         }
     }
 }

@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -13,7 +13,7 @@ namespace TimeRenderer.Views
 {
     /// <summary>
     /// 日/週ビューの予定バーのドラッグ操作（移動・リサイズ）。
-    /// - バー中央を上下ドラッグ: 時刻変更（15分スナップ）
+    /// - バー中央を上下ドラッグ: 時刻変更（刻み幅は設定で変更可能）
     /// - 別の日の列へドラッグ: 日付変更
     /// - バーの上端/下端をつまむ: 開始/終了時刻の伸縮
     /// ドラッグ中は VM の UpdateItemTimesPreview で再レイアウトのみ行い、
@@ -25,8 +25,11 @@ namespace TimeRenderer.Views
 
         private const double PixelsPerHour = 60.0;
         private const double DragThresholdPx = 4.0;   // この距離を超えて動いたらドラッグ開始
-        private const int SnapMinutes = 15;
-        private static readonly TimeSpan MinDragDuration = TimeSpan.FromMinutes(SnapMinutes);
+        /// <summary>時刻の丸め単位（設定で変更できる）</summary>
+        private int SnapMinutes => ViewModel.SnapMinutes;
+
+        /// <summary>ドラッグで作れる最小の長さ。刻み幅と同じにする</summary>
+        private TimeSpan MinDragDuration => TimeSpan.FromMinutes(SnapMinutes);
 
         private ScheduleItem? _dragItem;
         private DragMode _dragMode = DragMode.None;
@@ -114,6 +117,9 @@ namespace TimeRenderer.Views
                     return;
                 }
                 _dragStarted = true;
+
+                // 取り消し用に、ドラッグ開始前の状態を控える
+                if (_dragItem != null) ViewModel.BeginItemDragUndo(_dragItem);
 
                 // キャプチャ先の canvas に直接イベントを購読する
                 // （キャプチャ後のマウスイベントはキャプチャ要素に確実に届くため）
@@ -249,13 +255,15 @@ namespace TimeRenderer.Views
             {
                 // キャンセル：プレビューで変更した時刻を元に戻す
                 ViewModel.UpdateItemTimesPreview(item, origStart, origEnd);
+                ViewModel.ClearItemDragUndo(); // 取り消したドラッグは履歴に残さない
             }
         }
 
-        /// <summary>15分単位に丸める</summary>
-        private static DateTime SnapTime(DateTime t)
+        /// <summary>設定された刻み幅に丸める</summary>
+        private DateTime SnapTime(DateTime t)
         {
-            double minutes = Math.Round(t.TimeOfDay.TotalMinutes / SnapMinutes) * SnapMinutes;
+            int step = SnapMinutes;
+            double minutes = Math.Round(t.TimeOfDay.TotalMinutes / step) * step;
             return t.Date.AddMinutes(minutes);
         }
 

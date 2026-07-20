@@ -43,6 +43,29 @@ public partial class MainViewModel
 
     public double ScheduleGridHeight => (_displayEndHour - _displayStartHour) * 60.0;
 
+    /// <summary>時刻の刻み幅の選択肢（分）</summary>
+    public static IReadOnlyList<int> SnapMinutesOptions { get; } = [5, 10, 15, 30];
+
+    private int _snapMinutes = 15;
+    /// <summary>
+    /// ドラッグでの移動・伸縮・範囲作成で時刻を丸める単位（分）。
+    ///
+    /// 5分単位で記録するチームもあれば30分ブロックで管理するチームもあるため、
+    /// 決め打ちにせず選べるようにしている。
+    /// </summary>
+    public int SnapMinutes
+    {
+        get => _snapMinutes;
+        set
+        {
+            var clamped = Math.Clamp(value, 1, 60);
+            if (SetProperty(ref _snapMinutes, clamped))
+            {
+                SaveSettings();
+            }
+        }
+    }
+
     private int _sprintWeekRows = 3;
     /// <summary>スプリントビューのグリッド行数（スプリントの週数に追随）</summary>
     public int SprintWeekRows
@@ -51,13 +74,8 @@ public partial class MainViewModel
         private set => SetProperty(ref _sprintWeekRows, value);
     }
 
-    private IReadOnlyList<ScheduleItem> _timelineItems = [];
-    /// <summary>スプリントタイムラインの表示範囲内のアイテム（開始時刻順）</summary>
-    public IReadOnlyList<ScheduleItem> TimelineItems
-    {
-        get => _timelineItems;
-        private set => SetProperty(ref _timelineItems, value);
-    }
+    // タイムラインビューの状態は MainViewModel.Timeline.cs に集約している
+    // （TimelineBars / TimelineLaneGroups / TimelineSprintBands）
 
     private double _allDayPanelHeight = 30;
     public double AllDayPanelHeight
@@ -144,15 +162,23 @@ public partial class MainViewModel
         }
         else if (CurrentViewMode == ViewMode.SprintTimeline)
         {
-            // 基準スプリントを中心とした 5つのスプリントを表示する
+            // 基準スプリントを中心に TimelineSprintCount 個のスプリントを表示する
             var baseSprint = Helpers.SprintHelper.GetSprintForDate(ManualSprints, CurrentDate);
-            var sprints = Helpers.SprintHelper.GetSprintsForRange(ManualSprints, baseSprint.StartDate.AddMonths(-3), baseSprint.EndDate.AddMonths(3));
-            
+
+            // 必要な数のスプリントを確実に拾えるよう、前後に余裕をもって取得する
+            // （1スプリント約3週間として、要求数ぶん＋1スプリント分を上乗せする）
+            int marginDays = 21 * (TimelineSprintCount + 1);
+            var sprints = Helpers.SprintHelper.GetSprintsForRange(
+                ManualSprints,
+                baseSprint.StartDate.AddDays(-marginDays),
+                baseSprint.EndDate.AddDays(marginDays));
+
             int baseIdx = sprints.FindIndex(s => s.StartDate.Date == baseSprint.StartDate.Date);
             if (baseIdx < 0) baseIdx = 0;
-            
-            int startIdx = Math.Max(0, baseIdx - 2);
-            int count = Math.Min(sprints.Count - startIdx, 5);
+
+            // 基準スプリントが中央に来るように前方へずらす
+            int startIdx = Math.Max(0, baseIdx - (TimelineSprintCount / 2));
+            int count = Math.Min(sprints.Count - startIdx, TimelineSprintCount);
             var displaySprints = sprints.GetRange(startIdx, count);
 
             TimelineSprints = displaySprints;
@@ -195,9 +221,10 @@ public partial class MainViewModel
         return true;
     }
 
-    /// <summary>ドラッグ確定時（マウスアップ）にデータを保存する</summary>
+    /// <summary>ドラッグ確定時（マウスアップ）に、履歴へ積んでからデータを保存する</summary>
     public void CommitItemDrag()
     {
+        CommitItemDragUndo();
         SaveData();
     }
 
@@ -294,26 +321,8 @@ public partial class MainViewModel
         UpdateStats();
     }
 
-    /// <summary>
-    /// タイムラインビュー用に、表示範囲内のアイテムのみを開始時刻順で抽出する。
-    /// （全アイテムをそのまま表示すると範囲外の予定が空行として残るため）
-    /// </summary>
-    private void UpdateTimelineItems()
-    {
-        if (CurrentViewMode != ViewMode.SprintTimeline || TimelineSprints.Count == 0)
-        {
-            if (TimelineItems.Count > 0) TimelineItems = [];
-            return;
-        }
-
-        var rangeStart = TimelineSprints[0].StartDate.Date;
-        var rangeEnd = TimelineSprints[^1].EndDate.Date.AddDays(1);
-
-        TimelineItems = [.. ScheduleItems
-            .Where(IsItemVisible)
-            .Where(x => x.EndTime >= rangeStart && x.StartTime < rangeEnd)
-            .OrderBy(x => x.StartTime)];
-    }
+    // UpdateTimelineItems は MainViewModel.Timeline.cs に移動した
+    // （スケール・レーン割り当て・バー座標の計算をまとめて扱うため）
 
     private void UpdateCalendarCells()
     {

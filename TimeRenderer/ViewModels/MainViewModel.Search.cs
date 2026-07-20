@@ -70,6 +70,8 @@ public partial class MainViewModel
             if (SetProperty(ref _searchQuery, value))
             {
                 UpdateSearchResults();
+                // タイムラインではヒットしたバーだけを残して他を減光する
+                OnSearchQueryChangedForTimeline();
             }
         }
     }
