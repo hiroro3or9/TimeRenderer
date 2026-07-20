@@ -8,7 +8,7 @@ namespace TimeRenderer.Converters;
 public class DurationToHeightConverter : IValueConverter
 {
     private const string ParameterAddExtension = "ADD_EXTENSION";
-    public double PixelsPerHour { get; set; } = 60.0;
+    public double PixelsPerHour { get; set; } = Helpers.LayoutConstants.PixelsPerHour;
 
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
@@ -25,7 +25,7 @@ public class DurationToHeightConverter : IValueConverter
         // L字型の足の部分を追加するためのパラメータ
         if (parameter as string == ParameterAddExtension)
         {
-            pixels += 15.0; // 15分相当 (60px/h * 0.25h)
+            pixels += Helpers.LayoutConstants.PixelsPerHour * 0.25; // 15分相当の足
         }
 
         return pixels;

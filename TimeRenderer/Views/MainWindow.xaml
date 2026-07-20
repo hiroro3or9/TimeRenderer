@@ -17,8 +17,9 @@
         Loaded="Window_Loaded"
         PreviewKeyDown="Window_PreviewKeyDownForUndo">
     <Window.Resources>
-        <conv:TimeToPositionConverter x:Key="TimeToPositionConverter" PixelsPerHour="60"/>
-        <conv:DurationToHeightConverter x:Key="DurationToHeightConverter" PixelsPerHour="60"/>
+        <!-- PixelsPerHour は LayoutConstants.PixelsPerHour を既定値として使う（XAML側で上書きしない） -->
+        <conv:TimeToPositionConverter x:Key="TimeToPositionConverter"/>
+        <conv:DurationToHeightConverter x:Key="DurationToHeightConverter"/>
         <conv:DateToPagePositionConverter x:Key="DateToPagePositionConverter"/>
         <conv:DateToPageVisibilityConverter x:Key="DateToPageVisibilityConverter"/>
         <conv:IndexToTopMarginConverter x:Key="IndexToTopMarginConverter" ItemHeight="24"/>

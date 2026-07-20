@@ -23,7 +23,7 @@ namespace TimeRenderer.Views
     {
         private enum DragMode { None, Move, ResizeTop, ResizeBottom }
 
-        private const double PixelsPerHour = 60.0;
+        private const double PixelsPerHour = Helpers.LayoutConstants.PixelsPerHour;
         private const double DragThresholdPx = 4.0;   // この距離を超えて動いたらドラッグ開始
         /// <summary>時刻の丸め単位（設定で変更できる）</summary>
         private int SnapMinutes => ViewModel.SnapMinutes;

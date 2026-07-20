@@ -472,37 +472,30 @@ namespace TimeRenderer.Views
             Dispatcher.BeginInvoke(new Action(() => SearchToggle.IsChecked = false));
         }
 
+        /// <summary>指定時刻が画面の縦中央に来るよう、日/週ビューをスクロールする</summary>
+        private void ScrollDayViewToTime(DateTime time)
+        {
+            double pixelsPerHour = Helpers.LayoutConstants.PixelsPerHour;
+            double y = ((time.Hour - ViewModel.DisplayStartHour) * pixelsPerHour)
+                     + (time.Minute * (pixelsPerHour / 60.0));
+            double targetOffset = Math.Max(0, y - (MainScrollViewer.ViewportHeight / 2));
+            MainScrollViewer.ScrollToVerticalOffset(targetOffset);
+        }
+
         /// <summary>
         /// 検索結果から日ビューへジャンプした後、該当時刻が画面中央に来るようスクロールする。
         /// ビュー切替・レイアウト確定後に実行する必要があるため Dispatcher で遅延させる。
         /// </summary>
         private void OnScrollToTimeRequested(object? sender, DateTime time)
         {
-            Dispatcher.BeginInvoke(new Action(() =>
-            {
-                const double pixelsPerHour = 60.0;
-                double currentY = ((time.Hour - ViewModel.DisplayStartHour) * pixelsPerHour) + (time.Minute * (pixelsPerHour / 60.0));
-                double targetOffset = currentY - (MainScrollViewer.ViewportHeight / 2);
-                if (targetOffset < 0) targetOffset = 0;
-                MainScrollViewer.ScrollToVerticalOffset(targetOffset);
-            }), System.Windows.Threading.DispatcherPriority.Loaded);
+            Dispatcher.BeginInvoke(new Action(() => ScrollDayViewToTime(time)),
+                System.Windows.Threading.DispatcherPriority.Loaded);
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-             // 起動時に現在時刻までスクロール
-             var now = DateTime.Now;
-             
-             // 1時間 = 60px、表示開始時刻を基準にオフセット計算
-             double pixelsPerHour = 60.0;
-             double currentY = ((now.Hour - ViewModel.DisplayStartHour) * pixelsPerHour) + (now.Minute * (pixelsPerHour / 60.0));
-             
-             // 画面の中央に持ってくる
-             double targetOffset = currentY - (MainScrollViewer.ViewportHeight / 2);
-             
-             if (targetOffset < 0) targetOffset = 0;
-             
-             MainScrollViewer.ScrollToVerticalOffset(targetOffset);
+            // 起動時に現在時刻までスクロール
+            ScrollDayViewToTime(DateTime.Now);
         }
     }
 }

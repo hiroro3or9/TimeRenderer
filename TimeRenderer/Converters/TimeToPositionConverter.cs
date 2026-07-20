@@ -6,7 +6,7 @@ namespace TimeRenderer.Converters;
 
 public class TimeToPositionConverter : IMultiValueConverter
 {
-    public double PixelsPerHour { get; set; } = 60.0;
+    public double PixelsPerHour { get; set; } = Helpers.LayoutConstants.PixelsPerHour;
     // 後方互換のためプロパティは残すが、バインディング優先
     public double StartHour { get; set; } = 0.0;
 

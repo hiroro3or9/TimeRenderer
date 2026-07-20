@@ -41,7 +41,7 @@ public partial class MainViewModel
         }
     }
 
-    public double ScheduleGridHeight => (_displayEndHour - _displayStartHour) * 60.0;
+    public double ScheduleGridHeight => (_displayEndHour - _displayStartHour) * LayoutConstants.PixelsPerHour;
 
     /// <summary>時刻の刻み幅の選択肢（分）</summary>
     public static IReadOnlyList<int> SnapMinutesOptions { get; } = [5, 10, 15, 30];
