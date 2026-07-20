@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Windows;
 using TextBox = System.Windows.Controls.TextBox;
 
@@ -15,18 +15,18 @@ namespace TimeRenderer.Views.Dialogs
         public string InputText { get; set; } = string.Empty;
 
         // 選択肢となるタイマーオプションリスト
-        public List<MainViewModel.TimerOption> TimerOptions { get; set; } = [];
+        public List<TimerOption> TimerOptions { get; set; } = [];
 
         // 選択されたタイマーオプション
-        public MainViewModel.TimerOption? SelectedTimerOption { get; set; }
+        public TimerOption? SelectedTimerOption { get; set; }
 
         // タイトル入力欄のドロップダウン候補（定型タイトル＋直近1か月のタイトル）
         public IReadOnlyList<string> TitleSuggestions { get; } = [];
 
         public RecordingStartDialog(
             string defaultTitle,
-            List<MainViewModel.TimerOption> timerOptions,
-            MainViewModel.TimerOption defaultOption,
+            List<TimerOption> timerOptions,
+            TimerOption defaultOption,
             IReadOnlyList<string>? titleSuggestions = null)
         {
             InitializeComponent();

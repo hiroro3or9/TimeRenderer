@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Data;
@@ -15,9 +15,9 @@ public class DateToPageVisibilityConverter : IMultiValueConverter
 
         var itemDate = itemStartTime.Date;
         var baseDate = values[ConverterIndices.DateToPageVisibility.CurrentDate] is DateTime d ? d.Date : DateTime.Today;
-        var mode = values[ConverterIndices.DateToPageVisibility.ViewMode] is MainViewModel.ViewMode viewMode ? viewMode : MainViewModel.ViewMode.Day;
+        var mode = values[ConverterIndices.DateToPageVisibility.ViewMode] is ViewMode viewMode ? viewMode : ViewMode.Day;
 
-        if (mode == MainViewModel.ViewMode.Day)
+        if (mode == ViewMode.Day)
         {
             // 1日表示モード：日付が一致すれば表示する
             // ※曜日フィルタは適用しない（「今日」ボタン等で非表示曜日の日を開いた際に

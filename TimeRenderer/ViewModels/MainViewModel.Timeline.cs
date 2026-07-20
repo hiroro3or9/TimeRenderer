@@ -21,34 +21,12 @@ namespace TimeRenderer.ViewModels;
 /// </summary>
 public partial class MainViewModel
 {
-    /// <summary>タイムラインの行のまとめ方</summary>
-    public enum TimelineGroupMode
-    {
-        /// <summary>重ならないアイテムを同じ行に詰める（最も密度が高い）</summary>
-        Packed,
-        /// <summary>カテゴリごとに行を分ける（何にどれだけ使ったかが見える）</summary>
-        Category,
-        /// <summary>1アイテム1行（件数が少ないときの見やすさ用）</summary>
-        Flat
-    }
-
-    public sealed record TimelineGroupModeOption(TimelineGroupMode Mode, string Label)
-    {
-        public override string ToString() => Label;
-    }
-
     public IReadOnlyList<TimelineGroupModeOption> TimelineGroupModeOptions { get; } =
     [
         new(TimelineGroupMode.Packed, "詰める"),
         new(TimelineGroupMode.Category, "カテゴリ別"),
         new(TimelineGroupMode.Flat, "1件1行"),
     ];
-
-    /// <summary>ズームのプリセット（ラベル, px/日）</summary>
-    public sealed record TimelineZoomPreset(string Label, double PixelsPerDay)
-    {
-        public override string ToString() => Label;
-    }
 
     public IReadOnlyList<TimelineZoomPreset> TimelineZoomPresets { get; } =
     [
@@ -112,12 +90,6 @@ public partial class MainViewModel
 
     /// <summary>ツールバー表示用のズーム倍率テキスト</summary>
     public string TimelineZoomText => $"{_timelinePixelsPerDay:0}px/日";
-
-    /// <summary>表示するスプリント数の選択肢</summary>
-    public sealed record TimelineSpanOption(int Count, string Label)
-    {
-        public override string ToString() => Label;
-    }
 
     public IReadOnlyList<TimelineSpanOption> TimelineSpanOptions { get; } =
     [

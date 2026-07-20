@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
@@ -13,6 +13,22 @@ using TimeRenderer.Services;
 
 namespace TimeRenderer.ViewModels;
 
+/// <summary>
+/// メイン画面の ViewModel。責務ごとに partial で分割している。
+///
+/// - MainViewModel.cs                 : 表示モード・現在時刻・記録タイマー・変更監視の中核
+/// - .Commands.cs                     : 追加・編集・削除・記録開始/停止などのコマンド
+/// - .Data.cs                         : 設定/予定データ/メモの読み書き（デバウンス保存・破損保護）
+/// - .Layout.cs                       : 日/週/月/スプリントの表示日計算とセグメント再レイアウト
+/// - .Timeline.cs / .TimelineDecorations.cs / .TimelineViewport.cs : スプリントタイムラインの計算
+/// - .Stats.cs                        : 統計ビューの集計
+/// - .Away.cs                         : 離席検知と記録への反映
+/// - .Undo.cs                         : 取り消し・やり直し
+/// - .Search.cs / .Selection.cs / .Categories.cs / .Titles.cs / .Routines.cs : 各機能
+///
+/// 共有の enum / record（ViewMode, TimerOption, TimelineGroupMode, AwayHandlingMode など）は
+/// ViewModels/ 直下の独立ファイルにある。
+/// </summary>
 public partial class MainViewModel : INotifyPropertyChanged
 {
     private readonly bool _isInitialized = false;
@@ -31,22 +47,6 @@ public partial class MainViewModel : INotifyPropertyChanged
     }
 
 
-
-    public enum ViewMode
-    {
-        Day,
-        Week,
-        Month,
-        Sprint,
-        SprintTimeline,
-        Stats
-    }
-
-    /// <summary>ツールバーの表示切替ドロップダウン用の選択肢</summary>
-    public sealed record ViewModeOption(ViewMode Mode, string Label)
-    {
-        public override string ToString() => Label;
-    }
 
     public IReadOnlyList<ViewModeOption> ViewModeOptions { get; } =
     [
@@ -148,8 +148,6 @@ public partial class MainViewModel : INotifyPropertyChanged
             }
         }
     }
-
-    public record TimerOption(string Name, int Minutes);
 
     public List<TimerOption> TimerOptions { get; } = [
         new("カウントアップ", 0),

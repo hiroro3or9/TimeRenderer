@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -43,22 +43,6 @@ public partial class MainViewModel
                 SaveSettings();
             }
         }
-    }
-
-    /// <summary>離席を検知したときの扱い</summary>
-    public enum AwayHandlingMode
-    {
-        /// <summary>記録停止時に確認画面を出す</summary>
-        Ask,
-        /// <summary>確認せず、常に離席時間を除外する</summary>
-        AlwaysExclude,
-        /// <summary>確認せず、常にそのまま記録する</summary>
-        AlwaysKeep
-    }
-
-    public sealed record AwayHandlingOption(AwayHandlingMode Mode, string Label)
-    {
-        public override string ToString() => Label;
     }
 
     public IReadOnlyList<AwayHandlingOption> AwayHandlingOptions { get; } =
@@ -389,7 +373,7 @@ public partial class MainViewModel
             ? $"{(int)total.TotalHours}時間{total.Minutes}分"
             : $"{(int)total.TotalMinutes}分";
 
-        return $"離席 {periods.Count} 件・合計 {text} を記録から除きました（Ctrl+Z で戻せます）";
+        return $"離席 {periods.Count} 件・合計 {text} を記録から除きました（Ctrl+Z でこの記録ごと取り消せます）";
     }
 
     /// <summary>TimeSpan の "hh" は24時間で桁落ちするため総時間数で表記する</summary>

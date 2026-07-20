@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -14,11 +14,11 @@ public class DateToVisibleDaysConverter : IMultiValueConverter
         if (values.Length < ConverterIndices.DateToVisibleDays.RequiredCount || values[ConverterIndices.DateToVisibleDays.CurrentDate] is not DateTime date)
             return (List<DateTime>)[];
 
-        var mode = values[ConverterIndices.DateToVisibleDays.ViewMode] is MainViewModel.ViewMode m ? m : MainViewModel.ViewMode.Day;
+        var mode = values[ConverterIndices.DateToVisibleDays.ViewMode] is ViewMode m ? m : ViewMode.Day;
         var enabledDays = values[ConverterIndices.DateToVisibleDays.EnabledDays] as IEnumerable<DayOfWeek> 
             ?? [DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday, DayOfWeek.Friday, DayOfWeek.Saturday, DayOfWeek.Sunday];
 
-        if (mode == MainViewModel.ViewMode.Day)
+        if (mode == ViewMode.Day)
         {
             return (List<DateTime>)[date.Date];
         }

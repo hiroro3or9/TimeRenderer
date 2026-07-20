@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Globalization;
 using System.Windows.Data;
 using TimeRenderer.ViewModels;
@@ -26,7 +26,7 @@ public class DateToPagePositionConverter : IMultiValueConverter
         int totalColumns = maxColumnIndex + 1;
 
         var baseDate = values[ConverterIndices.DateToPagePosition.CurrentDate] is DateTime d ? d.Date : DateTime.Today;
-        var mode = values[ConverterIndices.DateToPagePosition.ViewMode] is MainViewModel.ViewMode viewMode ? viewMode : MainViewModel.ViewMode.Day;
+        var mode = values[ConverterIndices.DateToPagePosition.ViewMode] is ViewMode viewMode ? viewMode : ViewMode.Day;
         
         // パラメータが "WIDTH" の場合は幅を返す、それ以外はX座標を返す
         bool isWidth = parameter as string == ParameterWidth;
@@ -34,7 +34,7 @@ public class DateToPagePositionConverter : IMultiValueConverter
         var enabledDays = (values.Length > 7 ? values[7] : null) as IEnumerable<DayOfWeek>
             ?? [DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday, DayOfWeek.Friday, DayOfWeek.Saturday, DayOfWeek.Sunday];
 
-        if (mode == MainViewModel.ViewMode.Day)
+        if (mode == ViewMode.Day)
         {
             // 1日表示モード：日付が一致しない場合は非表示
             if (itemDate != baseDate.Date)

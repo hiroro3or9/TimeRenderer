@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using TimeRenderer.Controls;
 using TimeRenderer.Models;
 using TimeRenderer.ViewModels;
@@ -37,10 +37,10 @@ public class DefaultDialogService(Window owner) : IDialogService
         return null;
     }
 
-    public (string Title, MainViewModel.TimerOption SelectedOption)? ShowRecordingStartDialog(
+    public (string Title, TimerOption SelectedOption)? ShowRecordingStartDialog(
         string defaultTitle,
-        List<MainViewModel.TimerOption> timerOptions,
-        MainViewModel.TimerOption defaultOption,
+        List<TimerOption> timerOptions,
+        TimerOption defaultOption,
         IReadOnlyList<string>? titleSuggestions = null)
     {
         RecordingStartDialog dialog = new(defaultTitle, timerOptions, defaultOption, titleSuggestions)

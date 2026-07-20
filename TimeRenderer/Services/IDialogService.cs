@@ -1,4 +1,4 @@
-using TimeRenderer.Models;
+﻿using TimeRenderer.Models;
 using TimeRenderer.ViewModels;
 
 namespace TimeRenderer.Services;
@@ -33,10 +33,10 @@ public interface IDialogService
     /// <param name="timerOptions">タイマーオプションのリスト</param>
     /// <param name="defaultOption">デフォルト選択されるタイマーオプション</param>
     /// <returns>入力されたタイトルと選択されたタイマーオプション。キャンセル時はnull</returns>
-    (string Title, MainViewModel.TimerOption SelectedOption)? ShowRecordingStartDialog(
+    (string Title, TimerOption SelectedOption)? ShowRecordingStartDialog(
         string defaultTitle,
-        List<MainViewModel.TimerOption> timerOptions,
-        MainViewModel.TimerOption defaultOption,
+        List<TimerOption> timerOptions,
+        TimerOption defaultOption,
         IReadOnlyList<string>? titleSuggestions = null);
     
     /// <summary>
