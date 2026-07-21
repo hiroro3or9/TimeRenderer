@@ -243,7 +243,7 @@
                         <StackPanel>
                             <TextBlock TextWrapping="Wrap" FontSize="11" Margin="0,0,0,12"
                                        Foreground="{DynamicResource TextSecondaryBrush}"
-                                       Text="ツールバーの「出勤 / 退勤」ボタン、またはホットキー（既定: Ctrl+Alt+S / Ctrl+Alt+E）で登録します。登録した時刻は日・週ビューに横線として表示されます。"/>
+                                       Text="ツールバーの「出勤 / 退勤」ボタン、またはホットキー（既定: Ctrl+Alt+S / Ctrl+Alt+E）で登録します。登録した時刻は日・週ビューに横線として表示され、その線のラベルをクリックするとあとから修正できます。押し忘れた日は「出勤 / 退勤」ボタンの右クリックから追加できます。"/>
 
                             <Grid Margin="0,0,0,16">
                                 <Grid.ColumnDefinitions>

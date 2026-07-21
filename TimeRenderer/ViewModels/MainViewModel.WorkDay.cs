@@ -112,6 +112,16 @@ public partial class MainViewModel
     /// <summary>1つのボタン・ホットキーで出勤／退勤を切り替える</summary>
     public ICommand ToggleWorkDayCommand { get; private set; } = null!;
 
+    /// <summary>
+    /// 勤務時間の編集ダイアログを開く。
+    /// パラメータはマーカー（日/週ビューのラインをクリック）か日付。
+    /// null の場合は表示中の日を対象にする（押し忘れた日の追加に使う）。
+    /// </summary>
+    public ICommand EditWorkDayCommand { get; private set; } = null!;
+
+    /// <summary>マーカーの右クリックメニューからの削除</summary>
+    public ICommand DeleteWorkDayCommand { get; private set; } = null!;
+
     private void InitializeWorkDayCommands()
     {
         ClockInCommand = new RelayCommand(_ => ClockIn(), _ => !IsWorking);
@@ -121,6 +131,103 @@ public partial class MainViewModel
             if (IsWorking) ClockOut();
             else ClockIn();
         });
+
+        EditWorkDayCommand = new RelayCommand(param => EditWorkDay(ResolveWorkDayDate(param)));
+        DeleteWorkDayCommand = new RelayCommand(param =>
+        {
+            var date = ResolveWorkDayDate(param);
+            if (FindLogByDate(date) == null) return;
+
+            // メニューからの削除は取り消せないため、ここで一度止める
+            if (_dialogService.ShowConfirmationDialog($"{date:M月d日}の勤務記録を削除しますか？", "削除確認"))
+            {
+                DeleteWorkDay(date);
+            }
+        });
+    }
+
+    /// <summary>コマンドパラメータ（マーカー / 日付 / null）から対象の勤務日を求める</summary>
+    private DateTime ResolveWorkDayDate(object? param) => param switch
+    {
+        WorkDayMarker marker => marker.Date,
+        DateTime date => date.Date,
+        _ => CurrentDate.Date
+    };
+
+    // ===== 編集・削除 =====
+
+    /// <summary>
+    /// 勤務時間の編集ダイアログを開き、結果を反映する。
+    /// 記録が無い日なら新規追加として扱う（押し忘れをあとから埋められるように）。
+    /// </summary>
+    public void EditWorkDay(DateTime date)
+    {
+        var existing = FindLogByDate(date);
+
+        var result = _dialogService.ShowWorkDayEditDialog(
+            date.Date, existing?.StartTime, existing?.EndTime, canDelete: existing != null);
+
+        if (result == null) return;
+
+        if (result.IsDeleted)
+        {
+            DeleteWorkDay(existing?.Date ?? result.Date);
+            return;
+        }
+
+        ApplyWorkDayEdit(existing, result);
+    }
+
+    /// <summary>指定日の勤務記録を削除する</summary>
+    public void DeleteWorkDay(DateTime date)
+    {
+        var log = FindLogByDate(date);
+        if (log == null) return;
+
+        _workDayLogs.Remove(log);
+        RefreshActiveWorkLog();
+        SaveWorkDays();
+        NotifyWorkDayChanged();
+    }
+
+    /// <summary>
+    /// 編集結果を反映する。
+    /// 日付ごと動かせるようにしているため、移動先に既存の記録があれば置き換える
+    /// （1日に複数の勤務記録は持たない）。
+    /// </summary>
+    private void ApplyWorkDayEdit(WorkDayLog? original, WorkDayEditResult result)
+    {
+        if (original != null) _workDayLogs.Remove(original);
+
+        var conflict = FindLogByDate(result.Date);
+        if (conflict != null) _workDayLogs.Remove(conflict);
+
+        _workDayLogs.Add(new WorkDayLog
+        {
+            Date = result.Date,
+            StartTime = result.StartTime,
+            EndTime = result.EndTime,
+            // 手で直した時刻は「自動で入れた値」ではなくなるので印を外す
+            EndSource = WorkEndSource.Manual
+        });
+
+        _workDayLogs.Sort((a, b) => a.StartTime.CompareTo(b.StartTime));
+
+        RefreshActiveWorkLog();
+        SaveWorkDays();
+        NotifyWorkDayChanged();
+    }
+
+    /// <summary>
+    /// 未退勤の記録から「勤務中」の状態を組み直す。
+    /// 編集で退勤を消した／入れた場合に、ボタンやホットキーの状態を追随させる。
+    /// </summary>
+    private void RefreshActiveWorkLog()
+    {
+        _activeWorkLog = _workDayLogs
+            .Where(l => l.EndTime == null)
+            .OrderBy(l => l.StartTime)
+            .LastOrDefault();
     }
 
     // ===== 読み込み =====
@@ -289,7 +396,7 @@ public partial class MainViewModel
             if (date < from || date > to) continue;
 
             markers.Add(new WorkDayMarker(
-                log.StartTime, IsStart: true, $"出勤 {log.StartTime:H:mm}", IsAuto: false));
+                log.StartTime, IsStart: true, $"出勤 {log.StartTime:H:mm}", IsAuto: false, date));
 
             if (log.EndTime.HasValue)
             {
@@ -297,7 +404,7 @@ public partial class MainViewModel
                 var suffix = auto ? "（自動）" : string.Empty;
                 markers.Add(new WorkDayMarker(
                     log.EndTime.Value, IsStart: false,
-                    $"退勤 {log.EndTime.Value:H:mm}{suffix} ・ {log.DurationText}", auto));
+                    $"退勤 {log.EndTime.Value:H:mm}{suffix} ・ {log.DurationText}", auto, date));
             }
         }
 

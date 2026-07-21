@@ -55,6 +55,20 @@ public class DefaultDialogService(Window owner) : IDialogService
         return null;
     }
 
+    public WorkDayEditResult? ShowWorkDayEditDialog(
+        System.DateTime date, System.DateTime? start, System.DateTime? end, bool canDelete)
+    {
+        WorkDayEditDialog dialog = new(date, start, end, canDelete)
+        {
+            Owner = owner
+        };
+
+        // トレイへ隠れている状態から呼ばれても操作できるようにする
+        if (!owner.IsVisible) owner.Show();
+
+        return dialog.ShowDialog() == true ? dialog.Result : null;
+    }
+
     public bool ShowConfirmationDialog(string message, string title)
     {
         MessageBoxResult result = MessageBox.Show(

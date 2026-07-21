@@ -50,6 +50,16 @@ public interface IDialogService
     void ShowMessage(string message, string title);
 
     /// <summary>
+    /// 出勤・退勤の編集ダイアログを開き、確定した内容を返します。
+    /// キャンセルされた場合は null を返します。
+    /// </summary>
+    /// <param name="date">対象の勤務日</param>
+    /// <param name="start">既存の出勤時刻（新規追加の場合は null）</param>
+    /// <param name="end">既存の退勤時刻（未退勤・新規追加の場合は null）</param>
+    /// <param name="canDelete">既存の記録を編集する場合は true（削除ボタンを表示する）</param>
+    WorkDayEditResult? ShowWorkDayEditDialog(DateTime date, DateTime? start, DateTime? end, bool canDelete);
+
+    /// <summary>
     /// 記録中に検知した離席を提示し、記録から除外するかを確認します。
     /// </summary>
     /// <returns>離席時間を除外する場合は true</returns>
