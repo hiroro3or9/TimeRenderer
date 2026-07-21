@@ -108,6 +108,41 @@ namespace TimeRenderer.Views
             }
         }
 
+        // ===== 出勤・退勤マーカー =====
+
+        /// <summary>マーカーのラベルをクリック：その日の勤務時間を編集する</summary>
+        private void WorkDayMarker_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is FrameworkElement element && element.DataContext is WorkDayMarker marker)
+            {
+                ExecuteWorkDayCommand(ViewModel.EditWorkDayCommand, marker);
+                e.Handled = true; // 背景の範囲ドラッグ（予定の新規作成）を始めさせない
+            }
+        }
+
+        private void WorkDayEditMenuItem_Click(object sender, RoutedEventArgs e) =>
+            ExecuteWorkDayMenuCommand(sender, ViewModel.EditWorkDayCommand);
+
+        private void WorkDayDeleteMenuItem_Click(object sender, RoutedEventArgs e) =>
+            ExecuteWorkDayMenuCommand(sender, ViewModel.DeleteWorkDayCommand);
+
+        /// <summary>メニューを開いた要素から対象のマーカーを解決してコマンドを実行する</summary>
+        private static void ExecuteWorkDayMenuCommand(object sender, System.Windows.Input.ICommand command)
+        {
+            if (sender is System.Windows.Controls.MenuItem menuItem &&
+                menuItem.Parent is System.Windows.Controls.ContextMenu contextMenu &&
+                contextMenu.PlacementTarget is FrameworkElement element &&
+                element.DataContext is WorkDayMarker marker)
+            {
+                ExecuteWorkDayCommand(command, marker);
+            }
+        }
+
+        private static void ExecuteWorkDayCommand(System.Windows.Input.ICommand command, WorkDayMarker marker)
+        {
+            if (command.CanExecute(marker)) command.Execute(marker);
+        }
+
         // ===== コンテキストメニュー =====
 
         private void EditMenuItem_Click(object sender, RoutedEventArgs e) =>

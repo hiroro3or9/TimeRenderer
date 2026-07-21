@@ -253,6 +253,12 @@
                     <Button x:Name="WorkDayButton" Command="{Binding ToggleWorkDayCommand}"
                             Content="{Binding WorkDayButtonText}" Width="64" Margin="0,0,4,0"
                             ToolTip="仕事の開始・終了を登録します">
+                        <!-- 押し忘れた日をあとから埋めるための導線（日付はダイアログ側で選べる） -->
+                        <Button.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="勤務時間を編集・追加…" Command="{Binding EditWorkDayCommand}"/>
+                            </ContextMenu>
+                        </Button.ContextMenu>
                         <Button.Style>
                             <Style TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
                                 <Setter Property="Foreground" Value="{DynamicResource WorkStartBrush}"/>

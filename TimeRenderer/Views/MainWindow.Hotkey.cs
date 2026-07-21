@@ -138,7 +138,10 @@ namespace TimeRenderer.Views
         {
             var inText = ClockInHotkeyText ?? "未登録";
             var outText = ClockOutHotkeyText ?? "未登録";
-            WorkDayButton.ToolTip = $"仕事の開始・終了を登録します（日/週ビューに線で表示されます）\n出勤: {inText}　退勤: {outText}";
+            WorkDayButton.ToolTip =
+                $"仕事の開始・終了を登録します（日/週ビューに線で表示されます）\n" +
+                $"出勤: {inText}　退勤: {outText}\n" +
+                "右クリック、または日/週ビューの線のラベルから時刻を編集できます";
         }
 
         private IntPtr HotkeyHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
