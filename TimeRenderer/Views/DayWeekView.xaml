@@ -384,6 +384,99 @@
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
 
+                                <!--
+                                    出勤・退勤マーカー。
+                                    予定バーと同じ「箱」で描くと作業記録と混ざるため、
+                                    その日の列の幅いっぱいに横線とラベルだけを引く。
+                                    位置計算は予定バーと同じコンバーターを共用する（Time を StartTime として渡す）。
+                                -->
+                                <ItemsControl ItemsSource="{Binding DataContext.WorkDayMarkers, RelativeSource={RelativeSource AncestorType=Window}}"
+                                              IsHitTestVisible="False">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <Canvas ClipToBounds="True"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemContainerStyle>
+                                        <Style TargetType="ContentPresenter">
+                                            <Setter Property="Visibility">
+                                                <Setter.Value>
+                                                    <MultiBinding Converter="{StaticResource DateToPageVisibilityConverter}" FallbackValue="Collapsed">
+                                                        <Binding Path="Time" />
+                                                        <Binding Path="DataContext" RelativeSource="{RelativeSource AncestorType=ItemsControl}"/> <!-- CurrentDate -->
+                                                        <Binding Path="DataContext.CurrentViewMode" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                        <Binding Path="DataContext.EnabledDaysOfWeek" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                    </MultiBinding>
+                                                </Setter.Value>
+                                            </Setter>
+                                            <Setter Property="Canvas.Top">
+                                                <Setter.Value>
+                                                    <MultiBinding Converter="{StaticResource TimeToPositionConverter}">
+                                                        <Binding Path="Time"/>
+                                                        <Binding Path="DataContext.DisplayStartHour" RelativeSource="{RelativeSource AncestorType=Window}"/>
+                                                    </MultiBinding>
+                                                </Setter.Value>
+                                            </Setter>
+                                            <Setter Property="Canvas.Left">
+                                                <Setter.Value>
+                                                    <MultiBinding Converter="{StaticResource DateToPagePositionConverter}">
+                                                        <Binding Path="Time" />
+                                                        <Binding Source="{StaticResource Zero}" /> <!-- ColumnIndex -->
+                                                        <Binding Source="{StaticResource Zero}" /> <!-- MaxColumnIndex -->
+                                                        <Binding Path="DataContext" RelativeSource="{RelativeSource AncestorType=ItemsControl}"/>
+                                                        <Binding Path="DataContext.CurrentViewMode" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                        <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=Canvas}" />
+                                                        <Binding Source="{StaticResource FalseValue}" /> <!-- IsAllDay -->
+                                                        <Binding Path="DataContext.EnabledDaysOfWeek" RelativeSource="{RelativeSource AncestorType=Window}"/>
+                                                    </MultiBinding>
+                                                </Setter.Value>
+                                            </Setter>
+                                            <Setter Property="Width">
+                                                <Setter.Value>
+                                                    <MultiBinding Converter="{StaticResource DateToPagePositionConverter}" ConverterParameter="WIDTH">
+                                                        <Binding Path="Time" />
+                                                        <Binding Source="{StaticResource Zero}" />
+                                                        <Binding Source="{StaticResource Zero}" />
+                                                        <Binding Path="DataContext" RelativeSource="{RelativeSource AncestorType=ItemsControl}"/>
+                                                        <Binding Path="DataContext.CurrentViewMode" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                        <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=Canvas}" />
+                                                        <Binding Source="{StaticResource FalseValue}" />
+                                                        <Binding Path="DataContext.EnabledDaysOfWeek" RelativeSource="{RelativeSource AncestorType=Window}"/>
+                                                    </MultiBinding>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </ItemsControl.ItemContainerStyle>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <!-- 線の上にラベルが乗るよう、線を下端に置いて上へ吹き出す -->
+                                            <Grid Height="18" VerticalAlignment="Top" RenderTransformOrigin="0,0">
+                                                <Grid.RenderTransform>
+                                                    <TranslateTransform Y="-16"/> <!-- 線を Canvas.Top（=時刻の位置）に合わせる -->
+                                                </Grid.RenderTransform>
+                                                <Border x:Name="MarkerLine" VerticalAlignment="Bottom" Height="2"
+                                                        Background="{DynamicResource WorkStartBrush}" Opacity="0.9"/>
+                                                <Border x:Name="MarkerChip" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="2,0,0,1"
+                                                        Background="{DynamicResource WorkStartBrush}" CornerRadius="3" Padding="5,1" Opacity="0.95">
+                                                    <TextBlock Text="{Binding Label}" FontSize="10" FontWeight="SemiBold" Foreground="White"/>
+                                                </Border>
+                                            </Grid>
+                                            <DataTemplate.Triggers>
+                                                <!-- 退勤は色を変える（同じ色だと1日に2本の線が並んだとき区別できない） -->
+                                                <DataTrigger Binding="{Binding IsStart}" Value="False">
+                                                    <Setter TargetName="MarkerLine" Property="Background" Value="{DynamicResource WorkEndBrush}"/>
+                                                    <Setter TargetName="MarkerChip" Property="Background" Value="{DynamicResource WorkEndBrush}"/>
+                                                </DataTrigger>
+                                                <!-- 自動で入った退勤は控えめに（あとで直す前提の値なので、確定した記録と同じ強さで見せない） -->
+                                                <DataTrigger Binding="{Binding IsAuto}" Value="True">
+                                                    <Setter TargetName="MarkerLine" Property="Opacity" Value="0.55"/>
+                                                    <Setter TargetName="MarkerChip" Property="Opacity" Value="0.75"/>
+                                                </DataTrigger>
+                                            </DataTemplate.Triggers>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
                                 <!-- 現在時刻インジケーター -->
                                 <Canvas ClipToBounds="True">
                                     <Border BorderBrush="{DynamicResource DangerBrush}" BorderThickness="0,2,0,0" Height="2" 

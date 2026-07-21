@@ -395,6 +395,7 @@ public partial class MainViewModel : INotifyPropertyChanged
         InitializeSearchCommands();
         InitializeTitleCommands();
         InitializeRoutineCommands();
+        InitializeWorkDayCommands();
         InitializeUndo();
         InitializeAwayDetection();
         LoadCategories(null); // 既定カテゴリで初期化（LoadSettings で上書きされる）
@@ -412,6 +413,7 @@ public partial class MainViewModel : INotifyPropertyChanged
         LoadData();
         LoadSettings();
         LoadMemos();
+        LoadWorkDays(); // 予定データの読み込み後（未退勤の自動締めが作業記録を参照するため）
         UpdateMemoTextForCurrentWeek();
         StartClock();
 
@@ -442,6 +444,7 @@ public partial class MainViewModel : INotifyPropertyChanged
             {
                 _lastReminderCheck = CurrentTime;
                 CheckReminders(CurrentTime);
+                UpdateWorkDayTick(CurrentTime); // 勤務時間の表示更新と、日付またぎの自動締め
             }
             if (IsRecording && RecordingStartTime.HasValue)
             {

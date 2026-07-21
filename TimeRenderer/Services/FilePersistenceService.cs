@@ -13,6 +13,7 @@ public static class FilePersistenceService
 {
     private const string ScheduleFilePath = "schedules.json";
     private const string MemosFilePath = "memos.json";
+    private const string WorkDaysFilePath = "workdays.json";
 
     public static void SaveData(IEnumerable<ScheduleItem> items) => JsonFileRepository.SaveToFileSync(ScheduleFilePath, items);
 
@@ -46,6 +47,25 @@ public static class FilePersistenceService
 
             _ => new ScheduleLoadResult([], LoadStatus.Failed, result.Message)
         };
+    }
+
+    /// <summary>
+    /// 勤務記録（出勤・退勤）を保存する。
+    /// 予定データとは別ファイルにして、片方が壊れてももう片方が巻き込まれないようにする。
+    /// </summary>
+    public static void SaveWorkDays(IEnumerable<WorkDayLog> logs) =>
+        JsonFileRepository.SaveToFileSync(WorkDaysFilePath, logs);
+
+    /// <summary>勤務記録を読み込む。読めなかった場合は空で始める（記録は日々作り直せるため）</summary>
+    public static List<WorkDayLog> LoadWorkDays()
+    {
+        var result = JsonFileRepository.LoadFromFileSync<List<WorkDayLog>>(WorkDaysFilePath);
+        var logs = result.Value ?? [];
+
+        // 壊れた行（出勤時刻が既定値）は捨て、日付順に整えておく
+        return [.. logs
+            .Where(l => l.StartTime != default)
+            .OrderBy(l => l.StartTime)];
     }
 
     public static void SaveMemos(Dictionary<DateTime, string> memos)

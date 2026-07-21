@@ -23,6 +23,7 @@ namespace TimeRenderer.Views
         private MainViewModel ViewModel => (MainViewModel)DataContext;
         private WinForms.NotifyIcon _notifyIcon = null!;
         private WinForms.ToolStripMenuItem _recordMenuItem = null!;
+        private WinForms.ToolStripMenuItem _workDayMenuItem = null!;
         private bool _isExiting = false;
 
         public MainWindow()
@@ -86,7 +87,24 @@ namespace TimeRenderer.Views
             _recordMenuItem = new("記録開始");
             _recordMenuItem.Click += (_, _) => ViewModel.QuickToggleRecording();
             contextMenu.Items.Add(_recordMenuItem);
-            
+
+            // 出勤/退勤（作業内容の記録とは別軸。トレイからも押せるようにする）
+            _workDayMenuItem = new("出勤");
+            _workDayMenuItem.Click += (_, _) =>
+            {
+                if (ViewModel.IsWorking)
+                {
+                    ViewModel.ClockOut();
+                    ShowTrayBalloon("退勤を登録しました", ViewModel.WorkStatusText);
+                }
+                else
+                {
+                    ViewModel.ClockIn();
+                    ShowTrayBalloon("出勤を登録しました", ViewModel.WorkStatusText);
+                }
+            };
+            contextMenu.Items.Add(_workDayMenuItem);
+
             // セパレーター
             contextMenu.Items.Add(new WinForms.ToolStripSeparator());
 
@@ -109,7 +127,9 @@ namespace TimeRenderer.Views
 
         private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
-            if (e.PropertyName == nameof(MainViewModel.IsRecording) || e.PropertyName == nameof(MainViewModel.RecordingDurationText))
+            if (e.PropertyName == nameof(MainViewModel.IsRecording)
+                || e.PropertyName == nameof(MainViewModel.RecordingDurationText)
+                || e.PropertyName == nameof(MainViewModel.IsWorking))
             {
                 UpdateContextMenu();
             }
@@ -155,6 +175,13 @@ namespace TimeRenderer.Views
                 // UIスレッドで実行
                 Dispatcher.Invoke(() =>
                 {
+                    if (_workDayMenuItem != null)
+                    {
+                        var workHotkey = ViewModel.IsWorking ? ClockOutHotkeyText : ClockInHotkeyText;
+                        var workSuffix = workHotkey != null ? $" ({workHotkey})" : "";
+                        _workDayMenuItem.Text = (ViewModel.IsWorking ? "退勤" : "出勤") + workSuffix;
+                    }
+
                     // 登録に成功したグローバルホットキーをメニューに併記する（診断も兼ねる）
                     var hotkeySuffix = RegisteredHotkeyText != null ? $" ({RegisteredHotkeyText})" : "";
                     if (ViewModel.IsRecording)

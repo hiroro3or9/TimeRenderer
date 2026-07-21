@@ -23,6 +23,10 @@ public class AppSettings
     public int AwayThresholdMinutes { get; set; } = 10;
     /// <summary>離席を検知したときの扱い（0: 毎回確認, 1: 常に除外, 2: 常にそのまま）</summary>
     public int AwayHandlingMode { get; set; } = 0;
+    /// <summary>離席・スリープから復帰したときに勤務終了を確認するか</summary>
+    public bool IsWorkEndDetectionEnabled { get; set; } = true;
+    /// <summary>この時間だけ離席・スリープが続いたら勤務終了とみなして確認する（分）</summary>
+    public int WorkEndThresholdMinutes { get; set; } = 30;
     /// <summary>ドラッグ操作で時刻を丸める単位（分）</summary>
     public int SnapMinutes { get; set; } = 15;
     public System.Collections.Generic.List<SprintInfo> ManualSprints { get; set; } = [];

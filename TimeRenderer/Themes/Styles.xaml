@@ -665,6 +665,8 @@
     <conv:IndexToTopMarginConverter x:Key="IndexToTopMarginConverter" ItemHeight="24"/>
     <conv:DateToVisibleDaysConverter x:Key="DateToVisibleDaysConverter"/>
     <sys:Int32 x:Key="Zero">0</sys:Int32>
+    <!-- MultiBinding で「その位置の値は false」と明示したいとき用（引数の位置がずれるのを防ぐ） -->
+    <sys:Boolean x:Key="FalseValue">False</sys:Boolean>
     <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
     <conv:InvertedBooleanToVisibilityConverter x:Key="InvertedBooleanToVisibilityConverter"/>
     <conv:InverseBooleanConverter x:Key="InverseBooleanConverter"/>

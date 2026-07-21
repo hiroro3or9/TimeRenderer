@@ -244,6 +244,32 @@
 
                     <Border Style="{StaticResource ToolbarSeparatorStyle}"/>
 
+                    <!--
+                        出勤 / 退勤。作業内容の記録（右の記録ボタン）とは別の軸で、
+                        その日の勤務時間そのものを記録する。
+                    -->
+                    <TextBlock Text="{Binding WorkStatusText}" VerticalAlignment="Center" Margin="0,0,8,0"
+                               FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    <Button x:Name="WorkDayButton" Command="{Binding ToggleWorkDayCommand}"
+                            Content="{Binding WorkDayButtonText}" Width="64" Margin="0,0,4,0"
+                            ToolTip="仕事の開始・終了を登録します">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
+                                <Setter Property="Foreground" Value="{DynamicResource WorkStartBrush}"/>
+                                <Setter Property="BorderBrush" Value="{DynamicResource WorkStartBrush}"/>
+                                <Style.Triggers>
+                                    <!-- 勤務中は「次に押すと退勤」なので、退勤側の色に切り替える -->
+                                    <DataTrigger Binding="{Binding IsWorking}" Value="True">
+                                        <Setter Property="Foreground" Value="{DynamicResource WorkEndBrush}"/>
+                                        <Setter Property="BorderBrush" Value="{DynamicResource WorkEndBrush}"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+
+                    <Border Style="{StaticResource ToolbarSeparatorStyle}"/>
+
                     <!-- 記録中タイトル（記録中のみ表示・その場で変更可能） -->
                     <TextBox Text="{Binding RecordingTitle, UpdateSourceTrigger=PropertyChanged}"
                              Width="160" VerticalAlignment="Center" Margin="0,0,8,0"
