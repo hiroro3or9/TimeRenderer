@@ -96,6 +96,12 @@ public partial class MainViewModel
 
     private void UpdateVisibleDays()
     {
+        UpdateVisibleDaysCore();
+        RebuildWorkDayMarkers(); // 出退勤マーカーは表示範囲ぶんだけ作り直す
+    }
+
+    private void UpdateVisibleDaysCore()
+    {
         var days = new List<DateTime>();
         if (CurrentViewMode == ViewMode.Day)
         {

@@ -11,6 +11,12 @@
     <Color x:Key="PrimarySubtleColor">#1E3A5F</Color>
     <SolidColorBrush x:Key="PrimarySubtleBrush" Color="{StaticResource PrimarySubtleColor}"/>
 
+    <!-- 出勤・退勤マーカー（暗い背景でも沈まないよう明るめにする） -->
+    <Color x:Key="WorkStartColor">#38BDF8</Color>
+    <SolidColorBrush x:Key="WorkStartBrush" Color="{StaticResource WorkStartColor}"/>
+    <Color x:Key="WorkEndColor">#A78BFA</Color>
+    <SolidColorBrush x:Key="WorkEndBrush" Color="{StaticResource WorkEndColor}"/>
+
     <!-- Danger Colors (Red based) -->
     <Color x:Key="DangerColor">#F87171</Color>
     <SolidColorBrush x:Key="DangerBrush" Color="{StaticResource DangerColor}"/>

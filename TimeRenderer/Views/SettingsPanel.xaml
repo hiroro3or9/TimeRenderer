@@ -234,6 +234,51 @@
                                        Text="「常に除外する」を選ぶと確認画面を出さずに離席分を差し引きます。差し引いた内容は通知され、Ctrl+Z で元に戻せます。"/>
                         </StackPanel>
                     </Expander>
+
+                    <!-- 勤務（出勤・退勤）の記録 -->
+                    <Expander Style="{StaticResource SettingsExpanderStyle}" IsExpanded="True">
+                        <Expander.Header>
+                            <TextBlock Text="勤務の記録（出勤・退勤）" Style="{StaticResource SettingsSectionHeaderStyle}"/>
+                        </Expander.Header>
+                        <StackPanel>
+                            <TextBlock TextWrapping="Wrap" FontSize="11" Margin="0,0,0,12"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Text="ツールバーの「出勤 / 退勤」ボタン、またはホットキー（既定: Ctrl+Alt+S / Ctrl+Alt+E）で登録します。登録した時刻は日・週ビューに横線として表示されます。"/>
+
+                            <Grid Margin="0,0,0,16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" SharedSizeGroup="LabelG"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="終了を検知する" Style="{StaticResource FieldLabelStyle}"
+                                           VerticalAlignment="Center" Margin="0,0,16,0"/>
+                                <CheckBox Grid.Column="1" IsChecked="{Binding IsWorkEndDetectionEnabled}"
+                                          VerticalAlignment="Center"/>
+                            </Grid>
+
+                            <Grid Margin="0,0,0,6"
+                                  Visibility="{Binding IsWorkEndDetectionEnabled, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" SharedSizeGroup="LabelG"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="終了とみなす時間" Style="{StaticResource FieldLabelStyle}"
+                                           VerticalAlignment="Center" Margin="0,0,16,0"/>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <ComboBox ItemsSource="{Binding WorkEndThresholdOptions}"
+                                              SelectedItem="{Binding WorkEndThresholdMinutes, UpdateSourceTrigger=PropertyChanged}"
+                                              Width="70" FontSize="13"/>
+                                    <TextBlock Text="分の離席・スリープ" VerticalAlignment="Center" Margin="8,0,0,0"
+                                               FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <TextBlock TextWrapping="Wrap" FontSize="11" Margin="0,0,0,4"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Visibility="{Binding IsWorkEndDetectionEnabled, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                       Text="スリープや長い離席から戻ったときに「最後に操作した時刻で退勤にするか」を確認します。勝手には確定しません。日付をまたいでも退勤が登録されていない場合だけ、その日の最後の記録の時刻で自動的に締めます。"/>
+                        </StackPanel>
+                    </Expander>
                 </StackPanel>
                 </ScrollViewer>
                 </TabItem>

@@ -38,7 +38,7 @@ public partial class MainViewModel
         {
             if (SetProperty(ref _isAwayDetectionEnabled, value))
             {
-                _awayDetector?.IsEnabled = value;
+                ApplyAwaySettings();
                 if (!value) ClearAwayState();
                 SaveSettings();
             }
@@ -89,7 +89,7 @@ public partial class MainViewModel
             var clamped = Math.Clamp(value, 1, 240);
             if (SetProperty(ref _awayThresholdMinutes, clamped))
             {
-                _awayDetector?.IdleThreshold = TimeSpan.FromMinutes(clamped);
+                ApplyAwaySettings();
                 SaveSettings();
             }
         }
@@ -128,8 +128,8 @@ public partial class MainViewModel
     {
         _awayDetector = new AwayDetector
         {
-            IsEnabled = _isAwayDetectionEnabled,
-            IdleThreshold = TimeSpan.FromMinutes(_awayThresholdMinutes)
+            IsEnabled = ShouldRunAwayDetector,
+            IdleThreshold = EffectiveIdleThreshold
         };
 
         _awayDetector.AwayDetected += OnAwayDetected;
@@ -137,12 +137,39 @@ public partial class MainViewModel
         _awayDetector.AwayEnded += OnAwayEnded;
     }
 
+    /// <summary>
+    /// 検知器を動かす条件。
+    /// 記録の離席除外を使わなくても、勤務終了の検知だけ使いたい場合があるため、
+    /// どちらか一方でも有効なら監視する。
+    /// </summary>
+    private bool ShouldRunAwayDetector => _isAwayDetectionEnabled || _isWorkEndDetectionEnabled;
+
+    /// <summary>
+    /// 検知器のしきい値。
+    /// 検知器はこれより短い期間を通知しないため、
+    /// 有効な機能のうち<b>短いほう</b>に合わせないと片方が取りこぼす。
+    /// </summary>
+    private TimeSpan EffectiveIdleThreshold
+    {
+        get
+        {
+            var minutes = (_isAwayDetectionEnabled, _isWorkEndDetectionEnabled) switch
+            {
+                (true, true) => Math.Min(_awayThresholdMinutes, _workEndThresholdMinutes),
+                (true, false) => _awayThresholdMinutes,
+                (false, true) => _workEndThresholdMinutes,
+                _ => _awayThresholdMinutes
+            };
+            return TimeSpan.FromMinutes(minutes);
+        }
+    }
+
     /// <summary>設定を読み込んだあとに検知器へ反映する</summary>
     private void ApplyAwaySettings()
     {
         if (_awayDetector == null) return;
-        _awayDetector.IsEnabled = _isAwayDetectionEnabled;
-        _awayDetector.IdleThreshold = TimeSpan.FromMinutes(_awayThresholdMinutes);
+        _awayDetector.IsEnabled = ShouldRunAwayDetector;
+        _awayDetector.IdleThreshold = EffectiveIdleThreshold;
     }
 
     /// <summary>アプリ終了時に呼ぶ</summary>
@@ -161,6 +188,8 @@ public partial class MainViewModel
 
     private void OnAwayStarted(object? sender, DateTime since)
     {
+        // 勤務終了の検知だけを有効にしている場合、記録中バナーは出さない
+        if (!IsAwayDetectionEnabled) return;
         if (!IsRecording) return;
 
         IsAwayNow = true;
@@ -175,6 +204,12 @@ public partial class MainViewModel
 
     private void OnAwayDetected(object? sender, AwayPeriod period)
     {
+        // 同じ検知を「記録から除く離席」と「勤務の終了」の2つの用途で使う。
+        // 前者は記録中だけ、後者は勤務中だけが対象で、条件が違うので別々に判定する
+        HandleAwayForWorkDay(period);
+
+        if (!IsAwayDetectionEnabled) return;
+
         // 記録していない時間の離席は関心の対象外
         if (!IsRecording || !RecordingStartTime.HasValue) return;
 
