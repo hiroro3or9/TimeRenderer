@@ -435,6 +435,8 @@
                                                 <Run Text="{Binding DaysOfWeekDisplay, Mode=OneWay}"/>
                                                 <Run Text=" "/>
                                                 <Run Text="{Binding TimeRangeDisplay, Mode=OneWay}"/>
+                                                <Run Text="  "/>
+                                                <Run Text="{Binding StartDateDisplay, Mode=OneWay}"/>
                                             </TextBlock>
                                             <TextBlock Text="自動開始" FontSize="10" Foreground="{DynamicResource PrimaryBrush}" Margin="0,2,0,0"
                                                        Visibility="{Binding IsAutoStart, Converter={StaticResource BooleanToVisibilityConverter}}"/>
