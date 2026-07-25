@@ -230,6 +230,16 @@ public partial class MainViewModel
     /// <summary>ドラッグ確定時（マウスアップ）に、履歴へ積んでからデータを保存する</summary>
     public void CommitItemDrag()
     {
+        // 定期予定の仮想アイテムは「この日のみ／全体」を確認してから確定する
+        // （定期予定側の変更になるため、取り消し履歴には積まない）
+        if (_dragUndoItem is { IsVirtual: true, RoutineId: not null } virtualItem &&
+            _dragUndoBefore is { } before)
+        {
+            ClearItemDragUndo();
+            CommitVirtualItemDrag(virtualItem, before);
+            return;
+        }
+
         CommitItemDragUndo();
         SaveData();
     }

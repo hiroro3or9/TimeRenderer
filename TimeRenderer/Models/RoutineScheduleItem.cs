@@ -51,6 +51,13 @@ public class RoutineScheduleItem
     /// <summary>無効化すると新規の予定生成・リマインダーを停止する（生成済みの予定アイテムは残る）</summary>
     public bool IsEnabled { get; set; } = true;
 
+    /// <summary>
+    /// 予定を生成しない日付（日付部分のみ有効）。
+    /// 「この日だけ削除」した日と、「この日だけ編集」で実体化した日がここに入る。
+    /// 実体化した日は、除外により仮想アイテムと実体アイテムの二重表示を防ぐ。
+    /// </summary>
+    public List<DateTime> ExcludedDates { get; set; } = [];
+
     private static readonly DayOfWeek[] WeekOrder =
     [
         DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday,

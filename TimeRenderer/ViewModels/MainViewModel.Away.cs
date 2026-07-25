@@ -352,6 +352,13 @@ public partial class MainViewModel
 
             if (i == 0 && useSource)
             {
+                // 通常は記録開始時に実体化済みだが、念のためここでも保証する
+                // （仮想のまま時刻を上書きしても保存されず、記録が消えてしまうため）
+                if (source!.IsVirtual)
+                {
+                    MaterializeOccurrence(source);
+                }
+
                 var before = ItemSnapshot.Capture(source!);
 
                 _isBatchUpdatingItem = true;
