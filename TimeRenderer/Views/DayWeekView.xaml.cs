@@ -151,6 +151,9 @@ namespace TimeRenderer.Views
         private void ResumeRecordingMenuItem_Click(object sender, RoutedEventArgs e) =>
             ScheduleItemMenu.ExecuteOnMenuTarget(sender, ViewModel.StartRecordingFromItemCommand);
 
+        private void AppUsageMenuItem_Click(object sender, RoutedEventArgs e) =>
+            ScheduleItemMenu.ExecuteOnMenuTarget(sender, ViewModel.ShowAppUsageCommand);
+
         private void DeleteMenuItem_Click(object sender, RoutedEventArgs e) =>
             ScheduleItemMenu.ExecuteOnMenuTarget(sender, ViewModel.DeleteCommand);
     }

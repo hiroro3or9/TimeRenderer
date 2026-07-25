@@ -115,6 +115,7 @@
                                                 <ContextMenu>
                                                     <MenuItem Header="編集" Click="EditMenuItem_Click"/>
                                                     <MenuItem Header="この内容で記録開始" Click="ResumeRecordingMenuItem_Click"/>
+                                                    <MenuItem Header="この時間の使用アプリ" Click="AppUsageMenuItem_Click"/>
                                                     <MenuItem Header="削除" Click="DeleteMenuItem_Click"/>
                                                 </ContextMenu>
                                             </Border.ContextMenu>
@@ -331,6 +332,7 @@
                                                     <ContextMenu>
                                                         <MenuItem Header="編集" Click="EditMenuItem_Click"/>
                                                     <MenuItem Header="この内容で記録開始" Click="ResumeRecordingMenuItem_Click"/>
+                                                        <MenuItem Header="この時間の使用アプリ" Click="AppUsageMenuItem_Click"/>
                                                         <MenuItem Header="削除" Click="DeleteMenuItem_Click"/>
                                                     </ContextMenu>
                                                 </Grid.ContextMenu>

@@ -83,4 +83,13 @@ public interface IDialogService
         DateTime recordStart,
         DateTime recordEnd,
         IReadOnlyList<AwayPeriod> awayPeriods);
+
+    /// <summary>
+    /// 予定アイテムの時間帯に使っていたアプリの内訳を表示します。
+    /// </summary>
+    void ShowAppUsageDialog(
+        string itemTitle,
+        DateTime rangeStart,
+        DateTime rangeEnd,
+        IReadOnlyList<AppUsageStat> stats);
 }

@@ -112,4 +112,20 @@ public class DefaultDialogService(Window owner) : IDialogService
 
         return dialog.ShowDialog() == true && dialog.ShouldExclude;
     }
+
+    public void ShowAppUsageDialog(
+        string itemTitle,
+        System.DateTime rangeStart,
+        System.DateTime rangeEnd,
+        IReadOnlyList<AppUsageStat> stats)
+    {
+        AppUsageDialog dialog = new(itemTitle, rangeStart, rangeEnd, stats)
+        {
+            Owner = owner
+        };
+
+        if (!owner.IsVisible) owner.Show();
+
+        dialog.ShowDialog();
+    }
 }
