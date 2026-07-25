@@ -3,6 +3,15 @@ using TimeRenderer.ViewModels;
 
 namespace TimeRenderer.Services;
 
+/// <summary>定期予定への操作（削除・編集・時間変更）を適用する範囲</summary>
+public enum RoutineScope
+{
+    /// <summary>その日の1件のみ</summary>
+    ThisDay,
+    /// <summary>定期予定全体（テンプレート）</summary>
+    WholeSeries
+}
+
 public interface IDialogService
 {
     /// <summary>
@@ -43,6 +52,12 @@ public interface IDialogService
     /// 確認メッセージダイアログを表示し、Yes(true)またはNo(false)を返します。
     /// </summary>
     bool ShowConfirmationDialog(string message, string title);
+
+    /// <summary>
+    /// 定期予定への操作範囲（この日のみ／定期予定全体）を確認します。
+    /// キャンセルされた場合は null を返します。
+    /// </summary>
+    RoutineScope? ShowRoutineScopeDialog(string message, string title);
 
     /// <summary>
     /// 通知メッセージダイアログ（OKボタンのみ）を表示します。

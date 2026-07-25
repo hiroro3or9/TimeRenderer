@@ -44,11 +44,22 @@ public partial class MainViewModel
             {
                 if (param is ScheduleItem item)
                 {
+                    // 定期予定の仮想アイテムは「この日のみ／全体」を確認する
+                    if (item.IsVirtual && item.RoutineId != null)
+                    {
+                        DeleteRoutineOccurrence(item);
+                        return;
+                    }
+
                     if (_dialogService.ShowConfirmationDialog($"「{item.Title}」を削除しますか？", "削除確認"))
                     {
                         // 元の位置も履歴に残すため、取り除く前に記録する
                         RecordRemove(item);
                         ScheduleItems.Remove(item);
+
+                        // 定期予定由来の実体アイテムは、削除した日に仮想アイテムが
+                        // 再生成されて「復活」しないよう除外日にも加えておく
+                        AddRoutineExclusionFor(item);
                     }
                 }
             },
@@ -111,6 +122,13 @@ public partial class MainViewModel
             {
                 if (param is ScheduleItem item)
                 {
+                    // 定期予定の仮想アイテムは「この日のみ／全体」を確認する
+                    if (item.IsVirtual && item.RoutineId != null)
+                    {
+                        EditRoutineOccurrence(item);
+                        return;
+                    }
+
                     var editedItem = _dialogService.ShowScheduleEditDialog(item, [.. Categories], GetTitleSuggestions());
                     if (editedItem != null)
                     {
@@ -401,6 +419,13 @@ public partial class MainViewModel
         if (IsRecording)
         {
             ToggleRecording(); // 現在の記録を停止・保存
+        }
+
+        // 仮想アイテムを実績として使う場合は、この時点で実体化しておく。
+        // 記録中に定期予定が編集されて仮想アイテムが再生成されても、消費対象を見失わないため。
+        if (consumeItem && item.IsVirtual)
+        {
+            MaterializeOccurrence(item);
         }
 
         RecordingTitle = item.Title;

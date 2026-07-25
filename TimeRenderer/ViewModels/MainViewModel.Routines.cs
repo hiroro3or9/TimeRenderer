@@ -27,7 +27,7 @@ public partial class MainViewModel
             if (SetProperty(ref _routines, value))
             {
                 SaveSettings();
-                EnsureRoutineOccurrences(CurrentDate);
+                RebuildRoutineOccurrences(CurrentDate);
             }
         }
     }
@@ -84,6 +84,8 @@ public partial class MainViewModel
                     var result = _dialogService.ShowRoutineEditDialog(routine, [.. Categories], GetTitleSuggestions());
                     if (result != null)
                     {
+                        // 編集ダイアログは除外日を扱わないため、既存の除外日を引き継ぐ
+                        result.ExcludedDates = routine.ExcludedDates;
                         var list = new List<RoutineScheduleItem>(Routines);
                         var index = list.FindIndex(r => r.Id == routine.Id);
                         if (index >= 0)
@@ -103,7 +105,7 @@ public partial class MainViewModel
                 if (param is RoutineScheduleItem routine)
                 {
                     if (_dialogService.ShowConfirmationDialog(
-                        $"定期予定「{routine.Title}」を削除しますか？\n（すでに生成済みの予定アイテムは残ります）", "削除確認"))
+                        $"定期予定「{routine.Title}」を削除しますか？\n（記録済み・個別編集済みのアイテムは残ります）", "削除確認"))
                     {
                         var list = new List<RoutineScheduleItem>(Routines);
                         list.RemoveAll(r => r.Id == routine.Id);
@@ -141,8 +143,8 @@ public partial class MainViewModel
 
     /// <summary>
     /// 有効な定期予定について、指定日を中心とした一定期間（過去7日～先60日）に
-    /// 未生成のスケジュールアイテムがあれば生成する。同一ルーティン・同一日の重複生成は行わない。
-    /// ユーザーが生成済みの予定を削除した場合、その日は再生成されない（RoutineId+日付で判定するため）。
+    /// 未生成の「仮想アイテム」（IsVirtual=true、保存されない）があれば生成する。
+    /// 実体アイテム（記録済み・個別編集済み）がある日と、除外日（ExcludedDates）には生成しない。
     /// </summary>
     private void EnsureRoutineOccurrences(DateTime aroundDate)
     {
@@ -165,10 +167,12 @@ public partial class MainViewModel
             var categoryColor = routine.CategoryId != null
                 ? Categories.FirstOrDefault(c => c.Id == routine.CategoryId)?.ColorCode
                 : null;
+            var excluded = routine.ExcludedDates.Select(d => d.Date).ToHashSet();
 
             for (var date = rangeStart; date <= rangeEnd; date = date.AddDays(1))
             {
                 if (!routine.DaysOfWeek.Contains(date.DayOfWeek)) continue;
+                if (excluded.Contains(date)) continue;
                 if (existingKeys.Contains((routine.Id, date))) continue;
 
                 toAdd.Add(new ScheduleItem
@@ -178,14 +182,15 @@ public partial class MainViewModel
                     EndTime = date.Add(routine.EndTime),
                     ColorCode = categoryColor ?? routine.ColorCode,
                     CategoryId = routine.CategoryId,
-                    RoutineId = routine.Id
+                    RoutineId = routine.Id,
+                    IsVirtual = true
                 });
             }
         }
 
         if (toAdd.Count == 0) return;
 
-        // ロード中と同様に、1件ずつの再計算・保存を避けて最後にまとめて実行する
+        // ロード中と同様に、1件ずつの再計算を避けて最後にまとめて実行する
         var wasLoading = _isLoadingData;
         _isLoadingData = true;
         try
@@ -200,7 +205,288 @@ public partial class MainViewModel
             _isLoadingData = wasLoading;
         }
         RecalculateLayout();
+        // 仮想アイテムは保存対象外のため SaveData は不要
+    }
+
+    /// <summary>
+    /// すべての仮想アイテムを取り除いてから生成し直す。
+    /// 定期予定の追加・編集・削除・除外日の変更を表示へ反映するために呼ぶ。
+    /// </summary>
+    private void RebuildRoutineOccurrences(DateTime aroundDate)
+    {
+        var virtuals = ScheduleItems.Where(i => i.IsVirtual).ToList();
+
+        var wasLoading = _isLoadingData;
+        _isLoadingData = true;
+        try
+        {
+            foreach (var item in virtuals)
+            {
+                ScheduleItems.Remove(item);
+                PendingReminders.Remove(item);
+                _remindedRoutineItems.Remove(item);
+            }
+        }
+        finally
+        {
+            _isLoadingData = wasLoading;
+        }
+
+        EnsureRoutineOccurrences(aroundDate);
+        RecalculateLayout();
+    }
+
+    /// <summary>
+    /// 旧方式からの移行：以前は定期予定から実体アイテムを生成・保存していた。
+    /// テンプレートと完全に一致する未来の未編集アイテムを取り除き、仮想表示に置き換える。
+    /// 過去の分（記録）と、時刻やタイトル・メモが編集されている分はそのまま残す。
+    /// 起動時に1回だけ呼ぶ。
+    /// </summary>
+    private void MigrateGeneratedRoutineItems()
+    {
+        if (Routines.Count == 0) return;
+
+        var now = DateTime.Now;
+        var routinesById = Routines.ToDictionary(r => r.Id);
+
+        var toRemove = ScheduleItems.Where(i =>
+            !i.IsVirtual &&
+            i.RoutineId != null &&
+            i.StartTime > now &&
+            routinesById.TryGetValue(i.RoutineId, out var r) &&
+            i.Title == r.Title &&
+            !i.IsAllDay &&
+            string.IsNullOrWhiteSpace(i.Content) &&
+            i.StartTime.Date == i.EndTime.Date &&
+            i.StartTime.TimeOfDay == r.StartTime &&
+            i.EndTime.TimeOfDay == r.EndTime &&
+            r.DaysOfWeek.Contains(i.StartTime.DayOfWeek) &&
+            !r.ExcludedDates.Contains(i.StartTime.Date)).ToList();
+
+        if (toRemove.Count == 0) return;
+
+        var wasLoading = _isLoadingData;
+        _isLoadingData = true;
+        try
+        {
+            foreach (var item in toRemove)
+            {
+                ScheduleItems.Remove(item);
+            }
+        }
+        finally
+        {
+            _isLoadingData = wasLoading;
+        }
         SaveData();
+    }
+
+    /// <summary>
+    /// 仮想アイテムを実体化する。該当日を定期予定の除外日に加えることで、
+    /// 同じ日に仮想アイテムが二重生成されるのを防ぎ、以後は通常のアイテムとして保存される。
+    /// </summary>
+    /// <param name="item">実体化する仮想アイテム</param>
+    /// <param name="occurrenceDate">
+    /// もともとの発生日。編集で日付が変わる場合があるため、変更前の日付を渡す。
+    /// null なら item の現在の日付を使う。
+    /// </param>
+    private void MaterializeOccurrence(ScheduleItem item, DateTime? occurrenceDate = null)
+    {
+        if (!item.IsVirtual) return;
+
+        var date = (occurrenceDate ?? item.StartTime).Date;
+        var routine = Routines.FirstOrDefault(r => r.Id == item.RoutineId);
+        if (routine != null && !routine.ExcludedDates.Contains(date))
+        {
+            routine.ExcludedDates.Add(date);
+            SaveSettings();
+        }
+
+        item.IsVirtual = false;
+        SaveData();
+    }
+
+    /// <summary>
+    /// 定期予定由来の実体アイテムを削除したとき、その日を除外日に加える。
+    /// 加えないと、削除直後の再生成で同じ日に仮想アイテムが現れて「復活」して見える。
+    /// 定期予定由来でないアイテムには何もしない。
+    /// </summary>
+    private void AddRoutineExclusionFor(ScheduleItem item)
+    {
+        if (item.RoutineId == null) return;
+
+        var routine = Routines.FirstOrDefault(r => r.Id == item.RoutineId);
+        if (routine == null) return;
+
+        var date = item.StartTime.Date;
+        if (!routine.ExcludedDates.Contains(date))
+        {
+            routine.ExcludedDates.Add(date);
+            SaveSettings();
+        }
+    }
+
+    /// <summary>「この日だけ削除」：該当日を除外日に加えて仮想アイテムを取り除く</summary>
+    private void DeleteOccurrenceForDay(ScheduleItem item)
+    {
+        var date = item.StartTime.Date;
+        var routine = Routines.FirstOrDefault(r => r.Id == item.RoutineId);
+        if (routine != null && !routine.ExcludedDates.Contains(date))
+        {
+            routine.ExcludedDates.Add(date);
+            SaveSettings();
+        }
+
+        ScheduleItems.Remove(item);
+        PendingReminders.Remove(item);
+        _remindedRoutineItems.Remove(item);
+    }
+
+    /// <summary>
+    /// 仮想アイテムの削除。「この日のみ／定期予定全体／キャンセル」をユーザーに確認する。
+    /// 定期予定側（除外日・テンプレート）の変更のため、取り消し履歴には積まない。
+    /// </summary>
+    private void DeleteRoutineOccurrence(ScheduleItem item)
+    {
+        var routine = Routines.FirstOrDefault(r => r.Id == item.RoutineId);
+        var scope = _dialogService.ShowRoutineScopeDialog(
+            $"「{item.Title}」は定期予定です。どの範囲を削除しますか？", "定期予定の削除");
+
+        switch (scope)
+        {
+            case Services.RoutineScope.ThisDay:
+                DeleteOccurrenceForDay(item);
+                break;
+
+            case Services.RoutineScope.WholeSeries:
+                if (routine != null)
+                {
+                    var list = new List<RoutineScheduleItem>(Routines);
+                    list.RemoveAll(r => r.Id == routine.Id);
+                    Routines = list; // setter が保存と仮想アイテムの再生成を行う
+                }
+                else
+                {
+                    // テンプレートが見つからない場合（異常系）はこの日の分だけ消す
+                    DeleteOccurrenceForDay(item);
+                }
+                break;
+        }
+    }
+
+    /// <summary>
+    /// 仮想アイテムの編集。「この日のみ／定期予定全体／キャンセル」をユーザーに確認する。
+    /// この日のみ：アイテムを実体化して編集内容を適用する（その日だけ独立したアイテムになる）。
+    /// 全体：定期予定テンプレートの編集ダイアログを開く。
+    /// </summary>
+    private void EditRoutineOccurrence(ScheduleItem item)
+    {
+        var scope = _dialogService.ShowRoutineScopeDialog(
+            $"「{item.Title}」は定期予定です。どの範囲を編集しますか？", "定期予定の編集");
+
+        switch (scope)
+        {
+            case Services.RoutineScope.ThisDay:
+            {
+                var edited = _dialogService.ShowScheduleEditDialog(item, [.. Categories], GetTitleSuggestions());
+                if (edited == null) return;
+
+                var originalDate = item.StartTime.Date;
+
+                _isBatchUpdatingItem = true;
+                try
+                {
+                    item.Title = edited.Title;
+                    item.Content = edited.Content;
+                    item.StartTime = edited.StartTime;
+                    item.EndTime = edited.EndTime;
+                    item.IsAllDay = edited.IsAllDay;
+                    item.BackgroundColor = edited.BackgroundColor;
+                    item.CategoryId = edited.CategoryId;
+                    item.RemindAtStart = edited.RemindAtStart;
+                    item.AutoStartRecording = edited.AutoStartRecording;
+                    item.ForceStartRecording = edited.ForceStartRecording;
+                }
+                finally
+                {
+                    _isBatchUpdatingItem = false;
+                }
+
+                MaterializeOccurrence(item, originalDate);
+                RecalculateLayout();
+                break;
+            }
+
+            case Services.RoutineScope.WholeSeries:
+            {
+                var routine = Routines.FirstOrDefault(r => r.Id == item.RoutineId);
+                if (routine == null) return;
+
+                var result = _dialogService.ShowRoutineEditDialog(routine, [.. Categories], GetTitleSuggestions());
+                if (result != null)
+                {
+                    // 編集ダイアログは除外日を扱わないため、既存の除外日を引き継ぐ
+                    result.ExcludedDates = routine.ExcludedDates;
+                    var list = new List<RoutineScheduleItem>(Routines);
+                    var index = list.FindIndex(r => r.Id == routine.Id);
+                    if (index >= 0)
+                    {
+                        list[index] = result;
+                    }
+                    Routines = list;
+                }
+                break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// 仮想アイテムのドラッグ（移動・伸縮）確定。「この日のみ／定期予定全体／キャンセル」を確認する。
+    /// この日のみ：実体化して新しい時刻を確定する。
+    /// 全体：アイテムは元に戻し、新しい時刻（時刻部分のみ）をテンプレートへ反映する。
+    /// </summary>
+    private void CommitVirtualItemDrag(ScheduleItem item, ItemSnapshot before)
+    {
+        var newStart = item.StartTime;
+        var newEnd = item.EndTime;
+
+        var scope = _dialogService.ShowRoutineScopeDialog(
+            $"「{item.Title}」は定期予定です。どの範囲に時間の変更を適用しますか？", "定期予定の時間変更");
+
+        switch (scope)
+        {
+            case Services.RoutineScope.ThisDay:
+                MaterializeOccurrence(item, before.StartTime.Date);
+                RecalculateLayout();
+                break;
+
+            case Services.RoutineScope.WholeSeries:
+            {
+                // アイテム側は元へ戻し、テンプレートの時刻を変更して再生成する
+                UpdateItemTimesPreview(item, before.StartTime, before.EndTime);
+
+                var routine = Routines.FirstOrDefault(r => r.Id == item.RoutineId);
+                if (routine == null) break;
+
+                if (newStart.Date != newEnd.Date || newEnd.TimeOfDay <= newStart.TimeOfDay)
+                {
+                    _dialogService.ShowMessage(
+                        "日をまたぐ時間帯は定期予定全体には設定できません。", "定期予定の時間変更");
+                    break;
+                }
+
+                routine.StartTime = newStart.TimeOfDay;
+                routine.EndTime = newEnd.TimeOfDay;
+                SaveSettings();
+                RebuildRoutineOccurrences(CurrentDate);
+                break;
+            }
+
+            default:
+                // キャンセル：プレビューで動かした時刻を元に戻す
+                UpdateItemTimesPreview(item, before.StartTime, before.EndTime);
+                break;
+        }
     }
 
     /// <summary>

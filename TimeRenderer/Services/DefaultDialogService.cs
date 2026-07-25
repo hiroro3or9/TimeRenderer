@@ -81,6 +81,16 @@ public class DefaultDialogService(Window owner) : IDialogService
         return result == MessageBoxResult.Yes;
     }
 
+    public RoutineScope? ShowRoutineScopeDialog(string message, string title)
+    {
+        RoutineScopeDialog dialog = new(message, title)
+        {
+            Owner = owner
+        };
+
+        return dialog.ShowDialog() == true ? dialog.Result : null;
+    }
+
     public void ShowMessage(string message, string title)
     {
         MessageBox.Show(owner, message, title, MessageBoxButton.OK, MessageBoxImage.Warning);

@@ -510,7 +510,8 @@ public partial class MainViewModel : INotifyPropertyChanged
         //                元のプロパティ側で既に再計算されるため二重に走らせない
         if (e.PropertyName is nameof(ScheduleItem.ColumnIndex)
                            or nameof(ScheduleItem.IsSelected)
-                           or nameof(ScheduleItem.ToolTipText)) return;
+                           or nameof(ScheduleItem.ToolTipText)
+                           or nameof(ScheduleItem.IsVirtual)) return; // 実体化時は MaterializeOccurrence が保存する
         if (_isBatchUpdatingItem) return; // EditCommand 等の一括更新中は完了時にまとめて処理
         if (IsApplyingUndo) return;       // 取り消し・やり直しの適用中は AfterUndoRedo でまとめて実行
 

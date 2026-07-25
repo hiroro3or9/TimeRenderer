@@ -103,6 +103,20 @@ public class ScheduleItem : INotifyPropertyChanged
         set => SetProperty(ref _routineId, value);
     }
 
+    private bool _isVirtual;
+    /// <summary>
+    /// 定期予定から表示のためだけに生成された仮想アイテムか。
+    /// 仮想アイテムはファイルへ保存されない（毎回テンプレートから再生成される）。
+    /// ユーザーが個別に編集・記録した時点で実体化（IsVirtual=false ＋ 該当日を
+    /// RoutineScheduleItem.ExcludedDates へ追加）され、以後は通常のアイテムとして保存される。
+    /// </summary>
+    [JsonIgnore]
+    public bool IsVirtual
+    {
+        get => _isVirtual;
+        set => SetProperty(ref _isVirtual, value);
+    }
+
     private bool _remindAtStart;
     /// <summary>
     /// 手動登録した単発予定用：開始時刻になったらリマインダー通知を表示する。

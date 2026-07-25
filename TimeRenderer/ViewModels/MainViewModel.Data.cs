@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Windows.Threading;
 
 using TimeRenderer.Models;
@@ -350,6 +351,8 @@ public partial class MainViewModel
         OnPropertyChanged(nameof(EnabledDayHeaders));
 
         UpdateVisibleDays();
+        // 旧方式で保存された未来の未編集アイテムを仮想表示へ置き換える（起動時に1回）
+        MigrateGeneratedRoutineItems();
         EnsureRoutineOccurrences(CurrentDate);
     }
 
@@ -393,7 +396,8 @@ public partial class MainViewModel
         if (!_hasPendingDataSave) return;
 
         _hasPendingDataSave = false;
-        Services.FilePersistenceService.SaveData(ScheduleItems);
+        // 仮想アイテム（定期予定の表示用）は保存しない。毎回テンプレートから再生成される
+        Services.FilePersistenceService.SaveData(ScheduleItems.Where(i => !i.IsVirtual));
     }
 
     private bool _isDataLoadFailed;
