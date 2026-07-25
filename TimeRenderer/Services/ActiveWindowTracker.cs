@@ -362,9 +362,10 @@ public sealed partial class ActiveWindowTracker : IDisposable
     {
         uint found = 0;
 
-        EnumChildWindows(hostWindow, (child, _) =>
+        // 第2引数は使わないが、ここで _ と名付けると破棄ではなくラムダの引数になるため別名にする
+        EnumChildWindows(hostWindow, (child, lParam) =>
         {
-            _ = GetWindowThreadProcessId(child, out uint childPid);
+            GetWindowThreadProcessId(child, out uint childPid);
             if (childPid == 0 || childPid == hostPid) return true;
 
             if (!string.Equals(GetWindowClassName(child), UwpCoreWindowClass, StringComparison.Ordinal))
