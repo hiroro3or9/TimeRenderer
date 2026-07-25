@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Windows.Threading;
 
@@ -60,33 +61,28 @@ public sealed partial class ActiveWindowTracker : IDisposable
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool GetProcessTimes(IntPtr hProcess, out long lpCreationTime, out long lpExitTime, out long lpKernelTime, out long lpUserTime);
 
-    private delegate void WinEventProc(
-        IntPtr hWinEventHook, uint eventType, IntPtr hwnd,
-        int idObject, int idChild, uint dwEventThread, uint dwmsEventTime);
+    // コールバックを渡す2つは、マネージドデリゲートではなく関数ポインタで宣言する。
+    // デリゲートだと LibraryImport のソースジェネレーターがマーシャリングコードを作れず、
+    // DllImport へ逃げることになる。関数ポインタなら生成でき、
+    // 「デリゲートを GC から守るためにフィールドで保持する」という定番の事故も無くなる。
+    // 受け側は [UnmanagedCallersOnly] を付けた static メソッド（引数は blittable のみ）。
 
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private delegate bool EnumWindowsProc(IntPtr hwnd, IntPtr lParam);
-
-    // WinEvent フック周りは LibraryImport を使わず DllImport で宣言する。
-    // SetWinEventHook / EnumChildWindows はコールバック（デリゲート）を引数に取り、
-    // ソースジェネレーターがマーシャリングコードを生成できないため。
-    // UnhookWinEvent も対になる宣言なので、同じ場所にまとめて置く
-#pragma warning disable SYSLIB1054
-
-    [DllImport("user32.dll")]
-    private static extern IntPtr SetWinEventHook(
+    [LibraryImport("user32.dll")]
+    private static unsafe partial IntPtr SetWinEventHook(
         uint eventMin, uint eventMax, IntPtr hmodWinEventProc,
-        WinEventProc lpfnWinEventProc, uint idProcess, uint idThread, uint dwFlags);
+        delegate* unmanaged[Stdcall]<IntPtr, uint, IntPtr, int, int, uint, uint, void> lpfnWinEventProc,
+        uint idProcess, uint idThread, uint dwFlags);
 
-    [DllImport("user32.dll")]
+    [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool UnhookWinEvent(IntPtr hWinEventHook);
+    private static partial bool UnhookWinEvent(IntPtr hWinEventHook);
 
-    [DllImport("user32.dll")]
+    [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool EnumChildWindows(IntPtr hwndParent, EnumWindowsProc lpEnumFunc, IntPtr lParam);
-
-#pragma warning restore SYSLIB1054
+    private static unsafe partial bool EnumChildWindows(
+        IntPtr hwndParent,
+        delegate* unmanaged[Stdcall]<IntPtr, IntPtr, int> lpEnumFunc,
+        IntPtr lParam);
 
     private const uint EVENT_SYSTEM_FOREGROUND = 0x0003;
     private const uint WINEVENT_OUTOFCONTEXT = 0x0000;
@@ -139,8 +135,13 @@ public sealed partial class ActiveWindowTracker : IDisposable
     /// <summary>フックのハンドル。未設定なら <see cref="IntPtr.Zero"/></summary>
     private IntPtr _winEventHook = IntPtr.Zero;
 
-    /// <summary>フックのコールバック。GC されるとコールバック時に落ちるのでフィールドで保持する</summary>
-    private readonly WinEventProc _winEventProc;
+    /// <summary>
+    /// フックのコールバックは static でなければならない（関数ポインタのため）。
+    /// 実際に通知を受け取るインスタンスをここで保持する。
+    /// フックを張っている間だけ設定され、外したら null に戻す。
+    /// 同時に複数の <see cref="ActiveWindowTracker"/> がフックを張ることは想定していない。
+    /// </summary>
+    private static ActiveWindowTracker? _hookOwner;
 
     private bool _disposed;
 
@@ -148,7 +149,6 @@ public sealed partial class ActiveWindowTracker : IDisposable
     {
         _timer = new DispatcherTimer(DispatcherPriority.Normal) { Interval = PollInterval };
         _timer.Tick += (_, _) => Sample();
-        _winEventProc = OnForegroundChanged;
     }
 
     /// <summary>収集を開始する（記録開始時に呼ぶ）</summary>
@@ -191,39 +191,56 @@ public sealed partial class ActiveWindowTracker : IDisposable
 
     // ===== フック =====
 
-    private void HookForegroundChanges()
+    private unsafe void HookForegroundChanges()
     {
         if (_winEventHook != IntPtr.Zero) return;
+
+        _hookOwner = this;
 
         // OUTOFCONTEXT: 自プロセスにフック DLL を注入せず、メッセージとして受け取る。
         // コールバックはこのメソッドを呼んだスレッド（＝UI スレッド）に届く。
         // SKIPOWNTHREAD は付けない。付けると自分自身（このアプリ）へ切り替えた瞬間を拾えなくなる
         _winEventHook = SetWinEventHook(
             EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND,
-            IntPtr.Zero, _winEventProc, 0, 0,
+            IntPtr.Zero, &OnForegroundChangedNative, 0, 0,
             WINEVENT_OUTOFCONTEXT);
 
         if (_winEventHook == IntPtr.Zero)
         {
             // フックを張れなくてもポーリングだけで動作は続く（精度は落ちる）
+            _hookOwner = null;
             Debug.WriteLine("ActiveWindowTracker: SetWinEventHook failed. Falling back to polling only.");
         }
     }
 
     private void UnhookForegroundChanges()
     {
+        if (_hookOwner == this) _hookOwner = null;
+
         if (_winEventHook == IntPtr.Zero) return;
 
         UnhookWinEvent(_winEventHook);
         _winEventHook = IntPtr.Zero;
     }
 
-    private void OnForegroundChanged(
+    /// <summary>
+    /// 前面ウィンドウが変わったときに Windows から直接呼ばれる。
+    /// ネイティブへ例外を投げ返すとプロセスごと落ちるため、ここで必ず食い止める。
+    /// </summary>
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvStdcall) })]
+    private static void OnForegroundChangedNative(
         IntPtr hWinEventHook, uint eventType, IntPtr hwnd,
         int idObject, int idChild, uint dwEventThread, uint dwmsEventTime)
     {
-        // 切り替わった瞬間に取る。ポーリング間隔より短い使用もこれで残る
-        Sample();
+        try
+        {
+            // 切り替わった瞬間に取る。ポーリング間隔より短い使用もこれで残る
+            _hookOwner?.Sample();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"ActiveWindowTracker hook callback failed: {ex.Message}");
+        }
     }
 
     // ===== サンプリング =====
@@ -365,26 +382,49 @@ public sealed partial class ActiveWindowTracker : IDisposable
     /// 本体は "Windows.UI.Core.CoreWindow" クラスの子ウィンドウで、ホストとは別プロセスに属する。
     /// 見つからない場合は 0。
     /// </summary>
-    private static uint FindUwpApplicationPid(IntPtr hostWindow, uint hostPid)
+    private static unsafe uint FindUwpApplicationPid(IntPtr hostWindow, uint hostPid)
     {
-        uint found = 0;
+        // コールバックが static なので、状態は lParam でポインタとして渡す。
+        // EnumChildWindows は同期的に返るため、スタック上の変数を指して問題ない
+        var context = new UwpSearchContext { HostPid = hostPid, FoundPid = 0 };
+        EnumChildWindows(hostWindow, &EnumUwpChildWindow, (IntPtr)(&context));
+        return context.FoundPid;
+    }
 
-        // 第2引数は使わないが、ここで _ と名付けると破棄ではなくラムダの引数になるため別名にする
-        EnumChildWindows(hostWindow, (child, lParam) =>
+    /// <summary><see cref="EnumUwpChildWindow"/> に lParam で渡す作業用の状態</summary>
+    private struct UwpSearchContext
+    {
+        public uint HostPid;
+        public uint FoundPid;
+    }
+
+    /// <summary>
+    /// 子ウィンドウを1つずつ受け取り、UWP アプリ本体のものなら PID を控えて列挙を止める。
+    /// 戻り値は Win32 の BOOL（0 で列挙終了）。ネイティブへ例外を返さないよう囲っておく。
+    /// </summary>
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvStdcall) })]
+    private static unsafe int EnumUwpChildWindow(IntPtr hwnd, IntPtr lParam)
+    {
+        try
         {
-            GetWindowThreadProcessId(child, out uint childPid);
-            if (childPid == 0 || childPid == hostPid) return true;
+            var context = (UwpSearchContext*)lParam;
 
-            if (!string.Equals(GetWindowClassName(child), UwpCoreWindowClass, StringComparison.Ordinal))
+            GetWindowThreadProcessId(hwnd, out uint childPid);
+            if (childPid == 0 || childPid == context->HostPid) return 1;
+
+            if (!string.Equals(GetWindowClassName(hwnd), UwpCoreWindowClass, StringComparison.Ordinal))
             {
-                return true;
+                return 1;
             }
 
-            found = childPid;
-            return false; // 見つけたので列挙を止める
-        }, IntPtr.Zero);
-
-        return found;
+            context->FoundPid = childPid;
+            return 0; // 見つけたので列挙を止める
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"ActiveWindowTracker child enum failed: {ex.Message}");
+            return 0;
+        }
     }
 
     // ===== プロセス名の解決 =====
