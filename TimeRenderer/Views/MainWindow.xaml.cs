@@ -258,6 +258,7 @@ namespace TimeRenderer.Views
                  vm.PropertyChanged -= ViewModel_PropertyChanged;
                  vm.PendingReminders.CollectionChanged -= PendingReminders_CollectionChanged;
                  vm.DisposeAwayDetection(); // 監視タイマーと SystemEvents の購読を解除する
+                 vm.DisposeAppUsageTracking(); // 収集中の使用アプリを確定・保存して監視を止める
             }
 
             base.OnClosed(e);

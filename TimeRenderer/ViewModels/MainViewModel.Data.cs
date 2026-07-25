@@ -234,6 +234,7 @@ public partial class MainViewModel
         AwayHandlingMode = (int)CurrentAwayHandlingMode,
         IsWorkEndDetectionEnabled = IsWorkEndDetectionEnabled,
         WorkEndThresholdMinutes = WorkEndThresholdMinutes,
+        IsAppUsageTrackingEnabled = IsAppUsageTrackingEnabled,
         SnapMinutes = SnapMinutes,
         ManualSprints = ManualSprints,
         EnabledDaysOfWeek = EnabledDaysOfWeek,
@@ -321,6 +322,9 @@ public partial class MainViewModel
         OnPropertyChanged(nameof(WorkEndThresholdMinutes));
 
         ApplyAwaySettings();
+
+        _isAppUsageTrackingEnabled = settings.IsAppUsageTrackingEnabled;
+        OnPropertyChanged(nameof(IsAppUsageTrackingEnabled));
 
         _snapMinutes = Math.Clamp(settings.SnapMinutes <= 0 ? 15 : settings.SnapMinutes, 1, 60);
         OnPropertyChanged(nameof(SnapMinutes));

@@ -23,6 +23,7 @@ namespace TimeRenderer.ViewModels;
 /// - .Timeline.cs / .TimelineDecorations.cs / .TimelineViewport.cs : スプリントタイムラインの計算
 /// - .Stats.cs                        : 統計ビューの集計
 /// - .Away.cs                         : 離席検知と記録への反映
+/// - .AppUsage.cs                     : 記録中の使用アプリの自動記録と内訳表示
 /// - .Undo.cs                         : 取り消し・やり直し
 /// - .Search.cs / .Selection.cs / .Categories.cs / .Titles.cs / .Routines.cs : 各機能
 ///
@@ -194,6 +195,7 @@ public partial class MainViewModel : INotifyPropertyChanged
             {
                 OnPropertyChanged(nameof(RecordingDurationText));
                 OnPropertyChanged(nameof(ShowAwayBanner));
+                OnRecordingChangedForAppUsage(value);
             }
         }
     }
@@ -398,6 +400,7 @@ public partial class MainViewModel : INotifyPropertyChanged
         InitializeWorkDayCommands();
         InitializeUndo();
         InitializeAwayDetection();
+        InitializeAppUsageTracking();
         LoadCategories(null); // 既定カテゴリで初期化（LoadSettings で上書きされる）
         LoadPinnedTitles(null); // 既定の定型タイトルで初期化（LoadSettings で上書きされる）
 
@@ -414,6 +417,7 @@ public partial class MainViewModel : INotifyPropertyChanged
         LoadSettings();
         LoadMemos();
         LoadWorkDays(); // 予定データの読み込み後（未退勤の自動締めが作業記録を参照するため）
+        LoadAppUsage();
         UpdateMemoTextForCurrentWeek();
         StartClock();
 

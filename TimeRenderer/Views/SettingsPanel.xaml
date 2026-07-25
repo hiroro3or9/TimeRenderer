@@ -235,6 +235,33 @@
                         </StackPanel>
                     </Expander>
 
+                    <!-- 使用アプリの記録 -->
+                    <Expander Style="{StaticResource SettingsExpanderStyle}" IsExpanded="True">
+                        <Expander.Header>
+                            <TextBlock Text="使用アプリの記録" Style="{StaticResource SettingsSectionHeaderStyle}"/>
+                        </Expander.Header>
+                        <StackPanel>
+                            <TextBlock TextWrapping="Wrap" FontSize="11" Margin="0,0,0,12"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Text="記録の実行中に前面にあったアプリを自動で控えます。予定を右クリック →「この時間の使用アプリ」で、その時間帯に実際に何を使っていたかの内訳を確認できます。"/>
+
+                            <Grid Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" SharedSizeGroup="LabelG"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="使用アプリを記録する" Style="{StaticResource FieldLabelStyle}"
+                                           VerticalAlignment="Center" Margin="0,0,16,0"/>
+                                <CheckBox Grid.Column="1" IsChecked="{Binding IsAppUsageTrackingEnabled}"
+                                          VerticalAlignment="Center"/>
+                            </Grid>
+
+                            <TextBlock TextWrapping="Wrap" FontSize="11" Margin="0,0,0,4"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Text="収集するのは記録中だけです。データはこの PC の中（データフォルダ）にのみ保存され、60日を過ぎた分は自動で削除されます。"/>
+                        </StackPanel>
+                    </Expander>
+
                     <!-- 勤務（出勤・退勤）の記録 -->
                     <Expander Style="{StaticResource SettingsExpanderStyle}" IsExpanded="True">
                         <Expander.Header>

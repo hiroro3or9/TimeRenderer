@@ -14,6 +14,10 @@ public static class FilePersistenceService
     private const string ScheduleFilePath = "schedules.json";
     private const string MemosFilePath = "memos.json";
     private const string WorkDaysFilePath = "workdays.json";
+    private const string AppUsageFilePath = "appusage.json";
+
+    /// <summary>アプリ使用記録の保持日数。裏付け用の補助データなので古いものは自動で捨てる</summary>
+    private const int AppUsageRetentionDays = 60;
 
     public static void SaveData(IEnumerable<ScheduleItem> items) => JsonFileRepository.SaveToFileSync(ScheduleFilePath, items);
 
@@ -66,6 +70,28 @@ public static class FilePersistenceService
         return [.. logs
             .Where(l => l.StartTime != default)
             .OrderBy(l => l.StartTime)];
+    }
+
+    /// <summary>
+    /// アプリ使用記録を保存する。
+    /// 補助データなので専用ファイルに分け、予定データの破損に巻き込まれないようにする。
+    /// </summary>
+    public static void SaveAppUsage(IEnumerable<AppUsageInterval> intervals) =>
+        JsonFileRepository.SaveToFileSync(AppUsageFilePath, intervals);
+
+    /// <summary>
+    /// アプリ使用記録を読み込む。読めなかった場合は空で始める（裏付け用の補助データのため）。
+    /// 保持期間を過ぎた古い記録はここで捨てる。
+    /// </summary>
+    public static List<AppUsageInterval> LoadAppUsage()
+    {
+        var result = JsonFileRepository.LoadFromFileSync<List<AppUsageInterval>>(AppUsageFilePath);
+        var intervals = result.Value ?? [];
+
+        var cutoff = DateTime.Today.AddDays(-AppUsageRetentionDays);
+        return [.. intervals
+            .Where(i => i.End > i.Start && i.End >= cutoff && !string.IsNullOrEmpty(i.ProcessName))
+            .OrderBy(i => i.Start)];
     }
 
     public static void SaveMemos(Dictionary<DateTime, string> memos)
