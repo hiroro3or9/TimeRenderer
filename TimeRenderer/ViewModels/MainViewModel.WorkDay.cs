@@ -8,6 +8,12 @@ using TimeRenderer.Models;
 
 namespace TimeRenderer.ViewModels;
 
+/// <summary>退勤確認の対象にする離席開始時刻の下限（コンボボックス表示用）</summary>
+public sealed record WorkEndEarliestOption(int Hour, string Label)
+{
+    public override string ToString() => Label;
+}
+
 /// <summary>
 /// 勤務（出勤・退勤）の記録。
 ///
@@ -53,6 +59,48 @@ public partial class MainViewModel
 
     /// <summary>勤務終了とみなすまでの離席時間（分）の選択肢</summary>
     public static IReadOnlyList<int> WorkEndThresholdOptions { get; } = [15, 30, 45, 60, 90, 120];
+
+    /// <summary>「この時刻以降に始まった離席だけ確認する」の選択肢（0 は制限なし）</summary>
+    public IReadOnlyList<WorkEndEarliestOption> WorkEndEarliestOptions { get; } =
+    [
+        new(0, "制限しない（常に確認）"),
+        new(12, "12時以降"),
+        new(15, "15時以降"),
+        new(16, "16時以降"),
+        new(17, "17時以降"),
+        new(18, "18時以降"),
+        new(19, "19時以降"),
+        new(20, "20時以降"),
+    ];
+
+    private int _workEndEarliestHour = 17;
+    /// <summary>
+    /// この時刻より前に始まった離席は退勤確認の対象にしない（0 は制限なし）。
+    /// 日中の会議・外出・昼休みのたびに「退勤ですか？」と聞かれると煩わしいため。
+    /// 日付をまたいで復帰した場合（そのまま帰った可能性が高い）は時刻に関係なく確認する。
+    /// </summary>
+    public int WorkEndEarliestHour
+    {
+        get => _workEndEarliestHour;
+        set
+        {
+            var clamped = Math.Clamp(value, 0, 23);
+            if (SetProperty(ref _workEndEarliestHour, clamped))
+            {
+                OnPropertyChanged(nameof(SelectedWorkEndEarliestOption));
+                SaveSettings();
+            }
+        }
+    }
+
+    public WorkEndEarliestOption SelectedWorkEndEarliestOption
+    {
+        get => WorkEndEarliestOptions.FirstOrDefault(o => o.Hour == _workEndEarliestHour) ?? WorkEndEarliestOptions[0];
+        set
+        {
+            if (value != null) WorkEndEarliestHour = value.Hour;
+        }
+    }
 
     private int _workEndThresholdMinutes = 30;
     /// <summary>この時間だけ離席・スリープが続いたら勤務終了かどうかを尋ねる</summary>
@@ -431,6 +479,17 @@ public partial class MainViewModel
         // 出勤より前の離席（前日から続くスリープなど）は対象外
         if (period.Start <= log.StartTime) return;
         if (period.Duration < TimeSpan.FromMinutes(_workEndThresholdMinutes)) return;
+
+        // 日中の会議・外出・昼休みのたびに聞かれると煩わしいので、
+        // 設定時刻より前に始まった離席は退勤候補にしない。
+        // ただし日付をまたいで復帰した場合は「そのまま帰った」可能性が高いため、
+        // 時刻に関係なく確認する（復帰時刻 period.End が翌日以降になる）
+        if (_workEndEarliestHour > 0 &&
+            period.Start.Hour < _workEndEarliestHour &&
+            period.End.Date == period.Start.Date)
+        {
+            return;
+        }
 
         var proposedEnd = period.Start;
 

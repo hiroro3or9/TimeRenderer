@@ -27,6 +27,8 @@ public class AppSettings
     public bool IsWorkEndDetectionEnabled { get; set; } = true;
     /// <summary>この時間だけ離席・スリープが続いたら勤務終了とみなして確認する（分）</summary>
     public int WorkEndThresholdMinutes { get; set; } = 30;
+    /// <summary>この時刻より前に始まった離席は退勤確認の対象にしない（0 は制限なし）</summary>
+    public int WorkEndEarliestHour { get; set; } = 17;
     /// <summary>記録中に前面アプリを自動記録するか</summary>
     public bool IsAppUsageTrackingEnabled { get; set; } = true;
     /// <summary>ドラッグ操作で時刻を丸める単位（分）</summary>

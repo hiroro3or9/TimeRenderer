@@ -300,10 +300,24 @@
                                 </StackPanel>
                             </Grid>
 
+                            <!-- 確認対象にする離席開始時刻の下限 -->
+                            <Grid Margin="0,0,0,16"
+                                  Visibility="{Binding IsWorkEndDetectionEnabled, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" SharedSizeGroup="LabelG"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="確認する時間帯" Style="{StaticResource FieldLabelStyle}"
+                                           VerticalAlignment="Center" Margin="0,0,16,0"/>
+                                <ComboBox Grid.Column="1" HorizontalAlignment="Left" Width="180" FontSize="13"
+                                          ItemsSource="{Binding WorkEndEarliestOptions}"
+                                          SelectedItem="{Binding SelectedWorkEndEarliestOption}"/>
+                            </Grid>
+
                             <TextBlock TextWrapping="Wrap" FontSize="11" Margin="0,0,0,4"
                                        Foreground="{DynamicResource TextSecondaryBrush}"
                                        Visibility="{Binding IsWorkEndDetectionEnabled, Converter={StaticResource BooleanToVisibilityConverter}}"
-                                       Text="スリープや長い離席から戻ったときに「最後に操作した時刻で退勤にするか」を確認します。勝手には確定しません。日付をまたいでも退勤が登録されていない場合だけ、その日の最後の記録の時刻で自動的に締めます。"/>
+                                       Text="スリープや長い離席から戻ったときに「最後に操作した時刻で退勤にするか」を確認します。勝手には確定しません。「確認する時間帯」より前に始まった離席（日中の会議・外出など）では確認しません。ただし日付をまたいで戻った場合は時間帯に関係なく確認します。日付をまたいでも退勤が登録されていない場合だけ、その日の最後の記録の時刻で自動的に締めます。"/>
                         </StackPanel>
                     </Expander>
                 </StackPanel>
