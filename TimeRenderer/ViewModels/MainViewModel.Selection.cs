@@ -54,6 +54,9 @@ public partial class MainViewModel
             return [.. AllTimelineBars.Where(b => !b.IsDimmed).Select(b => b.Item)];
         }
 
+        // 日別インデックスは再計算が描画直前まで遅延されることがあるため、ここで確定させる
+        FlushPendingLayout();
+
         // 日/週ビュー：表示中の日に含まれるアイテム
         var days = VisibleDays;
         if (days.Count == 0) return [];

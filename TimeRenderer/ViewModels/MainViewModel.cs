@@ -325,6 +325,7 @@ public partial class MainViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(IsSprintMode));
         OnPropertyChanged(nameof(IsSprintTimelineMode));
         OnPropertyChanged(nameof(IsStatsMode));
+        OnPropertyChanged(nameof(IsDayOrWeekMode));
         OnPropertyChanged(nameof(IsTimeRangeSettingsVisible));
         OnPropertyChanged(nameof(IsSprintSettingsVisible));
         OnPropertyChanged(nameof(IsDayOfWeekSettingsVisible));
@@ -336,6 +337,8 @@ public partial class MainViewModel : INotifyPropertyChanged
     public bool IsSprintMode => CurrentViewMode == ViewMode.Sprint;
     public bool IsSprintTimelineMode => CurrentViewMode == ViewMode.SprintTimeline;
     public bool IsStatsMode => CurrentViewMode == ViewMode.Stats;
+    /// <summary>日/週ビュー（DayWeekView）を表示するモードか</summary>
+    public bool IsDayOrWeekMode => CurrentViewMode == ViewMode.Day || CurrentViewMode == ViewMode.Week;
     public bool IsTimeRangeSettingsVisible => CurrentViewMode == ViewMode.Day || CurrentViewMode == ViewMode.Week;
     public bool IsSprintSettingsVisible => CurrentViewMode == ViewMode.Sprint || CurrentViewMode == ViewMode.SprintTimeline;
     public bool IsDayOfWeekSettingsVisible => CurrentViewMode != ViewMode.SprintTimeline && CurrentViewMode != ViewMode.Stats;

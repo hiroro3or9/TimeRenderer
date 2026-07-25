@@ -100,6 +100,29 @@ public partial class MainViewModel
         RebuildWorkDayMarkers(); // 出退勤マーカーは表示範囲ぶんだけ作り直す
     }
 
+    /// <summary>
+    /// 描画対象の日付範囲 [Start, End)。VisibleDays の最小日〜最大日の翌日。
+    ///
+    /// セグメントや日別インデックスをこの範囲に絞ることで、
+    /// 記録が何年ぶん溜まっても1画面ぶんの要素しか生成しないようにしている
+    /// （以前は全期間ぶんのビジュアルを作ってから Visibility で隠していた）。
+    /// </summary>
+    private (DateTime Start, DateTime End)? GetLayoutRange()
+    {
+        var days = VisibleDays;
+        if (days.Count == 0) return null;
+
+        var min = days[0].Date;
+        var max = min;
+        foreach (var day in days)
+        {
+            var d = day.Date;
+            if (d < min) min = d;
+            if (d > max) max = d;
+        }
+        return (min, max.AddDays(1));
+    }
+
     private void UpdateVisibleDaysCore()
     {
         var days = new List<DateTime>();
@@ -200,9 +223,14 @@ public partial class MainViewModel
             }
         }
         VisibleDays = days;
-        UpdateCalendarCells();
-        UpdateTimelineItems();
-        UpdateStats();
+
+        // 表示範囲が変わるとセグメント・日別インデックスの対象も変わるため、
+        // カレンダー等の派生結果を作り直す前にレイアウトから組み直す
+        // （末尾で UpdateCalendarCells / UpdateTimelineItems / UpdateStats を呼ぶ）
+        //
+        // ここは日付送りやビュー切り替えという単発の操作なので、遅延させず即時に確定させる。
+        // 遅らせると切り替え直後の1フレームで前の範囲の内容が残りうる
+        RecalculateLayoutCore();
     }
 
     /// <summary>
@@ -244,15 +272,86 @@ public partial class MainViewModel
         SaveData();
     }
 
+    /// <summary>再計算の予約中フラグ（同一フレーム内の重複要求をまとめるため）</summary>
+    private bool _isLayoutRecalculationPending;
+
+    /// <summary>
+    /// レイアウトの再計算を要求する。
+    ///
+    /// 1回の操作で複数のプロパティが動く場面（ドラッグ、取り消し、カテゴリ編集など）では
+    /// このメソッドが連続で呼ばれる。都度フル再計算すると、そのたびに
+    /// セグメント・カレンダーセル・タイムライン・統計を作り直してバインディングが
+    /// 総入れ替えになるため、描画直前の1回にまとめる。
+    /// </summary>
     private void RecalculateLayout()
     {
+        // 初期化前（コンストラクタ内）は Dispatcher に積んでも走る保証がないため即時実行する
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+        if (!_isInitialized || dispatcher == null)
+        {
+            RecalculateLayoutCore();
+            return;
+        }
+
+        if (_isLayoutRecalculationPending) return;
+        _isLayoutRecalculationPending = true;
+
+        // Render 優先度＝レイアウト・描画の直前。この操作で積まれた要求はここで1回に集約される
+        dispatcher.BeginInvoke(
+            System.Windows.Threading.DispatcherPriority.Render,
+            new Action(FlushPendingLayout));
+    }
+
+    /// <summary>
+    /// 予約済みの再計算があれば、その場で実行して結果を確定させる。
+    /// 計算結果（DailyScheduleItems など）を同期的に読む処理の先頭で呼ぶ。
+    /// </summary>
+    private void FlushPendingLayout()
+    {
+        if (!_isLayoutRecalculationPending) return;
+        _isLayoutRecalculationPending = false;
+        RecalculateLayoutCore();
+    }
+
+    private void RecalculateLayoutCore()
+    {
+        _isLayoutRecalculationPending = false;
+
         var newAllDayItems = new List<ScheduleItem>();
         var newSegments = new List<ScheduleSegment>();
 
-        // 色フィルタで非表示のカテゴリを除いたアイテムのみを描画対象にする
-        var visibleItems = ScheduleItems.Where(IsItemVisible).ToList();
+        var range = GetLayoutRange();
 
-        foreach (var item in visibleItems)
+        // 表示日を持たないモード（統計）では日/週・カレンダーのどちらも描かないため、
+        // セグメントも日別インデックスも作らずに派生結果の更新だけを行う
+        if (range is null)
+        {
+            if (StandardItems.Count > 0) StandardItems = [];
+            if (AllDayItems.Count > 0) AllDayItems = [];
+            if (DailyScheduleItems.Count > 0) DailyScheduleItems = new Dictionary<DateTime, List<ScheduleItem>>();
+
+            UpdateCalendarCells();
+            UpdateTimelineItems();
+            UpdateStats();
+            return;
+        }
+
+        var (rangeStart, rangeEnd) = range.Value;
+
+        // 色フィルタで非表示のカテゴリを除き、さらに表示範囲に重なるものだけを描画対象にする
+        var visibleItems = new List<ScheduleItem>();
+        foreach (var item in ScheduleItems)
+        {
+            if (!IsItemVisible(item)) continue;
+            if (item.EndTime < rangeStart || item.StartTime >= rangeEnd) continue;
+            visibleItems.Add(item);
+        }
+
+        // セグメント（と終日パネル）は日/週ビュー専用。
+        // 月・スプリント・タイムライン・統計のときは組み立てても誰も描画しないので飛ばす
+        var segmentSources = IsDayOrWeekMode ? visibleItems : new List<ScheduleItem>();
+
+        foreach (var item in segmentSources)
         {
             if (item.IsAllDay)
             {
@@ -269,7 +368,13 @@ public partial class MainViewModel
                     newSegments.Add(new ScheduleSegment(item, start, start));
                     continue;
                 }
-                for (var d = start.Date; d <= end.Date; d = d.AddDays(1))
+
+                // 範囲外の日ぶんのセグメントは作らない
+                // （数か月にまたがるアイテムが1件あるだけで日数ぶんの要素が生まれるのを防ぐ）
+                var firstDay = start.Date < rangeStart ? rangeStart : start.Date;
+                var lastDay = end.Date >= rangeEnd ? rangeEnd.AddDays(-1) : end.Date;
+
+                for (var d = firstDay; d <= lastDay; d = d.AddDays(1))
                 {
                     var segStart = d == start.Date ? start : d;
                     var segEnd = end < d.AddDays(1) ? end : d.AddDays(1);
@@ -310,6 +415,11 @@ public partial class MainViewModel
             var end = (item.EndTime.TimeOfDay == TimeSpan.Zero && item.EndTime > item.StartTime)
                 ? item.EndTime.Date.AddDays(-1)
                 : item.EndTime.Date;
+
+            // セグメントと同じく、表示範囲の外の日はインデックスに入れない
+            if (start < rangeStart) start = rangeStart;
+            if (end >= rangeEnd) end = rangeEnd.AddDays(-1);
+
             for (var d = start; d <= end; d = d.AddDays(1))
             {
                 if (!dailyItems.TryGetValue(d, out var list))
