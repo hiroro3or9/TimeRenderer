@@ -49,6 +49,9 @@ public partial class MainViewModel
 
     private void InitializeCategoryCommands()
     {
+        // 追加・削除・読み込み直しのたびに解決用の索引を作り直す
+        Categories.CollectionChanged += (_, _) => InvalidateCategoryLookup();
+
         AddCategoryCommand = new RelayCommand(_ =>
         {
             // まだ使われていないパレット色を優先して割り当てる
@@ -90,6 +93,9 @@ public partial class MainViewModel
 
     private void OnCategoryPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        // 色が変わるとアイテムとの紐付け（色フォールバック）も変わるため索引を捨てる
+        if (e.PropertyName == nameof(CategoryInfo.ColorCode)) InvalidateCategoryLookup();
+
         if (_isLoadingData) return;
 
         // フィルタ表示状態はセッション内のみの状態のため保存せず、表示だけ更新する
@@ -127,12 +133,54 @@ public partial class MainViewModel
     /// </summary>
     public CategoryInfo? ResolveCategory(ScheduleItem item)
     {
-        if (!string.IsNullOrEmpty(item.CategoryId))
+        var (byId, byColor) = GetCategoryLookup();
+
+        if (!string.IsNullOrEmpty(item.CategoryId) &&
+            byId.TryGetValue(item.CategoryId, out var category))
         {
-            var byId = Categories.FirstOrDefault(c => c.Id == item.CategoryId);
-            if (byId != null) return byId;
+            return category;
         }
-        return Categories.FirstOrDefault(c => c.ColorCode == item.ColorCode);
+
+        return byColor.TryGetValue(item.ColorCode, out var byColorMatch) ? byColorMatch : null;
+    }
+
+    // ===== カテゴリ解決の索引 =====
+    //
+    // ResolveCategory はレイアウト・統計・タイムラインの各ループの内側から
+    // アイテム1件につき何度も呼ばれる。以前は毎回 Categories を LINQ で
+    // 2回走査していたため、件数×カテゴリ数のコストが乗っていた。
+    // 索引を作って辞書引きにし、カテゴリが変化したときだけ作り直す。
+
+    private Dictionary<string, CategoryInfo>? _categoryById;
+    private Dictionary<string, CategoryInfo>? _categoryByColor;
+
+    private (Dictionary<string, CategoryInfo> ById, Dictionary<string, CategoryInfo> ByColor) GetCategoryLookup()
+    {
+        if (_categoryById != null && _categoryByColor != null)
+        {
+            return (_categoryById, _categoryByColor);
+        }
+
+        var byId = new Dictionary<string, CategoryInfo>(Categories.Count);
+        var byColor = new Dictionary<string, CategoryInfo>(Categories.Count);
+
+        foreach (var category in Categories)
+        {
+            if (!string.IsNullOrEmpty(category.Id)) byId[category.Id] = category;
+            // 同じ色のカテゴリが複数あるときは、先勝ち（FirstOrDefault と同じ挙動）
+            if (!string.IsNullOrEmpty(category.ColorCode)) byColor.TryAdd(category.ColorCode, category);
+        }
+
+        _categoryById = byId;
+        _categoryByColor = byColor;
+        return (byId, byColor);
+    }
+
+    /// <summary>カテゴリの追加・削除・ID/色の変更時に索引を捨てる</summary>
+    private void InvalidateCategoryLookup()
+    {
+        _categoryById = null;
+        _categoryByColor = null;
     }
 
     /// <summary>

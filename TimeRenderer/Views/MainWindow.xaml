@@ -417,8 +417,10 @@
         </StackPanel>
 
         <!-- 日/週ビュー（曜日ヘッダー・終日イベント・時間グリッド） -->
+        <!-- 日/週のときだけ表示する。以前は「月以外」だったため、スプリント・タイムライン・統計の
+             各モードでも裏で生き続け、見えないアイテムのレイアウトと描画にコストを払っていた -->
         <views:DayWeekView Grid.Row="1" Grid.RowSpan="2"
-                           Visibility="{Binding IsMonthMode, Converter={StaticResource InvertedBooleanToVisibilityConverter}}"/>
+                           Visibility="{Binding IsDayOrWeekMode, Converter={StaticResource BooleanToVisibilityConverter}}"/>
 
         <!-- 月表示用のカレンダー領域 -->
         <views:CalendarGridView Grid.Row="1" Grid.RowSpan="2" Background="{DynamicResource SurfaceBrush}"
