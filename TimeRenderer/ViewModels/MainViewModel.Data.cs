@@ -234,6 +234,7 @@ public partial class MainViewModel
         AwayHandlingMode = (int)CurrentAwayHandlingMode,
         IsWorkEndDetectionEnabled = IsWorkEndDetectionEnabled,
         WorkEndThresholdMinutes = WorkEndThresholdMinutes,
+        WorkEndEarliestHour = WorkEndEarliestHour,
         IsAppUsageTrackingEnabled = IsAppUsageTrackingEnabled,
         SnapMinutes = SnapMinutes,
         ManualSprints = ManualSprints,
@@ -318,8 +319,11 @@ public partial class MainViewModel
         _isWorkEndDetectionEnabled = settings.IsWorkEndDetectionEnabled;
         _workEndThresholdMinutes = Math.Clamp(
             settings.WorkEndThresholdMinutes <= 0 ? 30 : settings.WorkEndThresholdMinutes, 5, 480);
+        _workEndEarliestHour = Math.Clamp(settings.WorkEndEarliestHour, 0, 23);
         OnPropertyChanged(nameof(IsWorkEndDetectionEnabled));
         OnPropertyChanged(nameof(WorkEndThresholdMinutes));
+        OnPropertyChanged(nameof(WorkEndEarliestHour));
+        OnPropertyChanged(nameof(SelectedWorkEndEarliestOption));
 
         ApplyAwaySettings();
 
