@@ -60,10 +60,6 @@ public sealed partial class ActiveWindowTracker : IDisposable
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool GetProcessTimes(IntPtr hProcess, out long lpCreationTime, out long lpExitTime, out long lpKernelTime, out long lpUserTime);
 
-    [LibraryImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool UnhookWinEvent(IntPtr hWinEventHook);
-
     private delegate void WinEventProc(
         IntPtr hWinEventHook, uint eventType, IntPtr hwnd,
         int idObject, int idChild, uint dwEventThread, uint dwmsEventTime);
@@ -71,15 +67,20 @@ public sealed partial class ActiveWindowTracker : IDisposable
     [return: MarshalAs(UnmanagedType.Bool)]
     private delegate bool EnumWindowsProc(IntPtr hwnd, IntPtr lParam);
 
-    // ここから下の2つはコールバック（デリゲート）を引数に取る。
-    // LibraryImport のソースジェネレーターはデリゲートのマーシャリングに対応していないため、
-    // DllImport のままにする（SYSLIB1054 の提案には従えない）
+    // WinEvent フック周りは LibraryImport を使わず DllImport で宣言する。
+    // SetWinEventHook / EnumChildWindows はコールバック（デリゲート）を引数に取り、
+    // ソースジェネレーターがマーシャリングコードを生成できないため。
+    // UnhookWinEvent も対になる宣言なので、同じ場所にまとめて置く
 #pragma warning disable SYSLIB1054
 
     [DllImport("user32.dll")]
     private static extern IntPtr SetWinEventHook(
         uint eventMin, uint eventMax, IntPtr hmodWinEventProc,
         WinEventProc lpfnWinEventProc, uint idProcess, uint idThread, uint dwFlags);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool UnhookWinEvent(IntPtr hWinEventHook);
 
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
