@@ -359,6 +359,8 @@ public partial class MainViewModel
         OnPropertyChanged(nameof(EnabledDayHeaders));
 
         UpdateVisibleDays();
+        // 開始日を持たない旧データの定期予定に当日を設定する（起動時に1回）
+        MigrateRoutineStartDates();
         // 旧方式で保存された未来の未編集アイテムを仮想表示へ置き換える（起動時に1回）
         MigrateGeneratedRoutineItems();
         EnsureRoutineOccurrences(CurrentDate);

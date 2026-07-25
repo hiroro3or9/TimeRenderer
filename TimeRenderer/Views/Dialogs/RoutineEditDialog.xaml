@@ -1,7 +1,7 @@
 <Window x:Class="TimeRenderer.Views.Dialogs.RoutineEditDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="定期予定の編集" Height="680" Width="420"
+        Title="定期予定の編集" Height="780" Width="420"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         Background="{DynamicResource BackgroundBrush}">
@@ -37,6 +37,12 @@
                 <CheckBox x:Name="SatCheck" Content="土" Margin="0,4,14,0" VerticalContentAlignment="Center"/>
                 <CheckBox x:Name="SunCheck" Content="日" Margin="0,4,0,0" VerticalContentAlignment="Center"/>
             </WrapPanel>
+
+            <TextBlock Text="開始日" Style="{StaticResource FieldLabelStyle}" Margin="0,12,0,0"/>
+            <DatePicker x:Name="StartDatePicker" Width="160" HorizontalAlignment="Left"
+                        Padding="4,4" VerticalContentAlignment="Center"/>
+            <TextBlock Text="この日より前には予定を表示しません（過去にも表示したい場合は日付を遡って設定します）"
+                       FontSize="11" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" Margin="0,4,0,0"/>
         </StackPanel>
 
         <!-- 開始時刻 -->

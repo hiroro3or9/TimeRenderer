@@ -24,6 +24,13 @@ public class RoutineScheduleItem
     /// <summary>繰り返す曜日</summary>
     public List<DayOfWeek> DaysOfWeek { get; set; } = [];
 
+    /// <summary>
+    /// 有効開始日（日付部分のみ）。この日より前には予定を生成しない。
+    /// 新規作成時は作成日が入る。既定値（DateTime.MinValue）は開始日未設定の旧データを表し、
+    /// 起動時の移行処理で当日に設定される。
+    /// </summary>
+    public DateTime StartDate { get; set; }
+
     /// <summary>開始時刻（時刻部分のみ）</summary>
     public TimeSpan StartTime { get; set; }
 
@@ -90,6 +97,11 @@ public class RoutineScheduleItem
     /// <summary>一覧表示用：時刻範囲（例: "10:00-11:00"）</summary>
     [JsonIgnore]
     public string TimeRangeDisplay => $"{FormatTime(StartTime)}-{FormatTime(EndTime)}";
+
+    /// <summary>一覧表示用：開始日（例: "2026/07/25〜"）</summary>
+    [JsonIgnore]
+    public string StartDateDisplay =>
+        StartDate == default ? string.Empty : $"{StartDate:yyyy/MM/dd}〜";
 
     private static string FormatTime(TimeSpan t) => $"{(int)t.TotalHours:D2}:{t.Minutes:D2}";
 }

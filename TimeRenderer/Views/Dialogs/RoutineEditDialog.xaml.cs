@@ -66,6 +66,11 @@ namespace TimeRenderer.Views.Dialogs
                 SatCheck.IsChecked = existingRoutine.DaysOfWeek.Contains(DayOfWeek.Saturday);
                 SunCheck.IsChecked = existingRoutine.DaysOfWeek.Contains(DayOfWeek.Sunday);
 
+                // 旧データ（開始日なし）は当日を初期値にする
+                StartDatePicker.SelectedDate = existingRoutine.StartDate == default
+                    ? DateTime.Today
+                    : existingRoutine.StartDate.Date;
+
                 StartHourCombo.SelectedItem = existingRoutine.StartTime.Hours.ToString("D2");
                 StartMinuteCombo.SelectedItem = (existingRoutine.StartTime.Minutes / 5 * 5).ToString("D2");
                 EndHourCombo.SelectedItem = existingRoutine.EndTime.Hours.ToString("D2");
@@ -85,8 +90,9 @@ namespace TimeRenderer.Views.Dialogs
             }
             else
             {
-                // 新規モード：デフォルト値を設定
+                // 新規モード：デフォルト値を設定（開始日は作成日＝当日）
                 var now = DateTime.Now;
+                StartDatePicker.SelectedDate = now.Date;
                 StartHourCombo.SelectedItem = now.Hour.ToString("D2");
                 StartMinuteCombo.SelectedItem = (now.Minute / 5 * 5).ToString("D2");
                 var endHour = (now.Hour + 1) % 24;
@@ -121,6 +127,12 @@ namespace TimeRenderer.Views.Dialogs
                 return;
             }
 
+            if (StartDatePicker.SelectedDate == null)
+            {
+                MessageBox.Show("開始日を選択してください。", "入力エラー", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
             if (StartHourCombo.SelectedItem == null || StartMinuteCombo.SelectedItem == null ||
                 EndHourCombo.SelectedItem == null || EndMinuteCombo.SelectedItem == null)
             {
@@ -150,6 +162,7 @@ namespace TimeRenderer.Views.Dialogs
                 Id = _routineId,
                 Title = TitleCombo.Text.Trim(),
                 DaysOfWeek = days,
+                StartDate = StartDatePicker.SelectedDate.Value.Date,
                 StartTime = startTime,
                 EndTime = endTime,
                 ColorCode = selectedColor?.Brush.ToString() ?? Brushes.Lavender.ToString(),

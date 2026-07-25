@@ -144,13 +144,14 @@ public partial class MainViewModel
     /// <summary>
     /// 有効な定期予定について、指定日を中心とした一定期間（過去7日～先60日）に
     /// 未生成の「仮想アイテム」（IsVirtual=true、保存されない）があれば生成する。
-    /// 実体アイテム（記録済み・個別編集済み）がある日と、除外日（ExcludedDates）には生成しない。
+    /// 実体アイテム（記録済み・個別編集済み）がある日と、除外日（ExcludedDates）、
+    /// および定期予定の開始日（StartDate）より前の日には生成しない。
     /// </summary>
     private void EnsureRoutineOccurrences(DateTime aroundDate)
     {
         if (Routines.Count == 0) return;
 
-        var rangeStart = aroundDate.Date.AddDays(-7);
+        var windowStart = aroundDate.Date.AddDays(-7);
         var rangeEnd = aroundDate.Date.AddDays(60);
 
         var existingKeys = ScheduleItems
@@ -168,6 +169,9 @@ public partial class MainViewModel
                 ? Categories.FirstOrDefault(c => c.Id == routine.CategoryId)?.ColorCode
                 : null;
             var excluded = routine.ExcludedDates.Select(d => d.Date).ToHashSet();
+
+            // 開始日より前には生成しない（定期予定を作る前の過去に予定が現れないようにする）
+            var rangeStart = routine.StartDate > windowStart ? routine.StartDate.Date : windowStart;
 
             for (var date = rangeStart; date <= rangeEnd; date = date.AddDays(1))
             {
@@ -234,6 +238,25 @@ public partial class MainViewModel
 
         EnsureRoutineOccurrences(aroundDate);
         RecalculateLayout();
+    }
+
+    /// <summary>
+    /// 開始日を持たない旧データの移行：StartDate が未設定（既定値）の定期予定に当日を設定する。
+    /// これにより、以前から登録されている定期予定も過去には表示されなくなる。
+    /// 過去にも表示したい場合はダイアログで開始日を遡って設定できる。
+    /// 起動時に1回だけ呼ぶ。
+    /// </summary>
+    private void MigrateRoutineStartDates()
+    {
+        var targets = Routines.Where(r => r.StartDate == default).ToList();
+        if (targets.Count == 0) return;
+
+        var today = DateTime.Today;
+        foreach (var routine in targets)
+        {
+            routine.StartDate = today;
+        }
+        SaveSettings();
     }
 
     /// <summary>
