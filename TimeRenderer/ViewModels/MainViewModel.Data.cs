@@ -240,6 +240,7 @@ public partial class MainViewModel
         ManualSprints = ManualSprints,
         EnabledDaysOfWeek = EnabledDaysOfWeek,
         Categories = [.. Categories],
+        RecordingCategoryId = _recordingCategoryDefaultId,
         PinnedTitles = [.. PinnedTitles.Select(t => t.Text)],
         RoutineSchedules = Routines
     };
@@ -337,6 +338,7 @@ public partial class MainViewModel
         OnPropertyChanged(nameof(ManualSprints));
 
         LoadCategories(settings.Categories);
+        LoadRecordingCategoryId(settings.RecordingCategoryId);
         LoadPinnedTitles(settings.PinnedTitles);
 
         _routines = settings.RoutineSchedules ?? [];

@@ -371,6 +371,27 @@
                     </ItemsControl>
                     <Button Content="＋ カテゴリを追加" Command="{Binding AddCategoryCommand}"
                             Style="{StaticResource BaseButtonStyle}" HorizontalAlignment="Stretch" Margin="0,0,0,4"/>
+
+                    <!-- 記録開始時の既定カテゴリ -->
+                    <Separator Margin="0,12,0,10" Background="{DynamicResource BorderBrush}"/>
+                    <TextBlock Text="記録開始時の種別" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,4"/>
+                    <TextBlock Text="「記録開始」で作られる記録に付くカテゴリです（予定から記録を始めた場合はその予定の種別が優先されます）"
+                               FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
+                               TextWrapping="Wrap" Margin="0,0,0,8"/>
+                    <ComboBox ItemsSource="{Binding Categories}"
+                              SelectedItem="{Binding SelectedRecordingCategory}"
+                              Height="32" Margin="0,0,0,4">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal">
+                                    <Border Width="20" Height="14" Background="{Binding Brush}" CornerRadius="3"
+                                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                            VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <TextBlock Text="{Binding Name}" VerticalAlignment="Center" FontSize="12"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
                     </StackPanel>
                     </Expander>
 
