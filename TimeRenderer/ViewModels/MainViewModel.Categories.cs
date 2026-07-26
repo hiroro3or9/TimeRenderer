@@ -50,7 +50,12 @@ public partial class MainViewModel
     private void InitializeCategoryCommands()
     {
         // 追加・削除・読み込み直しのたびに解決用の索引を作り直す
-        Categories.CollectionChanged += (_, _) => InvalidateCategoryLookup();
+        Categories.CollectionChanged += (_, _) =>
+        {
+            InvalidateCategoryLookup();
+            // 既定カテゴリが消えた場合はフォールバック先が変わる
+            NotifyRecordingCategoryChanged();
+        };
 
         AddCategoryCommand = new RelayCommand(_ =>
         {
@@ -95,6 +100,12 @@ public partial class MainViewModel
     {
         // 色が変わるとアイテムとの紐付け（色フォールバック）も変わるため索引を捨てる
         if (e.PropertyName == nameof(CategoryInfo.ColorCode)) InvalidateCategoryLookup();
+
+        // 既定カテゴリ未設定時は名前「記録」でフォールバックしているため、改名で結果が変わる
+        if (e.PropertyName == nameof(CategoryInfo.Name) && string.IsNullOrEmpty(_recordingCategoryDefaultId))
+        {
+            NotifyRecordingCategoryChanged();
+        }
 
         if (_isLoadingData) return;
 
@@ -193,7 +204,52 @@ public partial class MainViewModel
         return category == null || category.IsFilterEnabled;
     }
 
-    /// <summary>記録機能で使う既定カテゴリ（「記録」があればそれ、なければ先頭）</summary>
-    public CategoryInfo? RecordingCategory =>
-        Categories.FirstOrDefault(c => c.Name == "記録") ?? Categories.FirstOrDefault();
+    // ===== 記録開始時の既定カテゴリ =====
+
+    private string? _recordingCategoryDefaultId;
+
+    /// <summary>
+    /// 記録機能で使う既定カテゴリ。
+    /// 設定で指定されたIDを優先し、未設定・削除済みなら「記録」→先頭カテゴリの順にフォールバックする。
+    /// </summary>
+    public CategoryInfo? RecordingCategory
+    {
+        get
+        {
+            if (!string.IsNullOrEmpty(_recordingCategoryDefaultId))
+            {
+                var (byId, _) = GetCategoryLookup();
+                if (byId.TryGetValue(_recordingCategoryDefaultId, out var configured)) return configured;
+            }
+            return Categories.FirstOrDefault(c => c.Name == "記録") ?? Categories.FirstOrDefault();
+        }
+    }
+
+    /// <summary>設定パネルのコンボボックス用（選択したカテゴリを既定として保存する）</summary>
+    public CategoryInfo? SelectedRecordingCategory
+    {
+        get => RecordingCategory;
+        set
+        {
+            // ItemsSource の入れ替え中に null が入ることがあるため、選択解除は無視する
+            if (value == null || value.Id == _recordingCategoryDefaultId) return;
+            _recordingCategoryDefaultId = value.Id;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(RecordingCategory));
+            SaveSettings();
+        }
+    }
+
+    /// <summary>設定から既定カテゴリを反映する（LoadCategories の後に呼ぶこと）</summary>
+    private void LoadRecordingCategoryId(string? id)
+    {
+        _recordingCategoryDefaultId = string.IsNullOrEmpty(id) ? null : id;
+        NotifyRecordingCategoryChanged();
+    }
+
+    private void NotifyRecordingCategoryChanged()
+    {
+        OnPropertyChanged(nameof(RecordingCategory));
+        OnPropertyChanged(nameof(SelectedRecordingCategory));
+    }
 }

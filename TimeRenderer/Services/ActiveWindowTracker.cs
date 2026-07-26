@@ -445,8 +445,7 @@ public sealed partial class ActiveWindowTracker : IDisposable
 
         try
         {
-            long creationTime = 0;
-            _ = GetProcessTimes(handle, out creationTime, out _, out _, out _);
+            _ = GetProcessTimes(handle, out long creationTime, out _, out _, out _);
 
             var key = (pid, creationTime);
             if (_processInfoCache.TryGetValue(key, out var cached)) return cached;
