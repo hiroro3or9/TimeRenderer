@@ -13,8 +13,8 @@ namespace TimeRenderer.ViewModels;
 
 /// <summary>
 /// 定期予定（ルーティン）の管理。
-/// 「記録開始を忘れる」対策として、毎週決まった曜日・時刻の予定を自動生成し、
-/// 開始時刻にはリマインダー通知（または設定に応じた自動記録開始）を行う。
+/// 「記録開始を忘れる」対策として、決まった曜日・日付の予定（毎週／N週ごと／毎月／Nヶ月ごと）を
+/// 自動生成し、開始時刻にはリマインダー通知（または設定に応じた自動記録開始）を行う。
 /// </summary>
 public partial class MainViewModel
 {
@@ -162,8 +162,7 @@ public partial class MainViewModel
         var toAdd = new List<ScheduleItem>();
         foreach (var routine in Routines)
         {
-            if (!routine.IsEnabled || routine.DaysOfWeek.Count == 0) continue;
-            if (routine.EndTime <= routine.StartTime) continue;
+            if (!routine.IsEnabled || !routine.IsValidRecurrence) continue;
 
             var categoryColor = routine.CategoryId != null
                 ? Categories.FirstOrDefault(c => c.Id == routine.CategoryId)?.ColorCode
@@ -175,7 +174,7 @@ public partial class MainViewModel
 
             for (var date = rangeStart; date <= rangeEnd; date = date.AddDays(1))
             {
-                if (!routine.DaysOfWeek.Contains(date.DayOfWeek)) continue;
+                if (!routine.OccursOn(date)) continue;
                 if (excluded.Contains(date)) continue;
                 if (existingKeys.Contains((routine.Id, date))) continue;
 
@@ -283,7 +282,7 @@ public partial class MainViewModel
             i.StartTime.Date == i.EndTime.Date &&
             i.StartTime.TimeOfDay == r.StartTime &&
             i.EndTime.TimeOfDay == r.EndTime &&
-            r.DaysOfWeek.Contains(i.StartTime.DayOfWeek) &&
+            r.OccursOn(i.StartTime.Date) &&
             !r.ExcludedDates.Contains(i.StartTime.Date)).ToList();
 
         if (toRemove.Count == 0) return;

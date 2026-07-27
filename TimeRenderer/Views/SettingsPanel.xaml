@@ -439,7 +439,7 @@
                             <TextBlock Text="定期予定（ルーティン）" Style="{StaticResource SettingsSectionHeaderStyle}"/>
                         </Expander.Header>
                     <StackPanel>
-                    <TextBlock Text="毎週決まった曜日・時刻の予定を自動生成します。記録の開始忘れ防止に使えます（開始時刻にリマインダー通知、または自動で記録開始）"
+                    <TextBlock Text="決まった曜日・日付の予定を自動生成します（毎週・隔週などのN週ごと／毎月・隔月などのNヶ月ごと）。記録の開始忘れ防止に使えます（開始時刻にリマインダー通知、または自動で記録開始）"
                                FontSize="11" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" Margin="0,0,0,10"/>
                     <ItemsControl ItemsSource="{Binding Routines}" Margin="0,0,0,8">
                         <ItemsControl.ItemTemplate>
@@ -453,7 +453,7 @@
                                         <StackPanel Grid.Column="0">
                                             <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}"/>
                                             <TextBlock FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0">
-                                                <Run Text="{Binding DaysOfWeekDisplay, Mode=OneWay}"/>
+                                                <Run Text="{Binding RecurrenceDisplay, Mode=OneWay}"/>
                                                 <Run Text=" "/>
                                                 <Run Text="{Binding TimeRangeDisplay, Mode=OneWay}"/>
                                                 <Run Text="  "/>
