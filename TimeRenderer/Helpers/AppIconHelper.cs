@@ -1,5 +1,4 @@
-﻿using System.Windows;
-using System.Windows.Resources;
+﻿using System.Windows.Resources;
 using Drawing = System.Drawing;
 using WinForms = System.Windows.Forms;
 
@@ -22,7 +21,7 @@ namespace TimeRenderer.Helpers
         {
             try
             {
-                StreamResourceInfo? info = Application.GetResourceStream(new Uri(IconResourceUri));
+                StreamResourceInfo? info = System.Windows.Application.GetResourceStream(new Uri(IconResourceUri));
                 if (info?.Stream is { } stream)
                 {
                     using (stream)
