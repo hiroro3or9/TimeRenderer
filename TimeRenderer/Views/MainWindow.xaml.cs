@@ -22,6 +22,7 @@ namespace TimeRenderer.Views
     {
         private MainViewModel ViewModel => (MainViewModel)DataContext;
         private WinForms.NotifyIcon _notifyIcon = null!;
+        private Drawing.Icon _trayIcon = null!;
         private WinForms.ToolStripMenuItem _recordMenuItem = null!;
         private WinForms.ToolStripMenuItem _workDayMenuItem = null!;
         private bool _isExiting = false;
@@ -63,10 +64,12 @@ namespace TimeRenderer.Views
 
         private void SetupNotifyIcon()
         {
+            // アプリ固有のアイコンを現在の DPI に合ったサイズで読み込む（失敗時はシステムアイコン）
+            _trayIcon = Helpers.AppIconHelper.CreateTrayIcon();
+
             _notifyIcon = new()
             {
-                // アイコンはアプリケーションのアイコンがあればそれを使う、なければシステムアイコン
-                Icon = Drawing.SystemIcons.Application,
+                Icon = _trayIcon,
                 Visible = true,
                 Text = "TimeRenderer"
             };
@@ -250,6 +253,9 @@ namespace TimeRenderer.Views
                 _notifyIcon.Visible = false;
                 _notifyIcon.Dispose();
             }
+
+            // NotifyIcon は Icon を破棄しないので自前で解放する
+            _trayIcon?.Dispose();
 
             if (DataContext is MainViewModel vm)
             {
