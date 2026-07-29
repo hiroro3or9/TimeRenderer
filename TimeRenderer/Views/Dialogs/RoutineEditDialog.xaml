@@ -35,18 +35,26 @@
             <TextBlock Text="間隔" Style="{StaticResource FieldLabelStyle}"/>
             <ComboBox x:Name="WeekIntervalCombo" Width="200" HorizontalAlignment="Left" FontSize="14" Padding="6,6"
                       DisplayMemberPath="Label"/>
-
-            <TextBlock Text="繰り返す曜日" Style="{StaticResource FieldLabelStyle}" Margin="0,12,0,0"/>
-            <WrapPanel>
-                <CheckBox x:Name="MonCheck" Content="月" Margin="0,4,14,0" VerticalContentAlignment="Center"/>
-                <CheckBox x:Name="TueCheck" Content="火" Margin="0,4,14,0" VerticalContentAlignment="Center"/>
-                <CheckBox x:Name="WedCheck" Content="水" Margin="0,4,14,0" VerticalContentAlignment="Center"/>
-                <CheckBox x:Name="ThuCheck" Content="木" Margin="0,4,14,0" VerticalContentAlignment="Center"/>
-                <CheckBox x:Name="FriCheck" Content="金" Margin="0,4,14,0" VerticalContentAlignment="Center"/>
-                <CheckBox x:Name="SatCheck" Content="土" Margin="0,4,14,0" VerticalContentAlignment="Center"/>
-                <CheckBox x:Name="SunCheck" Content="日" Margin="0,4,0,0" VerticalContentAlignment="Center"/>
-            </WrapPanel>
             <TextBlock Text="間隔の起点は下の開始日です（開始日を含む週を1週目として数えます）"
+                       FontSize="11" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+        </StackPanel>
+
+        <!-- 第N曜日指定（毎月 第1・第3 月曜 など） -->
+        <StackPanel x:Name="MonthlyWeekdayPanel" Margin="0,0,0,14" Visibility="Collapsed">
+            <TextBlock Text="間隔" Style="{StaticResource FieldLabelStyle}"/>
+            <ComboBox x:Name="MonthWeekIntervalCombo" Width="200" HorizontalAlignment="Left" FontSize="14" Padding="6,6"
+                      DisplayMemberPath="Label"/>
+
+            <TextBlock Text="繰り返す週" Style="{StaticResource FieldLabelStyle}" Margin="0,12,0,0"/>
+            <WrapPanel>
+                <CheckBox x:Name="Week1Check" Content="第1" Margin="0,4,14,0" VerticalContentAlignment="Center"/>
+                <CheckBox x:Name="Week2Check" Content="第2" Margin="0,4,14,0" VerticalContentAlignment="Center"/>
+                <CheckBox x:Name="Week3Check" Content="第3" Margin="0,4,14,0" VerticalContentAlignment="Center"/>
+                <CheckBox x:Name="Week4Check" Content="第4" Margin="0,4,14,0" VerticalContentAlignment="Center"/>
+                <CheckBox x:Name="Week5Check" Content="第5" Margin="0,4,14,0" VerticalContentAlignment="Center"/>
+                <CheckBox x:Name="WeekLastCheck" Content="最終" Margin="0,4,0,0" VerticalContentAlignment="Center"/>
+            </WrapPanel>
+            <TextBlock Text="第5週が無い月は「第5」の回を飛ばします。毎月必ず入れたい場合は「最終」を選びます"
                        FontSize="11" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" Margin="0,6,0,0"/>
         </StackPanel>
 
@@ -63,6 +71,20 @@
                        FontSize="11" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" Margin="0,6,0,0"/>
         </StackPanel>
 
+        <!-- 曜日（毎週・第N曜日の両方で使う） -->
+        <StackPanel x:Name="DaysOfWeekPanel" Margin="0,0,0,14">
+            <TextBlock Text="繰り返す曜日" Style="{StaticResource FieldLabelStyle}"/>
+            <WrapPanel>
+                <CheckBox x:Name="MonCheck" Content="月" Margin="0,4,14,0" VerticalContentAlignment="Center"/>
+                <CheckBox x:Name="TueCheck" Content="火" Margin="0,4,14,0" VerticalContentAlignment="Center"/>
+                <CheckBox x:Name="WedCheck" Content="水" Margin="0,4,14,0" VerticalContentAlignment="Center"/>
+                <CheckBox x:Name="ThuCheck" Content="木" Margin="0,4,14,0" VerticalContentAlignment="Center"/>
+                <CheckBox x:Name="FriCheck" Content="金" Margin="0,4,14,0" VerticalContentAlignment="Center"/>
+                <CheckBox x:Name="SatCheck" Content="土" Margin="0,4,14,0" VerticalContentAlignment="Center"/>
+                <CheckBox x:Name="SunCheck" Content="日" Margin="0,4,0,0" VerticalContentAlignment="Center"/>
+            </WrapPanel>
+        </StackPanel>
+
         <!-- 開始日 -->
         <StackPanel Margin="0,0,0,14">
             <TextBlock Text="開始日" Style="{StaticResource FieldLabelStyle}"/>
@@ -70,6 +92,23 @@
                         Padding="4,4" VerticalContentAlignment="Center"/>
             <TextBlock Text="この日より前には予定を表示しません（過去にも表示したい場合は日付を遡って設定します）"
                        FontSize="11" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+        </StackPanel>
+
+        <!-- 規則的な休み（N回に1回は開催されない予定） -->
+        <StackPanel Margin="0,0,0,14">
+            <CheckBox x:Name="SkipEnabledCheck" Content="一定の回数ごとに1回休む" VerticalContentAlignment="Center"
+                      Checked="SkipEnabledCheck_Changed" Unchecked="SkipEnabledCheck_Changed"/>
+            <StackPanel x:Name="SkipDetailPanel" Orientation="Horizontal" Margin="16,8,0,0"
+                        IsEnabled="{Binding IsChecked, ElementName=SkipEnabledCheck}">
+                <ComboBox x:Name="SkipEveryCombo" Width="120" FontSize="14" Padding="6,6"
+                          DisplayMemberPath="Label" SelectionChanged="SkipEveryCombo_SelectionChanged"/>
+                <TextBlock Text="のうち" VerticalAlignment="Center" Margin="8,0"/>
+                <ComboBox x:Name="SkipIndexCombo" Width="120" FontSize="14" Padding="6,6"
+                          DisplayMemberPath="Label"/>
+                <TextBlock Text="を休む" VerticalAlignment="Center" Margin="8,0,0,0"/>
+            </StackPanel>
+            <TextBlock Text="回数は開始日以降の1回目から数えます（例: 「2回」「2回目」なら隔回で休みになります）"
+                       FontSize="11" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" Margin="16,6,0,0"/>
         </StackPanel>
 
         <!-- 開始時刻 -->

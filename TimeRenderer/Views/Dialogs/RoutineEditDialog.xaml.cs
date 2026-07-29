@@ -11,8 +11,9 @@ namespace TimeRenderer.Views.Dialogs
 {
     /// <summary>
     /// 定期予定（ルーティン）の追加・編集用ダイアログ。
-    /// 曜日指定（毎週・N週ごと）または日付指定（毎月・Nヶ月ごと）で
-    /// 予定を自動生成するテンプレートを作成する。
+    /// 曜日指定（毎週・N週ごと）、日付指定（毎月・Nヶ月ごと）、
+    /// 第N曜日指定（毎月 第1・第3 月曜など）で予定を自動生成するテンプレートを作成する。
+    /// 「N回に1回は開催されない」規則的な休みも設定できる。
     /// </summary>
     public partial class RoutineEditDialog : Window
     {
@@ -31,6 +32,9 @@ namespace TimeRenderer.Views.Dialogs
 
         /// <summary>選択できる月の間隔（1=毎月, 2=隔月, …）</summary>
         private static readonly int[] MonthIntervals = [1, 2, 3, 4, 6, 12];
+
+        /// <summary>選択できる休みの周期（N回に1回休む）</summary>
+        private static readonly int[] SkipEveryOptions = [2, 3, 4, 5, 6, 8, 10, 12];
 
         /// <summary>
         /// 編集対象の定期予定（ダイアログ結果）
@@ -65,11 +69,14 @@ namespace TimeRenderer.Views.Dialogs
             {
                 new("毎週（曜日で指定）", (int)RecurrenceType.Weekly),
                 new("毎月（日付で指定）", (int)RecurrenceType.MonthlyByDate),
+                new("毎月（第N曜日で指定）", (int)RecurrenceType.MonthlyByWeekday),
             };
             WeekIntervalCombo.ItemsSource = WeekIntervals.Select(i => new OptionItem(WeekIntervalLabel(i), i)).ToList();
             MonthIntervalCombo.ItemsSource = MonthIntervals.Select(i => new OptionItem(MonthIntervalLabel(i), i)).ToList();
+            MonthWeekIntervalCombo.ItemsSource = MonthIntervals.Select(i => new OptionItem(MonthIntervalLabel(i), i)).ToList();
             DayOfMonthCombo.ItemsSource = Enumerable.Range(1, 31)
                 .Select(d => new OptionItem(d == 31 ? "31日（末日）" : $"{d}日", d)).ToList();
+            SkipEveryCombo.ItemsSource = SkipEveryOptions.Select(n => new OptionItem($"{n}回", n)).ToList();
 
             // 時間コンボボックスを初期化（0〜23時、0〜55分を5分刻み）
             StartHourCombo.ItemsSource = Enumerable.Range(0, 24).Select(h => h.ToString("D2")).ToList();
@@ -86,7 +93,19 @@ namespace TimeRenderer.Views.Dialogs
                 SelectOption(RecurrenceCombo, (int)existingRoutine.Recurrence);
                 SelectOption(WeekIntervalCombo, existingRoutine.Interval);
                 SelectOption(MonthIntervalCombo, existingRoutine.Interval);
+                SelectOption(MonthWeekIntervalCombo, existingRoutine.Interval);
                 SelectOption(DayOfMonthCombo, existingRoutine.DayOfMonth);
+
+                Week1Check.IsChecked = existingRoutine.WeeksOfMonth.Contains(1);
+                Week2Check.IsChecked = existingRoutine.WeeksOfMonth.Contains(2);
+                Week3Check.IsChecked = existingRoutine.WeeksOfMonth.Contains(3);
+                Week4Check.IsChecked = existingRoutine.WeeksOfMonth.Contains(4);
+                Week5Check.IsChecked = existingRoutine.WeeksOfMonth.Contains(5);
+                WeekLastCheck.IsChecked = existingRoutine.WeeksOfMonth.Contains(RoutineScheduleItem.LastWeekOfMonth);
+
+                SkipEnabledCheck.IsChecked = existingRoutine.SkipEvery >= 2;
+                SelectOption(SkipEveryCombo, existingRoutine.SkipEvery >= 2 ? existingRoutine.SkipEvery : 2);
+                RebuildSkipIndexOptions(existingRoutine.SkipIndex);
 
                 MonCheck.IsChecked = existingRoutine.DaysOfWeek.Contains(DayOfWeek.Monday);
                 TueCheck.IsChecked = existingRoutine.DaysOfWeek.Contains(DayOfWeek.Tuesday);
@@ -125,7 +144,12 @@ namespace TimeRenderer.Views.Dialogs
                 SelectOption(RecurrenceCombo, (int)RecurrenceType.Weekly);
                 SelectOption(WeekIntervalCombo, 1);
                 SelectOption(MonthIntervalCombo, 1);
+                SelectOption(MonthWeekIntervalCombo, 1);
                 SelectOption(DayOfMonthCombo, now.Day);
+                SelectOption(SkipEveryCombo, 2);
+                RebuildSkipIndexOptions(2);
+                // 第N曜日の既定は「その日が属する週・曜日」
+                SelectWeekOfMonth(((now.Day - 1) / 7) + 1);
                 StartDatePicker.SelectedDate = now.Date;
                 StartHourCombo.SelectedItem = now.Hour.ToString("D2");
                 StartMinuteCombo.SelectedItem = (now.Minute / 5 * 5).ToString("D2");
@@ -165,16 +189,71 @@ namespace TimeRenderer.Views.Dialogs
         private void RecurrenceCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
             => UpdateRecurrencePanels();
 
-        /// <summary>選択中の繰り返し種別に応じて、曜日指定／日付指定の入力欄を切り替える</summary>
+        private void SkipEveryCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+            => RebuildSkipIndexOptions();
+
+        private void SkipEnabledCheck_Changed(object sender, RoutedEventArgs e)
+            => RebuildSkipIndexOptions();
+
+        /// <summary>
+        /// 「休む回」の選択肢を「休みの周期」に合わせて作り直す。
+        /// 選択中の値は残し、周期より大きくなる場合は最後の回に丸める。
+        /// </summary>
+        /// <param name="desiredIndex">選ばせたい回（省略時は現在の選択を維持）</param>
+        private void RebuildSkipIndexOptions(int? desiredIndex = null)
+        {
+            // ItemsSource 設定に伴う選択変更でも呼ばれるため、未初期化の状態を避ける
+            if (SkipIndexCombo == null || SkipEveryCombo?.SelectedItem == null) return;
+
+            var every = SelectedValue(SkipEveryCombo);
+            var current = desiredIndex
+                ?? (SkipIndexCombo.SelectedItem is OptionItem item ? item.Value : 1);
+
+            SkipIndexCombo.ItemsSource = Enumerable.Range(1, every)
+                .Select(i => new OptionItem($"{i}回目", i)).ToList();
+            SelectOption(SkipIndexCombo, Math.Clamp(current, 1, every));
+        }
+
+        /// <summary>第N曜日の週チェックを1つだけ選ぶ（新規作成時の既定値用）</summary>
+        private void SelectWeekOfMonth(int nth)
+        {
+            Week1Check.IsChecked = nth == 1;
+            Week2Check.IsChecked = nth == 2;
+            Week3Check.IsChecked = nth == 3;
+            Week4Check.IsChecked = nth == 4;
+            Week5Check.IsChecked = nth == 5;
+        }
+
+        /// <summary>チェックされた週番号（1〜5・最終）を集める</summary>
+        private List<int> CollectWeeksOfMonth()
+        {
+            var weeks = new List<int>();
+            if (Week1Check.IsChecked == true) weeks.Add(1);
+            if (Week2Check.IsChecked == true) weeks.Add(2);
+            if (Week3Check.IsChecked == true) weeks.Add(3);
+            if (Week4Check.IsChecked == true) weeks.Add(4);
+            if (Week5Check.IsChecked == true) weeks.Add(5);
+            if (WeekLastCheck.IsChecked == true) weeks.Add(RoutineScheduleItem.LastWeekOfMonth);
+            return weeks;
+        }
+
+        /// <summary>選択中の繰り返し種別に応じて、曜日指定／日付指定／第N曜日指定の入力欄を切り替える</summary>
         private void UpdateRecurrencePanels()
         {
             // ItemsSource 設定に伴う選択変更でも呼ばれるため、未初期化の状態を避ける
-            if (WeeklyPanel == null || MonthlyPanel == null || RecurrenceCombo.SelectedItem == null) return;
+            if (WeeklyPanel == null || MonthlyPanel == null || MonthlyWeekdayPanel == null ||
+                DaysOfWeekPanel == null || RecurrenceCombo.SelectedItem == null) return;
 
-            var isMonthly = SelectedValue(RecurrenceCombo) == (int)RecurrenceType.MonthlyByDate;
-            WeeklyPanel.Visibility = isMonthly ? Visibility.Collapsed : Visibility.Visible;
-            MonthlyPanel.Visibility = isMonthly ? Visibility.Visible : Visibility.Collapsed;
+            var recurrence = (RecurrenceType)SelectedValue(RecurrenceCombo);
+
+            WeeklyPanel.Visibility = Visible(recurrence == RecurrenceType.Weekly);
+            MonthlyPanel.Visibility = Visible(recurrence == RecurrenceType.MonthlyByDate);
+            MonthlyWeekdayPanel.Visibility = Visible(recurrence == RecurrenceType.MonthlyByWeekday);
+            // 曜日は毎週・第N曜日の両方で使う
+            DaysOfWeekPanel.Visibility = Visible(recurrence != RecurrenceType.MonthlyByDate);
         }
+
+        private static Visibility Visible(bool visible) => visible ? Visibility.Visible : Visibility.Collapsed;
 
         private void OkButton_Click(object sender, RoutedEventArgs e)
         {
@@ -187,6 +266,7 @@ namespace TimeRenderer.Views.Dialogs
 
             var recurrence = (RecurrenceType)SelectedValue(RecurrenceCombo);
             var isMonthly = recurrence == RecurrenceType.MonthlyByDate;
+            var isMonthlyWeekday = recurrence == RecurrenceType.MonthlyByWeekday;
 
             var days = new List<DayOfWeek>();
             if (MonCheck.IsChecked == true) days.Add(DayOfWeek.Monday);
@@ -201,6 +281,13 @@ namespace TimeRenderer.Views.Dialogs
             if (!isMonthly && days.Count == 0)
             {
                 MessageBox.Show("曜日を1つ以上選択してください。", "入力エラー", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var weeksOfMonth = CollectWeeksOfMonth();
+            if (isMonthlyWeekday && weeksOfMonth.Count == 0)
+            {
+                MessageBox.Show("繰り返す週を1つ以上選択してください。", "入力エラー", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
@@ -234,14 +321,26 @@ namespace TimeRenderer.Views.Dialogs
 
             var selectedColor = (ColorOption?)ColorCombo.SelectedItem;
 
+            var interval = recurrence switch
+            {
+                RecurrenceType.MonthlyByDate => SelectedValue(MonthIntervalCombo),
+                RecurrenceType.MonthlyByWeekday => SelectedValue(MonthWeekIntervalCombo),
+                _ => SelectedValue(WeekIntervalCombo),
+            };
+
+            var skipEnabled = SkipEnabledCheck.IsChecked == true;
+
             ResultRoutine = new RoutineScheduleItem
             {
                 Id = _routineId,
                 Title = TitleCombo.Text.Trim(),
                 Recurrence = recurrence,
-                Interval = isMonthly ? SelectedValue(MonthIntervalCombo) : SelectedValue(WeekIntervalCombo),
+                Interval = interval,
                 DaysOfWeek = days,
                 DayOfMonth = SelectedValue(DayOfMonthCombo),
+                WeeksOfMonth = weeksOfMonth,
+                SkipEvery = skipEnabled ? SelectedValue(SkipEveryCombo) : 0,
+                SkipIndex = skipEnabled ? SelectedValue(SkipIndexCombo) : 1,
                 StartDate = StartDatePicker.SelectedDate.Value.Date,
                 StartTime = startTime,
                 EndTime = endTime,
