@@ -23,6 +23,7 @@ namespace TimeRenderer.ViewModels;
 /// - .Timeline.cs / .TimelineDecorations.cs / .TimelineViewport.cs : スプリントタイムラインの計算
 /// - .Stats.cs                        : 統計ビューの集計
 /// - .Away.cs                         : 離席検知と記録への反映
+/// - .Gaps.cs                         : 勤務時間内で記録が無い区間（記録漏れ）の検出
 /// - .AppUsage.cs                     : 記録中の使用アプリの自動記録と内訳表示
 /// - .Undo.cs                         : 取り消し・やり直し
 /// - .Search.cs / .Selection.cs / .Categories.cs / .Titles.cs / .Routines.cs : 各機能
@@ -196,6 +197,7 @@ public partial class MainViewModel : INotifyPropertyChanged
                 OnPropertyChanged(nameof(RecordingDurationText));
                 OnPropertyChanged(nameof(ShowAwayBanner));
                 OnRecordingChangedForAppUsage(value);
+                RebuildUnrecordedGaps(); // 記録中の区間は「記録済み」として扱う
             }
         }
     }
@@ -452,6 +454,7 @@ public partial class MainViewModel : INotifyPropertyChanged
                 _lastReminderCheck = CurrentTime;
                 CheckReminders(CurrentTime);
                 UpdateWorkDayTick(CurrentTime); // 勤務時間の表示更新と、日付またぎの自動締め
+                UpdateUnrecordedGapTick(CurrentTime); // 当日の未記録は時間の経過だけでも伸びる
             }
             if (IsRecording && RecordingStartTime.HasValue)
             {

@@ -257,6 +257,85 @@
                                     </ItemsControl.ItemsPanel>
                                 </ItemsControl>
 
+                                <!--
+                                    未記録の帯（記録漏れの候補）。
+                                    勤務時間内で記録が1件も無い区間に、破線の枠だけを敷く。
+                                    予定バーより先に置いて背面にし、クリックは一切受けない
+                                    （空白のドラッグ＝予定追加を邪魔しないため。この操作こそが穴埋めになる）。
+                                -->
+                                <ItemsControl ItemsSource="{Binding DataContext.UnrecordedGaps, RelativeSource={RelativeSource AncestorType=Window}}"
+                                              IsHitTestVisible="False">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <Canvas ClipToBounds="True"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemContainerStyle>
+                                        <Style TargetType="ContentPresenter">
+                                            <Setter Property="Visibility">
+                                                <Setter.Value>
+                                                    <MultiBinding Converter="{StaticResource DateToPageVisibilityConverter}" FallbackValue="Collapsed">
+                                                        <Binding Path="StartTime" />
+                                                        <Binding Path="DataContext" RelativeSource="{RelativeSource AncestorType=ItemsControl}"/> <!-- CurrentDate -->
+                                                        <Binding Path="DataContext.CurrentViewMode" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                        <Binding Path="DataContext.EnabledDaysOfWeek" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                    </MultiBinding>
+                                                </Setter.Value>
+                                            </Setter>
+                                            <Setter Property="Canvas.Top">
+                                                <Setter.Value>
+                                                    <MultiBinding Converter="{StaticResource TimeToPositionConverter}">
+                                                        <Binding Path="StartTime"/>
+                                                        <Binding Path="DataContext.DisplayStartHour" RelativeSource="{RelativeSource AncestorType=Window}"/>
+                                                    </MultiBinding>
+                                                </Setter.Value>
+                                            </Setter>
+                                            <Setter Property="Canvas.Left">
+                                                <Setter.Value>
+                                                    <MultiBinding Converter="{StaticResource DateToPagePositionConverter}">
+                                                        <Binding Path="StartTime" />
+                                                        <Binding Source="{StaticResource Zero}" /> <!-- ColumnIndex -->
+                                                        <Binding Source="{StaticResource Zero}" /> <!-- MaxColumnIndex -->
+                                                        <Binding Path="DataContext" RelativeSource="{RelativeSource AncestorType=ItemsControl}"/>
+                                                        <Binding Path="DataContext.CurrentViewMode" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                        <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=Canvas}" />
+                                                        <Binding Source="{StaticResource FalseValue}" /> <!-- IsAllDay -->
+                                                        <Binding Path="DataContext.EnabledDaysOfWeek" RelativeSource="{RelativeSource AncestorType=Window}"/>
+                                                    </MultiBinding>
+                                                </Setter.Value>
+                                            </Setter>
+                                            <Setter Property="Width">
+                                                <Setter.Value>
+                                                    <MultiBinding Converter="{StaticResource DateToPagePositionConverter}" ConverterParameter="WIDTH">
+                                                        <Binding Path="StartTime" />
+                                                        <Binding Source="{StaticResource Zero}" />
+                                                        <Binding Source="{StaticResource Zero}" />
+                                                        <Binding Path="DataContext" RelativeSource="{RelativeSource AncestorType=ItemsControl}"/>
+                                                        <Binding Path="DataContext.CurrentViewMode" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                        <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=Canvas}" />
+                                                        <Binding Source="{StaticResource FalseValue}" />
+                                                        <Binding Path="DataContext.EnabledDaysOfWeek" RelativeSource="{RelativeSource AncestorType=Window}"/>
+                                                    </MultiBinding>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </ItemsControl.ItemContainerStyle>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <!-- 破線＋薄い塗り。記録済みの箱と見間違えないよう、実線・影は使わない -->
+                                            <Grid Height="{Binding DurationHours, Converter={StaticResource DurationToHeightConverter}}" Margin="1,0,1,0">
+                                                <Rectangle Fill="{DynamicResource UnrecordedGapBrush}"
+                                                           Stroke="{DynamicResource UnrecordedGapBorderBrush}"
+                                                           StrokeThickness="1" StrokeDashArray="3 3"
+                                                           RadiusX="4" RadiusY="4"/>
+                                                <TextBlock Text="{Binding Label}" FontSize="10" Margin="6,2,4,0"
+                                                           VerticalAlignment="Top" TextTrimming="CharacterEllipsis"
+                                                           Foreground="{DynamicResource TextMutedBrush}"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
                                 <!-- スケジュールアイテム -->
                                 <ItemsControl x:Name="ScheduleItemsControl" ItemsSource="{Binding DataContext.StandardItems, RelativeSource={RelativeSource AncestorType=Window}}">
                                     <ItemsControl.ItemsPanel>
