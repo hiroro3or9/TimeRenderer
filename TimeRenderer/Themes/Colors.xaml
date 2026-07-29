@@ -17,6 +17,12 @@
     <Color x:Key="WorkEndColor">#7C3AED</Color>
     <SolidColorBrush x:Key="WorkEndBrush" Color="{StaticResource WorkEndColor}"/>
 
+    <!-- 未記録の帯（記録漏れの候補）。責める色にしないよう、警告色は使わず薄いグレーにする -->
+    <Color x:Key="UnrecordedGapColor">#1F94A3B8</Color>
+    <SolidColorBrush x:Key="UnrecordedGapBrush" Color="{StaticResource UnrecordedGapColor}"/>
+    <Color x:Key="UnrecordedGapBorderColor">#8094A3B8</Color>
+    <SolidColorBrush x:Key="UnrecordedGapBorderBrush" Color="{StaticResource UnrecordedGapBorderColor}"/>
+
     <!-- Danger Colors (Red based) -->
     <Color x:Key="DangerColor">#EF4444</Color>
     <SolidColorBrush x:Key="DangerBrush" Color="{StaticResource DangerColor}"/>

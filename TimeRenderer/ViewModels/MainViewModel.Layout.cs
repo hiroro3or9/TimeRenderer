@@ -333,6 +333,7 @@ public partial class MainViewModel
             UpdateCalendarCells();
             UpdateTimelineItems();
             UpdateStats();
+            RebuildUnrecordedGaps();
             return;
         }
 
@@ -445,6 +446,7 @@ public partial class MainViewModel
         UpdateCalendarCells();
         UpdateTimelineItems();
         UpdateStats();
+        RebuildUnrecordedGaps(); // 記録が変われば未記録の帯も変わる
     }
 
     // UpdateTimelineItems は MainViewModel.Timeline.cs に移動した

@@ -411,6 +411,7 @@ public partial class MainViewModel
         OnPropertyChanged(nameof(WorkDayButtonText));
         OnPropertyChanged(nameof(WorkStatusText));
         RebuildWorkDayMarkers();
+        RebuildUnrecordedGaps(); // 未記録の帯は勤務時間の内側にしか出ない
     }
 
     /// <summary>時計から定期的に呼ぶ：経過時間の表示更新と、日付またぎの自動締め</summary>
