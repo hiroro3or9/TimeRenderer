@@ -391,6 +391,11 @@ public partial class MainViewModel
 
         SaveWorkDays();
         NotifyWorkDayChanged();
+
+        // 自動で締めた退勤（CloseWithLastActivity）はここを通らないので、
+        // ふりかえりが出るのは本人が退勤を押したときと、離席から戻って確認したときだけになる
+        ShowWorkEndReview(log);
+
         return true;
     }
 

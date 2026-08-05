@@ -229,6 +229,10 @@ public partial class MainViewModel
         TodoDigestHour = TodoDigestHour,
         LastTodoDigestDate = FormatTodoDigestDate(),
         TodoArchiveRetentionDays = TodoArchiveRetentionDays,
+        IsTodoQuickSyntaxEnabled = IsTodoQuickSyntaxEnabled,
+        TodoDefaultRemindHour = TodoDefaultRemindHour,
+        IsTodoReminderSoundEnabled = IsTodoReminderSoundEnabled,
+        TodoSnoozeMinutes = TodoSnoozeMinutes,
         ViewMode = (int)CurrentViewMode,
         DisplayStartHour = DisplayStartHour,
         DisplayEndHour = DisplayEndHour,
@@ -242,6 +246,7 @@ public partial class MainViewModel
         IsWorkEndDetectionEnabled = IsWorkEndDetectionEnabled,
         WorkEndThresholdMinutes = WorkEndThresholdMinutes,
         WorkEndEarliestHour = WorkEndEarliestHour,
+        IsWorkEndReviewEnabled = IsWorkEndReviewEnabled,
         IsAppUsageTrackingEnabled = IsAppUsageTrackingEnabled,
         SnapMinutes = SnapMinutes,
         ManualSprints = ManualSprints,
@@ -294,6 +299,20 @@ public partial class MainViewModel
         OnPropertyChanged(nameof(IsTodoDigestEnabled));
         OnPropertyChanged(nameof(TodoDigestHour));
         OnPropertyChanged(nameof(TodoArchiveRetentionDays));
+
+        _isTodoQuickSyntaxEnabled = settings.IsTodoQuickSyntaxEnabled;
+        _todoDefaultRemindHour = Math.Clamp(settings.TodoDefaultRemindHour, 0, 23);
+        _isTodoReminderSoundEnabled = settings.IsTodoReminderSoundEnabled;
+        _todoSnoozeMinutes = TodoSnoozeOptions.Contains(settings.TodoSnoozeMinutes)
+            ? settings.TodoSnoozeMinutes
+            : 10;
+        // 既定の通知時刻はモデルとパーサーが直接参照するため、読み込みのたびに配り直す
+        ApplyDefaultRemindHour();
+        OnPropertyChanged(nameof(IsTodoQuickSyntaxEnabled));
+        OnPropertyChanged(nameof(TodoDefaultRemindHour));
+        OnPropertyChanged(nameof(IsTodoReminderSoundEnabled));
+        OnPropertyChanged(nameof(TodoSnoozeMinutes));
+        OnPropertyChanged(nameof(TodoSnoozeLabel));
 
         // 設定ファイルが壊れていても不正な enum 値にならないよう検証する
         _currentViewMode = Enum.IsDefined(typeof(ViewMode), settings.ViewMode)
@@ -354,6 +373,9 @@ public partial class MainViewModel
         OnPropertyChanged(nameof(WorkEndThresholdMinutes));
         OnPropertyChanged(nameof(WorkEndEarliestHour));
         OnPropertyChanged(nameof(SelectedWorkEndEarliestOption));
+
+        _isWorkEndReviewEnabled = settings.IsWorkEndReviewEnabled;
+        OnPropertyChanged(nameof(IsWorkEndReviewEnabled));
 
         ApplyAwaySettings();
 

@@ -28,6 +28,26 @@ namespace TimeRenderer.Views.Dialogs
         public record RecurrenceOption(string Label, TodoRecurrenceUnit Unit);
 
         /// <summary>
+        /// 通知のタイミングの選択肢。
+        /// OffsetDays が null なら絶対日時、値があれば「期限の N 日前」（0 は当日）。
+        /// </summary>
+        public record RemindTimingOption(string Label, int? OffsetDays);
+
+        /// <summary>
+        /// 相対指定の刻み。「前日」までは1日単位、そこから先は3日・1週間と粗くする
+        /// （4日前と5日前を選び分けたい場面はまず無い）。
+        /// </summary>
+        private static readonly List<RemindTimingOption> RemindTimingOptions =
+        [
+            new("日時を指定", null),
+            new("期限の当日", 0),
+            new("期限の前日", 1),
+            new("期限の2日前", 2),
+            new("期限の3日前", 3),
+            new("期限の1週間前", 7),
+        ];
+
+        /// <summary>
         /// 見積もりの選択肢。刻んだ選択肢にすることで、入力の手間と精度のつり合いを取る
         /// （分単位で正確に見積もっても、実績と比べる用途では意味がない）。
         /// </summary>
@@ -66,9 +86,6 @@ namespace TimeRenderer.Views.Dialogs
         /// キャンセルしても変更が残ってしまうため複製を編集して OK 時に返す。
         /// </summary>
         private readonly ObservableCollection<TodoSubtask> _subtasks = [];
-
-        /// <summary>通知時刻の既定（この時刻に思い出したい、が最も多いため）</summary>
-        private const int DefaultRemindHour = 9;
 
         /// <summary>
         /// 5分刻みの分の選択肢。既存の通知時刻が5分刻みでない場合はその値も残す
@@ -120,6 +137,7 @@ namespace TimeRenderer.Views.Dialogs
             }
             ColorCombo.ItemsSource = _colorOptions;
 
+            RemindTimingCombo.ItemsSource = RemindTimingOptions;
             RemindHourCombo.ItemsSource = Enumerable.Range(0, 24).Select(h => h.ToString("D2")).ToList();
             RemindMinuteCombo.ItemsSource = BuildMinuteOptions(existingTodo?.RemindAt?.Minute);
 
@@ -140,7 +158,7 @@ namespace TimeRenderer.Views.Dialogs
                 DueDatePicker.SelectedDate = existingTodo.DueDate;
 
                 SelectPriority(existingTodo.Priority);
-                ApplyReminder(existingTodo.RemindAt, existingTodo.DueDate);
+                ApplyReminder(existingTodo.RemindAt, existingTodo.DueDate, existingTodo.RemindOffsetDays);
                 ApplyEstimate(existingTodo.EstimatedMinutes);
                 ApplyRecurrence(
                     existingTodo.Recurrence,
@@ -164,7 +182,7 @@ namespace TimeRenderer.Views.Dialogs
                 // 新規は「期限なし・通知なし・見積もりなし・繰り返しなし・標準」で始める。
                 // 決まっていない段階でも置けることを優先する
                 SelectPriority(TodoPriority.Normal);
-                ApplyReminder(null, null);
+                ApplyReminder(null, null, null);
                 ApplyEstimate(0);
                 ApplyRecurrence(TodoRecurrenceUnit.None, 1, [], false);
                 ColorCombo.SelectedItem = _colorOptions[0];
@@ -324,16 +342,24 @@ namespace TimeRenderer.Views.Dialogs
 
         /// <summary>
         /// 通知欄へ初期値を入れる。未設定なら、チェックを入れたときにそのまま使える値を置いておく
-        /// （期限日の 9:00。期限も無ければ今日の 9:00）。
+        /// （期限日の既定時刻。期限も無ければ今日の既定時刻）。
         /// </summary>
-        private void ApplyReminder(DateTime? remindAt, DateTime? dueDate)
+        private void ApplyReminder(DateTime? remindAt, DateTime? dueDate, int? offsetDays)
         {
             RemindCheckBox.IsChecked = remindAt.HasValue;
 
-            var value = remindAt ?? (dueDate ?? DateTime.Today).Date.AddHours(DefaultRemindHour);
+            var value = remindAt ?? (dueDate ?? DateTime.Today).Date.AddHours(TodoItem.DefaultRemindHour);
             RemindDatePicker.SelectedDate = value.Date;
             RemindHourCombo.SelectedItem = value.Hour.ToString("D2");
             RemindMinuteCombo.SelectedItem = value.Minute.ToString("D2");
+
+            // 期限が無ければ相対の基準が無いので、絶対日時の指定に倒す
+            var timing = dueDate.HasValue
+                ? RemindTimingOptions.FirstOrDefault(o => o.OffsetDays == offsetDays)
+                : null;
+            RemindTimingCombo.SelectedItem = timing ?? RemindTimingOptions[0];
+
+            UpdateRemindTiming();
         }
 
         /// <summary>
@@ -342,11 +368,68 @@ namespace TimeRenderer.Views.Dialogs
         /// </summary>
         private void RemindCheckBox_Checked(object sender, RoutedEventArgs e)
         {
-            if (RemindDatePicker.SelectedDate != null) return;
+            if (RemindDatePicker.SelectedDate == null)
+            {
+                RemindDatePicker.SelectedDate = (DueDatePicker.SelectedDate ?? DateTime.Today).Date;
+                RemindHourCombo.SelectedItem ??= TodoItem.DefaultRemindHour.ToString("D2");
+                RemindMinuteCombo.SelectedItem ??= "00";
+            }
 
-            RemindDatePicker.SelectedDate = (DueDatePicker.SelectedDate ?? DateTime.Today).Date;
-            RemindHourCombo.SelectedItem ??= DefaultRemindHour.ToString("D2");
-            RemindMinuteCombo.SelectedItem ??= "00";
+            UpdateRemindTiming();
+        }
+
+        private void RemindTimingCombo_SelectionChanged(
+            object sender, System.Windows.Controls.SelectionChangedEventArgs e) => UpdateRemindTiming();
+
+        /// <summary>
+        /// 期限を変えたら、相対指定の通知日も追随させる。
+        /// 期限を外した場合は基準が無くなるので、絶対日時の指定へ戻す。
+        /// </summary>
+        private void DueDatePicker_SelectedDateChanged(
+            object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            // InitializeComponent 中は他の要素がまだ作られていない
+            if (RemindTimingCombo == null) return;
+
+            if (DueDatePicker.SelectedDate == null && ReadRemindOffsetDays() != null)
+            {
+                RemindTimingCombo.SelectedItem = RemindTimingOptions[0];
+            }
+
+            UpdateRemindTiming();
+        }
+
+        private int? ReadRemindOffsetDays() =>
+            ((RemindTimingOption?)RemindTimingCombo?.SelectedItem)?.OffsetDays;
+
+        /// <summary>
+        /// タイミングの選択に合わせて、日付欄の見せ方と説明を切り替える。
+        /// 相対指定のときは日付を自分で選べても意味がないので、計算結果を出すだけにする。
+        /// </summary>
+        private void UpdateRemindTiming()
+        {
+            if (RemindTimingCombo == null || RemindHint == null) return;
+
+            var offset = ReadRemindOffsetDays();
+            var due = DueDatePicker.SelectedDate?.Date;
+
+            var isRelative = offset.HasValue;
+            RemindDatePicker.Visibility = isRelative ? Visibility.Collapsed : Visibility.Visible;
+            RemindComputedText.Visibility = isRelative ? Visibility.Visible : Visibility.Collapsed;
+
+            if (isRelative && due is { } dueDate)
+            {
+                var date = dueDate.AddDays(-offset!.Value);
+                RemindDatePicker.SelectedDate = date;
+                RemindComputedText.Text = date.ToString("yyyy/M/d (ddd)");
+            }
+
+            RemindHint.Text = (isRelative, due) switch
+            {
+                (true, not null) => "期限を変えると、通知日も一緒に動きます。",
+                (true, null) => "期限が未設定のため、この指定は使えません。期限を決めてください。",
+                _ => "期限とは別に、思い出したい日時を指定します。「期限の前日」などにすると期限に追随します。",
+            };
         }
 
         /// <summary>通知欄の入力から通知日時を組み立てる（無効・未入力なら null）</summary>
@@ -355,10 +438,24 @@ namespace TimeRenderer.Views.Dialogs
             if (RemindCheckBox.IsChecked != true) return null;
             if (RemindDatePicker.SelectedDate is not { } date) return null;
 
-            var hour = int.TryParse(RemindHourCombo.SelectedItem as string, out var h) ? h : DefaultRemindHour;
+            var hour = int.TryParse(RemindHourCombo.SelectedItem as string, out var h)
+                ? h
+                : TodoItem.DefaultRemindHour;
             var minute = int.TryParse(RemindMinuteCombo.SelectedItem as string, out var m) ? m : 0;
 
             return date.Date.AddHours(hour).AddMinutes(minute);
+        }
+
+        /// <summary>
+        /// 相対指定として保存する日数（絶対日時なら null）。
+        /// 期限が無いときは基準が無いので相対にはしない。
+        /// </summary>
+        private int? ReadRemindOffsetForResult()
+        {
+            if (RemindCheckBox.IsChecked != true) return null;
+            if (DueDatePicker.SelectedDate == null) return null;
+
+            return ReadRemindOffsetDays();
         }
 
         private void SelectPriority(TodoPriority priority)
@@ -409,6 +506,7 @@ namespace TimeRenderer.Views.Dialogs
                 Content = ContentTextBox.Text.Trim(),
                 DueDate = DueDatePicker.SelectedDate?.Date,
                 RemindAt = ReadRemindAt(),
+                RemindOffsetDays = ReadRemindOffsetForResult(),
                 Priority = ReadPriority(),
                 CategoryId = selectedColor?.CategoryId,
                 ColorCode = selectedColor?.ColorCode ?? Brushes.LightBlue.ToString(),

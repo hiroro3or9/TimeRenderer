@@ -24,6 +24,14 @@ public class AppSettings
     public string? LastTodoDigestDate { get; set; }
     /// <summary>完了済みの ToDo を一覧に残す日数（過ぎたものはアーカイブへ移す）</summary>
     public int TodoArchiveRetentionDays { get; set; } = 90;
+    /// <summary>クイック追加欄で @ ! # ~ * の記法を解釈するか</summary>
+    public bool IsTodoQuickSyntaxEnabled { get; set; } = true;
+    /// <summary>通知時刻を省略したときに使う時（クイック追加の記法と編集ダイアログの既定値）</summary>
+    public int TodoDefaultRemindHour { get; set; } = 9;
+    /// <summary>ToDo の通知を出すときに音を鳴らすか</summary>
+    public bool IsTodoReminderSoundEnabled { get; set; } = true;
+    /// <summary>通知バナーの「あとで」で先送りする分数</summary>
+    public int TodoSnoozeMinutes { get; set; } = 10;
     public int ViewMode { get; set; } = 0; // 0: Day, 1: Week
     public int DisplayStartHour { get; set; } = 0;  // 表示開始時刻（0～23）
     public int DisplayEndHour { get; set; } = 24;    // 表示終了時刻（1～24）
@@ -46,6 +54,8 @@ public class AppSettings
     public int WorkEndThresholdMinutes { get; set; } = 30;
     /// <summary>この時刻より前に始まった離席は退勤確認の対象にしない（0 は制限なし）</summary>
     public int WorkEndEarliestHour { get; set; } = 17;
+    /// <summary>退勤したときに、今日のふりかえりと ToDo の繰り越しを確認するか</summary>
+    public bool IsWorkEndReviewEnabled { get; set; } = true;
     /// <summary>記録中に前面アプリを自動記録するか</summary>
     public bool IsAppUsageTrackingEnabled { get; set; } = true;
     /// <summary>ドラッグ操作で時刻を丸める単位（分）</summary>

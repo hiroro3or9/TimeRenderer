@@ -79,7 +79,11 @@ public class TodoItem : INotifyPropertyChanged
         set
         {
             var normalized = value?.Date;
-            if (SetProperty(ref _dueDate, normalized)) NotifyDueStateChanged();
+            if (SetProperty(ref _dueDate, normalized))
+            {
+                RefreshRelativeReminder(); // 相対指定の通知は期限に追随させる
+                NotifyDueStateChanged();
+            }
         }
     }
 
@@ -102,6 +106,53 @@ public class TodoItem : INotifyPropertyChanged
                 OnPropertyChanged(nameof(ToolTipText));
             }
         }
+    }
+
+    private int? _remindOffsetDays;
+    /// <summary>
+    /// 通知を「期限からの相対」で指定しているときの日数（0 = 当日、1 = 前日、7 = 1週間前）。
+    /// null なら <see cref="RemindAt"/> を絶対日時として扱う。
+    ///
+    /// 相対で持っておくと、期限を動かしたときに通知も一緒に動く。
+    /// 実際に通知の判定で見るのは常に <see cref="RemindAt"/> なので、
+    /// 通知まわりの処理はこの値の存在を知らなくてよい。
+    /// </summary>
+    public int? RemindOffsetDays
+    {
+        get => _remindOffsetDays;
+        set
+        {
+            if (SetProperty(ref _remindOffsetDays, value is { } days ? Math.Clamp(days, 0, 365) : null))
+            {
+                RefreshRelativeReminder();
+                OnPropertyChanged(nameof(RemindDisplay));
+                OnPropertyChanged(nameof(ToolTipText));
+            }
+        }
+    }
+
+    /// <summary>通知時刻を省略したときに使う時（設定から差し替える）</summary>
+    public static int DefaultRemindHour { get; set; } = 9;
+
+    /// <summary>
+    /// 相対指定のとき、期限から通知日時を計算し直す。
+    /// 時刻は今の通知時刻を引き継ぐ（「前日の18時」を保ったまま日付だけずらす）。
+    /// </summary>
+    private void RefreshRelativeReminder()
+    {
+        if (_remindOffsetDays is not { } offset) return;
+
+        if (_dueDate is not { } due)
+        {
+            // 期限を外したら相対の基準が無くなるので、通知も相対指定も解除する
+            _remindOffsetDays = null;
+            OnPropertyChanged(nameof(RemindOffsetDays));
+            RemindAt = null;
+            return;
+        }
+
+        var time = _remindAt?.TimeOfDay ?? TimeSpan.FromHours(Math.Clamp(DefaultRemindHour, 0, 23));
+        RemindAt = due.Date.AddDays(-offset) + time;
     }
 
     private DateTime? _plannedOn;
@@ -399,9 +450,23 @@ public class TodoItem : INotifyPropertyChanged
     [JsonIgnore]
     public bool ShowRecordedOnly => HasRecorded && !HasEstimate;
 
-    /// <summary>一覧表示用：通知日時（例: "8/12 09:00"）</summary>
+    /// <summary>一覧表示用：通知日時（例: "8/12 09:00" / 相対指定なら "前日 09:00"）</summary>
     [JsonIgnore]
-    public string RemindDisplay => RemindAt.HasValue ? RemindAt.Value.ToString("M/d HH:mm") : string.Empty;
+    public string RemindDisplay
+    {
+        get
+        {
+            if (RemindAt is not { } at) return string.Empty;
+
+            return RemindOffsetDays switch
+            {
+                0 => $"当日 {at:HH:mm}",
+                1 => $"前日 {at:HH:mm}",
+                > 1 => $"{RemindOffsetDays}日前 {at:HH:mm}",
+                _ => at.ToString("M/d HH:mm"),
+            };
+        }
+    }
 
     [JsonIgnore]
     public bool IsHighPriority => Priority == TodoPriority.High;
@@ -582,6 +647,7 @@ public class TodoItem : INotifyPropertyChanged
             Content = Content,
             DueDate = next,
             RemindAt = ShiftReminder(next),
+            RemindOffsetDays = RemindOffsetDays,
             Priority = Priority,
             CategoryId = CategoryId,
             ColorCode = ColorCode,
@@ -686,7 +752,17 @@ public class TodoItem : INotifyPropertyChanged
 
         if (IsPlannedToday) lines.Add("今日やる");
 
-        if (RemindAt.HasValue) lines.Add($"通知 {RemindAt.Value:yyyy/MM/dd (ddd) HH:mm}");
+        if (RemindAt.HasValue)
+        {
+            var relative = RemindOffsetDays switch
+            {
+                0 => "（期限の当日）",
+                1 => "（期限の前日）",
+                > 1 => $"（期限の{RemindOffsetDays}日前）",
+                _ => string.Empty,
+            };
+            lines.Add($"通知 {RemindAt.Value:yyyy/MM/dd (ddd) HH:mm}{relative}");
+        }
 
         if (Priority != TodoPriority.Normal)
         {

@@ -113,7 +113,76 @@ public partial class MainViewModel
     public string NewTodoTitle
     {
         get => _newTodoTitle;
-        set => SetProperty(ref _newTodoTitle, value);
+        set
+        {
+            if (SetProperty(ref _newTodoTitle, value)) UpdateQuickAddPreview();
+        }
+    }
+
+    // ===== クイック追加の記法 =====
+    //
+    // 「思いついた瞬間に置ける」ことを保ったまま、期限や優先度まで一度に指定できるようにする。
+    // 打っている最中に解釈結果を出すのが要点で、これが無いと
+    // 「記号が効いたのか、ただの文字として残ったのか」が Enter を押すまで分からない。
+
+    private bool _isTodoQuickSyntaxEnabled = true;
+    /// <summary>クイック追加欄で @ ! # ~ * の記法を解釈するか</summary>
+    public bool IsTodoQuickSyntaxEnabled
+    {
+        get => _isTodoQuickSyntaxEnabled;
+        set
+        {
+            if (SetProperty(ref _isTodoQuickSyntaxEnabled, value))
+            {
+                UpdateQuickAddPreview();
+                OnPropertyChanged(nameof(TodoQuickAddHint));
+                SaveSettings();
+            }
+        }
+    }
+
+    /// <summary>入力欄の下に常時出すヒント（記法を切っているときは操作の説明を出す）</summary>
+    public string TodoQuickAddHint =>
+        IsTodoQuickSyntaxEnabled ? Helpers.TodoQuickParser.SyntaxHint : "やることを入力して Enter";
+
+    private string? _todoQuickAddPreview;
+    /// <summary>
+    /// 入力中の解釈結果（例: "資料作成 ／ 期限 8/6(木)・優先度 高"）。
+    /// 何も解釈されなかったときは null にして、ヒント表示へ戻す。
+    /// </summary>
+    public string? TodoQuickAddPreview
+    {
+        get => _todoQuickAddPreview;
+        private set
+        {
+            if (SetProperty(ref _todoQuickAddPreview, value))
+            {
+                OnPropertyChanged(nameof(HasTodoQuickAddPreview));
+            }
+        }
+    }
+
+    public bool HasTodoQuickAddPreview => !string.IsNullOrEmpty(TodoQuickAddPreview);
+
+    private void UpdateQuickAddPreview()
+    {
+        if (!IsTodoQuickSyntaxEnabled || string.IsNullOrWhiteSpace(_newTodoTitle))
+        {
+            TodoQuickAddPreview = null;
+            return;
+        }
+
+        var parsed = Helpers.TodoQuickParser.Parse(_newTodoTitle, [.. Categories], DateTime.Now);
+        if (!parsed.HasAttributes)
+        {
+            TodoQuickAddPreview = null;
+            return;
+        }
+
+        // 記法を取り除いた結果、本文が消えてしまう入力は追加できない。
+        // Enter を押してから何も起きない、を避けるためここで伝える
+        var title = parsed.Title.Length == 0 ? "（タイトルが空です）" : parsed.Title;
+        TodoQuickAddPreview = $"{title} ／ {string.Join("・", parsed.Summary)}";
     }
 
     // ===== 件数の表示 =====
@@ -170,6 +239,8 @@ public partial class MainViewModel
     public ICommand MoveTodoDownCommand { get; private set; } = null!;
     public ICommand FocusQuickAddTodoCommand { get; private set; } = null!;
     public ICommand DismissTodoDigestCommand { get; private set; } = null!;
+    public ICommand DismissTodoMissedNoticeCommand { get; private set; } = null!;
+    public ICommand ShowMissedTodosCommand { get; private set; } = null!;
 
     /// <summary>
     /// 即時追加欄へ入力を移す要求（Ctrl+T）。パネル側が購読してフォーカスを移す。
@@ -185,19 +256,10 @@ public partial class MainViewModel
 
         AddQuickTodoCommand = new RelayCommand(_ =>
         {
-            var title = NewTodoTitle.Trim();
-            if (title.Length == 0) return;
+            var todo = BuildQuickTodo(NewTodoTitle);
+            if (todo == null) return;
 
-            // 即時追加は「思いついた瞬間に置ける」ことが値なので、期限・優先度は後から付ける。
-            // カテゴリは予定の新規作成と同じく先頭カテゴリを既定にする
-            var category = Categories.FirstOrDefault();
-            AddTodo(new TodoItem
-            {
-                Title = title,
-                ColorCode = category?.ColorCode ?? CategoryInfo.CreateBrush("LightBlue").ToString(),
-                CategoryId = category?.Id,
-            });
-
+            AddTodo(todo);
             NewTodoTitle = string.Empty;
         });
 
@@ -224,8 +286,12 @@ public partial class MainViewModel
                 {
                     todo.Title = edited.Title;
                     todo.Content = edited.Content;
+                    // 相対指定は期限に連動して通知日時を書き換えるため、
+                    // 先に解除して 期限 → 通知日時 → 相対指定 の順で入れる
+                    todo.RemindOffsetDays = null;
                     todo.DueDate = edited.DueDate;
                     todo.RemindAt = edited.RemindAt;
+                    todo.RemindOffsetDays = edited.RemindOffsetDays;
                     todo.Priority = edited.Priority;
                     todo.CategoryId = edited.CategoryId;
                     todo.ColorCode = edited.ColorCode;
@@ -348,9 +414,7 @@ public partial class MainViewModel
             param =>
             {
                 if (param is not TodoItem todo) return;
-                PendingTodoReminders.Remove(todo);
-                // 通知日時を先送りすると通知済みのキーも変わるため、その時刻に再び通知される
-                todo.RemindAt = DateTime.Now.Add(TodoSnoozeDuration);
+                SnoozeTodoReminder(todo, TimeSpan.FromMinutes(TodoSnoozeMinutes));
             },
             param => param is TodoItem);
 
@@ -376,6 +440,64 @@ public partial class MainViewModel
         });
 
         DismissTodoDigestCommand = new RelayCommand(_ => TodoDigestNotice = null);
+
+        DismissTodoMissedNoticeCommand = new RelayCommand(_ => ClearMissedTodoReminders());
+
+        ShowMissedTodosCommand = new RelayCommand(_ =>
+        {
+            // 見逃した1件目へ寄せる。件数だけ言われても、どれか分からなければ動けない
+            var first = _missedTodoReminders.FirstOrDefault(t => !t.IsCompleted);
+
+            IsTodoPanelVisible = true;
+            if (first != null) SelectedTodo = first;
+
+            ClearMissedTodoReminders();
+        });
+    }
+
+    /// <summary>
+    /// クイック追加欄の入力から ToDo を1件組み立てる。追加できないときは null。
+    ///
+    /// 記法で指定されなかった項目は、これまでどおり「未設定・先頭カテゴリ」で始める。
+    /// 決まっていない段階でも置けることが、この入口の値だから。
+    /// </summary>
+    private TodoItem? BuildQuickTodo(string input)
+    {
+        if (!IsTodoQuickSyntaxEnabled)
+        {
+            var plain = input.Trim();
+            if (plain.Length == 0) return null;
+
+            var defaultCategory = Categories.FirstOrDefault();
+            return new TodoItem
+            {
+                Title = plain,
+                ColorCode = defaultCategory?.ColorCode ?? CategoryInfo.CreateBrush("LightBlue").ToString(),
+                CategoryId = defaultCategory?.Id,
+            };
+        }
+
+        var parsed = Helpers.TodoQuickParser.Parse(input, [.. Categories], DateTime.Now);
+        if (parsed.Title.Length == 0) return null;
+
+        var category = parsed.Category ?? Categories.FirstOrDefault();
+
+        var todo = new TodoItem
+        {
+            Title = parsed.Title,
+            ColorCode = category?.ColorCode ?? CategoryInfo.CreateBrush("LightBlue").ToString(),
+            CategoryId = category?.Id,
+            Priority = parsed.Priority ?? TodoPriority.Normal,
+            EstimatedMinutes = parsed.EstimatedMinutes ?? 0,
+        };
+
+        // 期限 → 通知 → 相対指定 の順で入れる。
+        // 相対指定を先に入れると、期限を入れた時点で通知日時が計算し直されてしまう
+        todo.DueDate = parsed.DueDate;
+        todo.RemindAt = parsed.RemindAt;
+        todo.RemindOffsetDays = parsed.RemindOffsetDays;
+
+        return todo;
     }
 
     /// <summary>
@@ -526,6 +648,10 @@ public partial class MainViewModel
 
                 // 消えた ToDo の通知を残さない（バナーの「記録開始」が行き先を失う）
                 PendingTodoReminders.Remove(todo);
+                if (_missedTodoReminders.Remove(todo) && _missedTodoReminders.Count == 0)
+                {
+                    TodoMissedNotice = null;
+                }
             }
         }
 
@@ -992,13 +1118,83 @@ public partial class MainViewModel
     private readonly HashSet<string> _remindedTodoKeys = [];
 
     /// <summary>
-    /// 通知時刻からこれ以上遅れた通知は出さない。
+    /// 通知時刻からこれ以上遅れた通知は、個別のバナーにはしない。
     /// アプリを何日も起動していなかった場合に、過ぎた通知がまとめて溢れるのを防ぐ。
+    /// 代わりに「見逃した通知」として1本にまとめて知らせる。
     /// </summary>
     private static readonly TimeSpan TodoReminderGrace = TimeSpan.FromMinutes(15);
 
-    /// <summary>「あとで」を押したときに先送りする時間</summary>
-    private static readonly TimeSpan TodoSnoozeDuration = TimeSpan.FromMinutes(10);
+    /// <summary>
+    /// 「見逃した通知」として拾う範囲。これより古い通知は黙って捨てる。
+    /// 期限を過ぎたこと自体は一覧の色とまとめ通知で分かるので、
+    /// 何ヶ月も前の通知時刻まで蒸し返す必要はない。
+    /// </summary>
+    private static readonly TimeSpan TodoMissedWindow = TimeSpan.FromDays(3);
+
+    /// <summary>「あとで」で先送りできる時間の選択肢（分）</summary>
+    public static IReadOnlyList<int> TodoSnoozeOptions { get; } = [5, 10, 15, 30, 60, 120];
+
+    private int _todoSnoozeMinutes = 10;
+    /// <summary>バナーの「あとで」を押したときに先送りする分数</summary>
+    public int TodoSnoozeMinutes
+    {
+        get => _todoSnoozeMinutes;
+        set
+        {
+            if (SetProperty(ref _todoSnoozeMinutes, Math.Clamp(value, 1, 24 * 60)))
+            {
+                OnPropertyChanged(nameof(TodoSnoozeLabel));
+                SaveSettings();
+            }
+        }
+    }
+
+    /// <summary>バナーの「あとで」ボタンの表示（例: "10分後"）</summary>
+    public string TodoSnoozeLabel => FormatSnoozeLabel(TodoSnoozeMinutes);
+
+    public static string FormatSnoozeLabel(int minutes) =>
+        minutes % 60 == 0 && minutes >= 60 ? $"{minutes / 60}時間後" : $"{minutes}分後";
+
+    private bool _isTodoReminderSoundEnabled = true;
+    /// <summary>通知を出すときに音を鳴らすか</summary>
+    public bool IsTodoReminderSoundEnabled
+    {
+        get => _isTodoReminderSoundEnabled;
+        set
+        {
+            if (SetProperty(ref _isTodoReminderSoundEnabled, value)) SaveSettings();
+        }
+    }
+
+    public static IReadOnlyList<int> TodoDefaultRemindHourOptions { get; } = [.. Enumerable.Range(0, 24)];
+
+    private int _todoDefaultRemindHour = 9;
+    /// <summary>
+    /// 通知時刻を省略したときに使う時。
+    /// クイック追加の「*前日」や、編集ダイアログで通知を入れた直後の初期値になる。
+    /// </summary>
+    public int TodoDefaultRemindHour
+    {
+        get => _todoDefaultRemindHour;
+        set
+        {
+            if (SetProperty(ref _todoDefaultRemindHour, Math.Clamp(value, 0, 23)))
+            {
+                ApplyDefaultRemindHour();
+                SaveSettings();
+            }
+        }
+    }
+
+    /// <summary>
+    /// 既定の通知時刻を、参照する側（モデルとパーサー）へ配る。
+    /// どちらも VM を知らない場所で時刻を必要とするため、静的な既定値として持たせている。
+    /// </summary>
+    private void ApplyDefaultRemindHour()
+    {
+        TodoItem.DefaultRemindHour = _todoDefaultRemindHour;
+        Helpers.TodoQuickParser.DefaultRemindHour = _todoDefaultRemindHour;
+    }
 
     /// <summary>
     /// 通知日時に達した ToDo をバナーへ積み、通知音を鳴らす。
@@ -1006,6 +1202,8 @@ public partial class MainViewModel
     /// </summary>
     private void CheckTodoReminders(DateTime now)
     {
+        var missed = new List<TodoItem>();
+
         foreach (var todo in Todos)
         {
             if (todo.IsCompleted) continue;
@@ -1015,17 +1213,90 @@ public partial class MainViewModel
             // 判定済みのものは、通知したかどうかに関わらず二度と見ない
             if (!_remindedTodoKeys.Add(BuildTodoReminderKey(todo))) continue;
 
-            if (now - remindAt > TodoReminderGrace) continue;
+            // 遅れすぎた通知は個別に出さず、まとめて1本で知らせる。
+            // ただし古すぎるものは黙って捨てる。通知済みの記録はセッションを跨がないため、
+            // これが無いと何ヶ月も前の通知が起動のたびに蒸し返される
+            if (now - remindAt > TodoReminderGrace)
+            {
+                if (now - remindAt <= TodoMissedWindow) missed.Add(todo);
+                continue;
+            }
 
             if (!PendingTodoReminders.Contains(todo))
             {
                 PendingTodoReminders.Add(todo);
-                SystemSounds.Asterisk.Play();
+                if (IsTodoReminderSoundEnabled) SystemSounds.Asterisk.Play();
+            }
+        }
+
+        if (missed.Count > 0) AddMissedTodoReminders(missed);
+    }
+
+    private static string BuildTodoReminderKey(TodoItem todo) => $"{todo.Id}|{todo.RemindAt:O}";
+
+    /// <summary>
+    /// 通知を先送りする。
+    /// 通知日時を動かすと通知済みのキー（Id｜通知日時）も変わるため、その時刻に再び通知される。
+    /// 相対指定は「期限の前日9時」という約束のことなので、先送りした時点で外す。
+    /// </summary>
+    public void SnoozeTodoReminder(TodoItem todo, TimeSpan delay)
+    {
+        PendingTodoReminders.Remove(todo);
+        todo.RemindOffsetDays = null;
+        todo.RemindAt = DateTime.Now.Add(delay);
+    }
+
+    /// <summary>翌日の既定の通知時刻まで先送りする（「今日はもう見ない」ためのもの）</summary>
+    public void SnoozeTodoReminderUntilTomorrow(TodoItem todo)
+    {
+        PendingTodoReminders.Remove(todo);
+        todo.RemindOffsetDays = null;
+        todo.RemindAt = DateTime.Today.AddDays(1).AddHours(TodoDefaultRemindHour);
+    }
+
+    // ===== 見逃した通知 =====
+    //
+    // アプリを閉じている間に過ぎた通知は、個別のバナーで出すと起動直後に画面が埋まる。
+    // かといって黙って消すと、通知を付けた意味が無くなる。まとめて1本だけ出す。
+
+    private readonly List<TodoItem> _missedTodoReminders = [];
+
+    private string? _todoMissedNotice;
+    /// <summary>見逃した通知の本文（無いときは null）</summary>
+    public string? TodoMissedNotice
+    {
+        get => _todoMissedNotice;
+        private set
+        {
+            if (SetProperty(ref _todoMissedNotice, value))
+            {
+                OnPropertyChanged(nameof(HasTodoMissedNotice));
             }
         }
     }
 
-    private static string BuildTodoReminderKey(TodoItem todo) => $"{todo.Id}|{todo.RemindAt:O}";
+    public bool HasTodoMissedNotice => !string.IsNullOrEmpty(TodoMissedNotice);
+
+    private void AddMissedTodoReminders(IEnumerable<TodoItem> todos)
+    {
+        foreach (var todo in todos)
+        {
+            if (!_missedTodoReminders.Contains(todo)) _missedTodoReminders.Add(todo);
+        }
+
+        if (_missedTodoReminders.Count == 0) return;
+
+        var head = _missedTodoReminders[0].Title;
+        TodoMissedNotice = _missedTodoReminders.Count == 1
+            ? $"通知時刻を過ぎた ToDo があります：{head}"
+            : $"通知時刻を過ぎた ToDo が {_missedTodoReminders.Count} 件あります（{head} ほか）";
+    }
+
+    private void ClearMissedTodoReminders()
+    {
+        _missedTodoReminders.Clear();
+        TodoMissedNotice = null;
+    }
 
     /// <summary>
     /// ビューに出す ToDo（未完了・期限あり・色フィルタを通過）を期限日ごとにまとめる。
@@ -1292,6 +1563,7 @@ public partial class MainViewModel
             // 読み込みでインスタンスが入れ替わるため、通知の状態も作り直す
             PendingTodoReminders.Clear();
             _remindedTodoKeys.Clear();
+            ClearMissedTodoReminders();
             Todos.Clear();
             foreach (var todo in loaded)
             {

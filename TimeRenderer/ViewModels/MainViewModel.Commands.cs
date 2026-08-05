@@ -495,7 +495,7 @@ public partial class MainViewModel
                 }
                 else
                 {
-                    SaveRecordingSegments(title, source, segments);
+                    SaveRecordingSegments(title, source, segments, todo);
                 }
 
                 // ToDo から始めた記録は、実際に残った区間ぶんだけ ToDo へ積算する
