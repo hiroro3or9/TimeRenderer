@@ -263,7 +263,13 @@ namespace TimeRenderer.Views
                 Math.Abs(diff.Y) < SystemParameters.MinimumVerticalDragDistance) return;
 
             _dragCandidate = null;
-            DragDrop.DoDragDrop((DependencyObject)sender, new DataObject(typeof(TodoItem), moved), DragDropEffects.Move);
+
+            // 一覧内へ落とせば並べ替え（Move）、日/週ビューへ落とせば作業時間の確保（Copy）。
+            // 落とし先で意味が変わるので、両方を許可しておく
+            DragDrop.DoDragDrop(
+                (DependencyObject)sender,
+                new DataObject(typeof(TodoItem), moved),
+                DragDropEffects.Move | DragDropEffects.Copy);
         }
 
         private void TodoRow_DragOver(object sender, DragEventArgs e)

@@ -283,6 +283,34 @@ namespace TimeRenderer.Views
             _rangeSurface = null;
         }
 
+        // ===== ToDo のドロップ（作業時間の確保） =====
+
+        private void ScheduleBackground_DragOver(object sender, System.Windows.DragEventArgs e)
+        {
+            e.Effects = e.Data.GetDataPresent(typeof(TodoItem))
+                ? System.Windows.DragDropEffects.Copy
+                : System.Windows.DragDropEffects.None;
+            e.Handled = true;
+        }
+
+        /// <summary>
+        /// ToDo を落とした位置から予定を作る。
+        /// 長さは ViewModel 側で決める（見積もり時間、無ければ1時間）。
+        /// </summary>
+        private void ScheduleBackground_Drop(object sender, System.Windows.DragEventArgs e)
+        {
+            if (sender is not Grid grid || grid.ActualWidth <= 0) return;
+            if (e.Data.GetData(typeof(TodoItem)) is not TodoItem todo) return;
+
+            var pos = e.GetPosition(grid);
+            var date = ResolveDateFromX(grid, pos.X);
+            if (date == null) return;
+
+            var start = date.Value.AddHours(SnapHours(pos.Y, 60.0 / RangeSnapMinutes));
+            ViewModel.BlockTimeForTodo(todo, start);
+            e.Handled = true;
+        }
+
         // ===== 座標の解決 =====
 
         /// <summary>X座標から日付列を求める（週ビューでは列が日付に対応する）</summary>

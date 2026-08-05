@@ -432,7 +432,8 @@ public partial class MainViewModel
         _recordingColorCode = item.ColorCode;
         _recordingCategoryId = item.CategoryId ?? ResolveCategory(item)?.Id;
         _recordingSourceItem = consumeItem ? item : null;
-        _recordingTodo = null;
+        // ToDo から作られた予定なら、この記録の実績を ToDo へも積む
+        _recordingTodo = FindTodoById(item.TodoId);
         ClearAwayState(); // 前回の記録で拾った離席を持ち越さない
         IsRecording = true;
         RecordingStartTime = DateTime.Now;

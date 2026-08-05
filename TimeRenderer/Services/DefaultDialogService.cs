@@ -55,6 +55,16 @@ public class DefaultDialogService(Window owner) : IDialogService
         return null;
     }
 
+    public TodoItem? ShowTodoPickerDialog(string message, IReadOnlyList<TodoItem> todos)
+    {
+        TodoPickerDialog dialog = new(message, todos)
+        {
+            Owner = owner
+        };
+
+        return dialog.ShowDialog() == true ? dialog.SelectedTodo : null;
+    }
+
     public (string Title, TimerOption SelectedOption)? ShowRecordingStartDialog(
         string defaultTitle,
         List<TimerOption> timerOptions,

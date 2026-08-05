@@ -103,6 +103,20 @@ public class ScheduleItem : INotifyPropertyChanged
         set => SetProperty(ref _routineId, value);
     }
 
+    private string? _todoId;
+    /// <summary>
+    /// この予定の元になった ToDo（TodoItem.Id）。ToDo から作られていなければ null。
+    ///
+    /// 紐づいていると、この予定から記録を回したときに実績が ToDo へ積算され、
+    /// 見積もりに対する進捗が自動で埋まる。
+    /// ToDo が削除されていても予定は残るため、解決できない ID は「紐づけなし」として扱う。
+    /// </summary>
+    public string? TodoId
+    {
+        get => _todoId;
+        set => SetProperty(ref _todoId, value);
+    }
+
     private bool _isVirtual;
     /// <summary>
     /// 定期予定から表示のためだけに生成された仮想アイテムか。

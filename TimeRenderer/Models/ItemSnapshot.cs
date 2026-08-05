@@ -22,6 +22,7 @@ public sealed class ItemSnapshot
     public required Brush BackgroundColor { get; init; }
     public string? CategoryId { get; init; }
     public string? RoutineId { get; init; }
+    public string? TodoId { get; init; }
     public bool RemindAtStart { get; init; }
     public bool AutoStartRecording { get; init; }
     public bool ForceStartRecording { get; init; }
@@ -36,6 +37,7 @@ public sealed class ItemSnapshot
         BackgroundColor = item.BackgroundColor,
         CategoryId = item.CategoryId,
         RoutineId = item.RoutineId,
+        TodoId = item.TodoId,
         RemindAtStart = item.RemindAtStart,
         AutoStartRecording = item.AutoStartRecording,
         ForceStartRecording = item.ForceStartRecording
@@ -52,6 +54,7 @@ public sealed class ItemSnapshot
         item.BackgroundColor = BackgroundColor;
         item.CategoryId = CategoryId;
         item.RoutineId = RoutineId;
+        item.TodoId = TodoId;
         item.RemindAtStart = RemindAtStart;
         item.AutoStartRecording = AutoStartRecording;
         item.ForceStartRecording = ForceStartRecording;
@@ -67,6 +70,7 @@ public sealed class ItemSnapshot
         Equals(BackgroundColor?.ToString(), other.BackgroundColor?.ToString()) &&
         CategoryId == other.CategoryId &&
         RoutineId == other.RoutineId &&
+        TodoId == other.TodoId &&
         RemindAtStart == other.RemindAtStart &&
         AutoStartRecording == other.AutoStartRecording &&
         ForceStartRecording == other.ForceStartRecording;

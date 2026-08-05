@@ -197,6 +197,19 @@ namespace TimeRenderer.Views
             if (command.CanExecute(todo)) command.Execute(todo);
         }
 
+        // ===== 記録漏れの帯 =====
+
+        /// <summary>帯を右クリック →「ToDo から埋める」：その時間幅の実績を ToDo から作る</summary>
+        private void FillGapMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is System.Windows.Controls.MenuItem menuItem &&
+                menuItem.Parent is System.Windows.Controls.ContextMenu contextMenu &&
+                contextMenu.PlacementTarget is FrameworkElement { DataContext: UnrecordedGap gap })
+            {
+                ViewModel.FillGapFromTodoPicker(gap);
+            }
+        }
+
         // ===== コンテキストメニュー =====
 
         private void EditMenuItem_Click(object sender, RoutedEventArgs e) =>
