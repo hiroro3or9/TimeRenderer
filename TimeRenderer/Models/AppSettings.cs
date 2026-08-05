@@ -63,6 +63,10 @@ public class AppSettings
     public System.Collections.Generic.List<CategoryInfo> Categories { get; set; } = [];
     /// <summary>記録開始時に使う既定カテゴリのID（null・未知のIDなら「記録」または先頭カテゴリ）</summary>
     public string? RecordingCategoryId { get; set; }
+    /// <summary>プロジェクトコードのマスター（空の場合は既定値を使用）</summary>
+    public System.Collections.Generic.List<ProjectCodeInfo> ProjectCodes { get; set; } = [];
+    /// <summary>新しい予定・実績と記録開始時に使う既定プロジェクトコードのID</summary>
+    public string? DefaultProjectCodeId { get; set; }
     /// <summary>タイトル入力欄に常に表示する定型タイトル（null は未設定＝既定値を使用）</summary>
     public System.Collections.Generic.List<string>? PinnedTitles { get; set; }
     /// <summary>定期予定（ルーティン）のテンプレート一覧</summary>

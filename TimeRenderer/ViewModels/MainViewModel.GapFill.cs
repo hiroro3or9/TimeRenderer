@@ -49,7 +49,7 @@ public partial class MainViewModel
         var suggestion = BuildGapFillSuggestion(stats);
 
         var result = _dialogService.ShowGapFillDialog(
-            gap.StartTime, gap.EndTime, suggestion, [.. Categories]);
+            gap.StartTime, gap.EndTime, suggestion, [.. Categories], [.. ProjectCodes]);
 
         if (result == null) return;
 
@@ -68,7 +68,7 @@ public partial class MainViewModel
         // 一度も記録が無いアプリなら、せめてアプリ名を入れておく（空欄よりは手がかりになる）
         var title = titles.Count > 0 ? titles[0] : dominant.AppName;
 
-        return new GapFillSuggestion(stats, title, titles, category);
+        return new GapFillSuggestion(stats, title, titles, category, DefaultProjectCode);
     }
 
     /// <summary>
@@ -179,6 +179,7 @@ public partial class MainViewModel
             StartTime = gap.StartTime,
             EndTime = gap.EndTime,
             CategoryId = category?.Id,
+            ProjectCodeId = result.ProjectCode?.Id ?? DefaultProjectCode?.Id,
             Content = BuildGapFillContent(gap),
         };
 

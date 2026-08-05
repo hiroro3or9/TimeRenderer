@@ -66,6 +66,13 @@ public partial class MainViewModel
         public string PercentText { get; init; } = "";
     }
 
+    /// <summary>プロジェクトコード別集計の1行分</summary>
+    public record ProjectCodeStat(string DisplayName, double Hours, double MaxHours)
+    {
+        public string HoursText => FormatHours(Hours);
+        public string PercentText { get; init; } = "";
+    }
+
     /// <summary>日別チャートの1セグメント（1カテゴリ分の積み上げ要素）</summary>
     public record DailyStatSegment(Brush Brush, double HeightPx, string ToolTipText);
 
@@ -80,6 +87,13 @@ public partial class MainViewModel
     {
         get => _statsCategoryItems;
         private set => SetProperty(ref _statsCategoryItems, value);
+    }
+
+    private IReadOnlyList<ProjectCodeStat> _statsProjectCodeItems = [];
+    public IReadOnlyList<ProjectCodeStat> StatsProjectCodeItems
+    {
+        get => _statsProjectCodeItems;
+        private set => SetProperty(ref _statsProjectCodeItems, value);
     }
 
     private IReadOnlyList<DailyStat> _statsDailyItems = [];
@@ -171,8 +185,10 @@ public partial class MainViewModel
         // 集計キー：カテゴリID（未分類は "color:<コード>"）
         // キー -> 合計時間 / 日付 -> (キー -> 時間) / キー -> 表示情報
         var categoryTotals = new Dictionary<string, double>();
+        var projectCodeTotals = new Dictionary<string, double>();
         var dailyTotals = new Dictionary<DateTime, Dictionary<string, double>>();
         var displayInfo = new Dictionary<string, (string Name, Brush Brush)>();
+        var projectCodeDisplayNames = new Dictionary<string, string>();
         int itemCount = 0;
 
         foreach (var item in ScheduleItems)
@@ -185,6 +201,13 @@ public partial class MainViewModel
             if (end <= start) continue;
 
             itemCount++;
+
+            const string unassignedProjectKey = "__unassigned_project__";
+            var projectCode = ResolveProjectCode(item.ProjectCodeId);
+            var projectKey = item.ProjectCodeId ?? unassignedProjectKey;
+            projectCodeTotals[projectKey] = projectCodeTotals.GetValueOrDefault(projectKey) + (end - start).TotalHours;
+            projectCodeDisplayNames[projectKey] = projectCode?.DisplayName
+                ?? (item.ProjectCodeId == null ? "（未設定）" : "（不明なプロジェクトコード）");
 
             var category = ResolveCategory(item);
             var key = category?.Id ?? $"color:{item.ColorCode}";
@@ -225,6 +248,27 @@ public partial class MainViewModel
 
         var grandTotal = categoryTotals.Values.Sum();
         var maxCategoryHours = categoryTotals.Count > 0 ? categoryTotals.Values.Max() : 0;
+
+        // プロジェクトコード表示順：マスターの登録順 → 未設定・不明（時間の多い順）
+        var orderedProjectKeys = ProjectCodes.Select(p => p.Id)
+            .Where(projectCodeTotals.ContainsKey)
+            .Concat(projectCodeTotals.Keys
+                .Where(key => ProjectCodes.All(p => p.Id != key))
+                .OrderByDescending(key => projectCodeTotals[key]))
+            .Distinct()
+            .ToList();
+        var maxProjectHours = projectCodeTotals.Count > 0 ? projectCodeTotals.Values.Max() : 0;
+
+        StatsProjectCodeItems = [.. orderedProjectKeys.Select(key =>
+        {
+            var hours = projectCodeTotals[key];
+            var percent = grandTotal > 0 ? hours / grandTotal * 100 : 0;
+            return new ProjectCodeStat(
+                projectCodeDisplayNames[key], hours, Math.Max(maxProjectHours, 0.001))
+            {
+                PercentText = $"{percent:0.#}%"
+            };
+        })];
 
         StatsCategoryItems = [.. orderedKeys.Select(key =>
         {

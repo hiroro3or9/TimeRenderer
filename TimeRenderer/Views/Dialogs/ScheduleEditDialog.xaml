@@ -1,7 +1,7 @@
 ﻿<Window x:Class="TimeRenderer.Views.Dialogs.ScheduleEditDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="予定・実績の編集" Height="790" Width="420"
+        Title="予定・実績の編集" Height="850" Width="420"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         Background="{DynamicResource BackgroundBrush}">
@@ -12,6 +12,7 @@
 
     <Grid Margin="20">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -91,8 +92,15 @@
             </ComboBox>
         </StackPanel>
 
+        <!-- プロジェクトコード -->
+        <StackPanel Grid.Row="8" Margin="0,0,0,16">
+            <TextBlock Text="プロジェクトコード" Style="{StaticResource FieldLabelStyle}"/>
+            <ComboBox x:Name="ProjectCodeCombo" Width="280" HorizontalAlignment="Left"
+                      FontSize="14" Padding="6,6" DisplayMemberPath="DisplayName"/>
+        </StackPanel>
+
         <!-- リマインダー設定（開始時刻の通知・自動記録開始） -->
-        <StackPanel x:Name="ReminderPanel" Grid.Row="8" VerticalAlignment="Top">
+        <StackPanel x:Name="ReminderPanel" Grid.Row="9" VerticalAlignment="Top">
             <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Margin="0,0,0,12"/>
             <CheckBox x:Name="RemindCheckBox" Content="開始時刻になったら通知する" VerticalContentAlignment="Center" Margin="0,0,0,6"/>
             <CheckBox x:Name="AutoStartCheckBox" Content="開始時刻になったら自動で記録を開始する" VerticalContentAlignment="Center" Margin="0,0,0,6"/>
@@ -101,7 +109,7 @@
         </StackPanel>
 
         <!-- ボタン -->
-        <StackPanel Grid.Row="9" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+        <StackPanel Grid.Row="10" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
             <Button Content="キャンセル" Width="100" Height="36" Margin="0,0,12,0"
                     Click="CancelButton_Click" Style="{StaticResource BaseButtonStyle}"/>
             <Button Content="OK" Width="100" Height="36"

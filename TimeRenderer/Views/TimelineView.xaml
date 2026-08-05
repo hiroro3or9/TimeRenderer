@@ -436,7 +436,8 @@
                                                         Value="{DynamicResource TextSecondaryBrush}"/>
                                             </Trigger>
                                             <DataTrigger Binding="{Binding Item.IsPlanned}" Value="True">
-                                                <Setter TargetName="BarBody" Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+                                                <Setter TargetName="BarBody" Property="Background"
+                                                        Value="{Binding Background, Converter={StaticResource BrushToSubtleBackgroundConverter}}"/>
                                                 <Setter TargetName="BarBody" Property="BorderBrush" Value="{Binding Background}"/>
                                                 <Setter TargetName="BarBody" Property="BorderThickness" Value="2"/>
                                                 <Setter TargetName="BarTitleText" Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>

@@ -23,7 +23,8 @@ namespace TimeRenderer.Views.Dialogs
             DateTime start,
             DateTime end,
             GapFillSuggestion suggestion,
-            IReadOnlyList<CategoryInfo> categories)
+            IReadOnlyList<CategoryInfo> categories,
+            IReadOnlyList<ProjectCodeInfo> projectCodes)
         {
             InitializeComponent();
 
@@ -48,6 +49,11 @@ namespace TimeRenderer.Views.Dialogs
                 ? categories.FirstOrDefault(c => c.Id == guessed.Id)
                 : null;
 
+            ProjectCodeCombo.ItemsSource = projectCodes;
+            ProjectCodeCombo.SelectedItem = suggestion.ProjectCode is { } selectedProject
+                ? projectCodes.FirstOrDefault(p => p.Id == selectedProject.Id)
+                : projectCodes.FirstOrDefault();
+
             Loaded += (_, _) =>
             {
                 TitleCombo.Focus();
@@ -71,7 +77,10 @@ namespace TimeRenderer.Views.Dialogs
                 return;
             }
 
-            Result = new GapFillResult(title, CategoryCombo.SelectedItem as CategoryInfo);
+            Result = new GapFillResult(
+                title,
+                CategoryCombo.SelectedItem as CategoryInfo,
+                ProjectCodeCombo.SelectedItem as ProjectCodeInfo);
             DialogResult = true;
         }
 

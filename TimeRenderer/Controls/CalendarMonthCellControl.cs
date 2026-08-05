@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 using Brush = System.Windows.Media.Brush;
+using TimeRenderer.Converters;
 using TimeRenderer.Models;
 using TimeRenderer.ViewModels;
 
@@ -296,9 +297,9 @@ namespace TimeRenderer.Controls
 
         private void DrawScheduleItem(DrawingContext dc, ScheduleItem item, Rect rect, double padding)
         {
-            // 予定は枠線、実績はカテゴリ色の塗りで描き分ける。
+            // 予定はカテゴリ色を薄くし、フルカラーの実績より目立たせない。
             var itemBg = item.IsPlanned
-                ? MutedBackgroundBrush ?? _mutedBackgroundBrush
+                ? BrushToSubtleBackgroundConverter.CreateSubtleBrush(item.BackgroundColor)
                 : item.BackgroundColor;
             System.Windows.Media.Pen? itemPen = null;
             if (item.IsPlanned)
@@ -315,7 +316,7 @@ namespace TimeRenderer.Controls
                 System.Windows.FlowDirection.LeftToRight,
                 _itemTypeface,
                 ItemFontSize,
-                _textPrimaryBrush, // 予定背景はパステルカラー固定のため、文字色は常に暗い色で固定
+                item.IsPlanned ? TextPrimaryBrush ?? _textPrimaryBrush : _textPrimaryBrush,
                 VisualTreeHelper.GetDpi(this).PixelsPerDip)
             {
                 // テキスト省略設定

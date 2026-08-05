@@ -1,11 +1,13 @@
-<Window x:Class="TimeRenderer.Views.Dialogs.RecordingStartDialog"
+﻿<Window x:Class="TimeRenderer.Views.Dialogs.RecordingStartDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="記録開始" Height="260" Width="320"
+        Title="記録開始" Height="345" Width="360"
         WindowStartupLocation="CenterOwner" ResizeMode="NoResize" WindowStyle="ToolWindow"
         Background="{DynamicResource BackgroundBrush}">
     <Grid Margin="20">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -21,14 +23,20 @@
                   MaxDropDownHeight="240" FontSize="14" Padding="6,6"
                   Margin="0,0,0,16" VerticalAlignment="Top"/>
         
+        <!-- プロジェクトコード -->
+        <TextBlock Grid.Row="2" Text="プロジェクトコード:" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,6"/>
+        <ComboBox Grid.Row="3" ItemsSource="{Binding ProjectCodes}"
+                  SelectedItem="{Binding SelectedProjectCode}"
+                  DisplayMemberPath="DisplayName" Height="32" Margin="0,0,0,16"/>
+
         <!-- タイマー設定 -->
-        <TextBlock Grid.Row="2" Text="タイマー設定:" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,6"/>
-        <ComboBox x:Name="TimerComboBox" Grid.Row="3" ItemsSource="{Binding TimerOptions}" 
+        <TextBlock Grid.Row="4" Text="タイマー設定:" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,6"/>
+        <ComboBox x:Name="TimerComboBox" Grid.Row="5" ItemsSource="{Binding TimerOptions}" 
                   SelectedItem="{Binding SelectedTimerOption}" DisplayMemberPath="Name"
                   Height="32" VerticalAlignment="Top" Margin="0,0,0,20"/>
         
         <!-- ボタン -->
-        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right">            
+        <StackPanel Grid.Row="6" Orientation="Horizontal" HorizontalAlignment="Right">            
             <Button Content="開始" IsDefault="True" Click="OkButton_Click" Width="90" Margin="0,0,10,0" Style="{StaticResource PrimaryButtonStyle}"/>
             <Button Content="キャンセル" IsCancel="True" Width="90" Style="{StaticResource BaseButtonStyle}"/>
         </StackPanel>

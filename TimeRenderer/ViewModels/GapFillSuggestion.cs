@@ -18,15 +18,21 @@ namespace TimeRenderer.ViewModels;
 /// <param name="Title">タイトル欄の初期値</param>
 /// <param name="TitleSuggestions">タイトル欄のドロップダウン候補</param>
 /// <param name="Category">カテゴリ欄の初期選択（推測できなければ null）</param>
+/// <param name="ProjectCode">記録へ付けるプロジェクトコードの初期選択</param>
 public sealed record GapFillSuggestion(
     IReadOnlyList<AppUsageStat> Stats,
     string Title,
     IReadOnlyList<string> TitleSuggestions,
-    CategoryInfo? Category);
+    CategoryInfo? Category,
+    ProjectCodeInfo? ProjectCode);
 
 /// <summary>
 /// 未記録の帯を埋めるダイアログの結果。
 /// </summary>
 /// <param name="Title">記録のタイトル</param>
 /// <param name="Category">選ばれたカテゴリ（未選択なら null）</param>
-public sealed record GapFillResult(string Title, CategoryInfo? Category);
+/// <param name="ProjectCode">選ばれたプロジェクトコード</param>
+public sealed record GapFillResult(
+    string Title,
+    CategoryInfo? Category,
+    ProjectCodeInfo? ProjectCode);

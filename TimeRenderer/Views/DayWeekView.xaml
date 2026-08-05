@@ -130,7 +130,8 @@
                                         </Border>
                                         <DataTemplate.Triggers>
                                             <DataTrigger Binding="{Binding IsPlanned}" Value="True">
-                                                <Setter TargetName="AllDayItemRoot" Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+                                                <Setter TargetName="AllDayItemRoot" Property="Background"
+                                                        Value="{Binding BackgroundColor, Converter={StaticResource BrushToSubtleBackgroundConverter}}"/>
                                                 <Setter TargetName="AllDayItemRoot" Property="BorderBrush" Value="{Binding BackgroundColor}"/>
                                                 <Setter TargetName="AllDayItemRoot" Property="BorderThickness" Value="2"/>
                                                 <Setter TargetName="AllDayItemRoot" Property="Effect" Value="{x:Null}"/>
@@ -589,9 +590,10 @@
                                                     <Setter TargetName="ItemShape" Property="Opacity" Value="1"/>
                                                     <Setter TargetName="ItemShape" Property="Stroke" Value="{DynamicResource TextSecondaryBrush}"/>
                                                 </Trigger>
-                                                <!-- 予定は塗りつぶさず、カテゴリ色の枠線で実績と区別する -->
+                                                <!-- 予定はカテゴリ色を薄くし、フルカラーの実績より目立たせない -->
                                                 <DataTrigger Binding="{Binding Item.IsPlanned}" Value="True">
-                                                    <Setter TargetName="ItemShape" Property="Fill" Value="{DynamicResource SurfaceBrush}"/>
+                                                    <Setter TargetName="ItemShape" Property="Fill"
+                                                            Value="{Binding BackgroundColor, Converter={StaticResource BrushToSubtleBackgroundConverter}}"/>
                                                     <Setter TargetName="ItemShape" Property="Stroke" Value="{Binding BackgroundColor}"/>
                                                     <Setter TargetName="ItemShape" Property="StrokeThickness" Value="2"/>
                                                     <Setter TargetName="ItemShape" Property="Effect" Value="{x:Null}"/>

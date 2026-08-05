@@ -22,7 +22,12 @@ public interface IDialogService
     /// <param name="categories">選択可能なカテゴリ一覧</param>
     /// <param name="titleSuggestions">タイトル入力欄のドロップダウン候補</param>
     /// <returns>追加または更新されたScheduleItem。キャンセルされた場合はnull</returns>
-    ScheduleItem? ShowScheduleEditDialog(ScheduleItem? initialItem = null, IReadOnlyList<CategoryInfo>? categories = null, IReadOnlyList<string>? titleSuggestions = null);
+    ScheduleItem? ShowScheduleEditDialog(
+        ScheduleItem? initialItem = null,
+        IReadOnlyList<CategoryInfo>? categories = null,
+        IReadOnlyList<string>? titleSuggestions = null,
+        IReadOnlyList<ProjectCodeInfo>? projectCodes = null,
+        ProjectCodeInfo? defaultProjectCode = null);
 
     /// <summary>
     /// 定期予定（ルーティン）編集ダイアログを開き、結果のルーティンを返します。
@@ -65,11 +70,13 @@ public interface IDialogService
     /// <param name="timerOptions">タイマーオプションのリスト</param>
     /// <param name="defaultOption">デフォルト選択されるタイマーオプション</param>
     /// <returns>入力されたタイトルと選択されたタイマーオプション。キャンセル時はnull</returns>
-    (string Title, TimerOption SelectedOption)? ShowRecordingStartDialog(
+    (string Title, TimerOption SelectedOption, string? ProjectCodeId)? ShowRecordingStartDialog(
         string defaultTitle,
         List<TimerOption> timerOptions,
         TimerOption defaultOption,
-        IReadOnlyList<string>? titleSuggestions = null);
+        IReadOnlyList<string>? titleSuggestions = null,
+        IReadOnlyList<ProjectCodeInfo>? projectCodes = null,
+        ProjectCodeInfo? defaultProjectCode = null);
     
     /// <summary>
     /// 確認メッセージダイアログを表示し、Yes(true)またはNo(false)を返します。
@@ -149,5 +156,6 @@ public interface IDialogService
         DateTime start,
         DateTime end,
         GapFillSuggestion suggestion,
-        IReadOnlyList<CategoryInfo> categories);
+        IReadOnlyList<CategoryInfo> categories,
+        IReadOnlyList<ProjectCodeInfo> projectCodes);
 }

@@ -29,7 +29,7 @@ namespace TimeRenderer.ViewModels;
 /// - .Todos.cs                        : ToDo（やることリスト）と終日行のチップ・記録との連動
 /// - .WorkDay.cs                      : 出勤・退勤の記録とマーカー
 /// - .WorkEndReview.cs                : 退勤時のふりかえりと ToDo の繰り越し
-/// - .Search.cs / .Selection.cs / .Categories.cs / .Titles.cs / .Routines.cs : 各機能
+/// - .Search.cs / .Selection.cs / .Categories.cs / .ProjectCodes.cs / .Titles.cs / .Routines.cs : 各機能
 ///
 /// 共有の enum / record（ViewMode, TimerOption, TimelineGroupMode, AwayHandlingMode など）は
 /// ViewModels/ 直下の独立ファイルにある。
@@ -423,6 +423,7 @@ public partial class MainViewModel : INotifyPropertyChanged
         _dialogService = dialogService;
         InitializeCommands();
         InitializeCategoryCommands();
+        InitializeProjectCodeCommands();
         InitializeStatsCommands();
         InitializeSearchCommands();
         InitializeTitleCommands();
@@ -433,6 +434,7 @@ public partial class MainViewModel : INotifyPropertyChanged
         InitializeAwayDetection();
         InitializeAppUsageTracking();
         LoadCategories(null); // 既定カテゴリで初期化（LoadSettings で上書きされる）
+        LoadProjectCodes(null); // 既定プロジェクトコードで初期化（LoadSettings で上書きされる）
         LoadPinnedTitles(null); // 既定の定型タイトルで初期化（LoadSettings で上書きされる）
 
         ScheduleItems = [];

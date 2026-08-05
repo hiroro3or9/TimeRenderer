@@ -463,6 +463,8 @@
     <!-- 設定パネルのセクション用 Expander スタイル
          ヘッダー行全体がクリック可能で、右端のシェブロンが開閉状態に応じて回転する -->
     <Style x:Key="SettingsExpanderStyle" TargetType="Expander">
+        <!-- 設定を開いた直後は見出しだけを並べ、必要な項目だけ展開する -->
+        <Setter Property="IsExpanded" Value="False"/>
         <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="BorderThickness" Value="0"/>
@@ -852,6 +854,7 @@
     <conv:DayOfWeekToBrushConverter x:Key="DayOfWeekToBrushConverter"/>
     <conv:DateToBackgroundBrushConverter x:Key="DateToBackgroundBrushConverter"/>
     <conv:BrushToContrastTextConverter x:Key="BrushToContrastTextConverter"/>
+    <conv:BrushToSubtleBackgroundConverter x:Key="BrushToSubtleBackgroundConverter"/>
 
     <!-- 検索結果1行分のボタン（行全体がクリック可能・ホバーで強調） -->
     <Style x:Key="SearchResultButtonStyle" TargetType="Button">

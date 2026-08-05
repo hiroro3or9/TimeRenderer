@@ -171,6 +171,8 @@ public partial class MainViewModel
         EnabledDaysOfWeek = EnabledDaysOfWeek,
         Categories = [.. Categories],
         RecordingCategoryId = _recordingCategoryDefaultId,
+        ProjectCodes = [.. ProjectCodes],
+        DefaultProjectCodeId = _defaultProjectCodeId,
         PinnedTitles = [.. PinnedTitles.Select(t => t.Text)],
         RoutineSchedules = Routines
     };
@@ -302,6 +304,8 @@ public partial class MainViewModel
 
         LoadCategories(settings.Categories);
         LoadRecordingCategoryId(settings.RecordingCategoryId);
+        LoadProjectCodes(settings.ProjectCodes);
+        LoadDefaultProjectCodeId(settings.DefaultProjectCodeId);
         LoadPinnedTitles(settings.PinnedTitles);
 
         _routines = settings.RoutineSchedules ?? [];

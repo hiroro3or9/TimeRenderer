@@ -18,6 +18,7 @@ namespace TimeRenderer.Views.Dialogs
         /// </summary>
         public record ColorOption(string Name, Brush Brush, string? CategoryId);
         public record KindOption(string Label, ScheduleItemKind Kind);
+        public record ProjectCodeOption(string DisplayName, string? ProjectCodeId);
 
         /// <summary>
         /// 編集対象のスケジュールアイテム（ダイアログ結果）
@@ -25,6 +26,7 @@ namespace TimeRenderer.Views.Dialogs
         public ScheduleItem? ResultItem { get; private set; }
 
         private readonly List<ColorOption> _colorOptions;
+        private readonly List<ProjectCodeOption> _projectCodeOptions;
         private readonly List<KindOption> _kindOptions =
         [
             new("予定", ScheduleItemKind.Planned),
@@ -67,7 +69,12 @@ namespace TimeRenderer.Views.Dialogs
         /// </summary>
         /// <param name="categories">カテゴリ一覧（null/空の場合は既定値を使用）</param>
         /// <param name="titleSuggestions">タイトル入力欄のドロップダウン候補（定型＋直近1か月）</param>
-        public ScheduleEditDialog(ScheduleItem? existingItem = null, IReadOnlyList<CategoryInfo>? categories = null, IReadOnlyList<string>? titleSuggestions = null)
+        public ScheduleEditDialog(
+            ScheduleItem? existingItem = null,
+            IReadOnlyList<CategoryInfo>? categories = null,
+            IReadOnlyList<string>? titleSuggestions = null,
+            IReadOnlyList<ProjectCodeInfo>? projectCodes = null,
+            ProjectCodeInfo? defaultProjectCode = null)
         {
             InitializeComponent();
 
@@ -96,6 +103,18 @@ namespace TimeRenderer.Views.Dialogs
             }
             ColorCombo.ItemsSource = _colorOptions;
 
+            _projectCodeOptions =
+            [
+                new("（未設定）", null),
+                .. (projectCodes ?? []).Select(p => new ProjectCodeOption(p.DisplayName, p.Id))
+            ];
+            if (existingItem?.ProjectCodeId is { Length: > 0 } existingProjectCodeId &&
+                _projectCodeOptions.All(p => p.ProjectCodeId != existingProjectCodeId))
+            {
+                _projectCodeOptions.Add(new ProjectCodeOption("（不明なプロジェクトコード）", existingProjectCodeId));
+            }
+            ProjectCodeCombo.ItemsSource = _projectCodeOptions;
+
             // 時間コンボボックスを初期化（0〜23時、0〜55分を5分刻み。編集時は元の分も選択肢に含める）
             StartHourCombo.ItemsSource = Enumerable.Range(0, 24).Select(h => h.ToString("D2")).ToList();
             EndHourCombo.ItemsSource = Enumerable.Range(0, 24).Select(h => h.ToString("D2")).ToList();
@@ -123,6 +142,9 @@ namespace TimeRenderer.Views.Dialogs
                     ?? _colorOptions.FirstOrDefault(c => c.Brush.ToString() == existingItem.BackgroundColor.ToString());
                 ColorCombo.SelectedItem = matchingColor ?? _colorOptions[0];
 
+                ProjectCodeCombo.SelectedItem = _projectCodeOptions.FirstOrDefault(
+                    p => p.ProjectCodeId == existingItem.ProjectCodeId) ?? _projectCodeOptions[0];
+
                 RemindCheckBox.IsChecked = existingItem.RemindAtStart;
                 AutoStartCheckBox.IsChecked = existingItem.AutoStartRecording;
                 ForceStartCheckBox.IsChecked = existingItem.ForceStartRecording;
@@ -142,6 +164,8 @@ namespace TimeRenderer.Views.Dialogs
                 EndHourCombo.SelectedItem = endHour.ToString("D2");
                 EndMinuteCombo.SelectedItem = (now.Minute / 5 * 5).ToString("D2");
                 ColorCombo.SelectedItem = _colorOptions[0];
+                ProjectCodeCombo.SelectedItem = _projectCodeOptions.FirstOrDefault(
+                    p => p.ProjectCodeId == defaultProjectCode?.Id) ?? _projectCodeOptions[0];
                 KindCombo.SelectedItem = _kindOptions[0];
             }
 
@@ -202,6 +226,7 @@ namespace TimeRenderer.Views.Dialogs
 
             var selectedColor = (ColorOption?)ColorCombo.SelectedItem;
             var selectedKind = (KindOption?)KindCombo.SelectedItem ?? _kindOptions[0];
+            var selectedProjectCode = (ProjectCodeOption?)ProjectCodeCombo.SelectedItem;
 
             ResultItem = new ScheduleItem
             {
@@ -213,6 +238,7 @@ namespace TimeRenderer.Views.Dialogs
                 IsAllDay = isAllDay,
                 BackgroundColor = selectedColor?.Brush ?? Brushes.LightBlue,
                 CategoryId = selectedColor?.CategoryId,
+                ProjectCodeId = selectedProjectCode?.ProjectCodeId,
                 // 終日予定は時刻の概念がないためリマインダー対象外
                 RemindAtStart = selectedKind.Kind == ScheduleItemKind.Planned && !isAllDay && (RemindCheckBox.IsChecked ?? false),
                 AutoStartRecording = selectedKind.Kind == ScheduleItemKind.Planned && !isAllDay && (AutoStartCheckBox.IsChecked ?? false),

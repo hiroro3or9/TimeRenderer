@@ -978,6 +978,7 @@ public partial class MainViewModel
         RecordingTitle = todo.Title;
         _recordingColorCode = todo.ColorCode;
         _recordingCategoryId = todo.CategoryId ?? ResolveCategory(todo.CategoryId, todo.ColorCode)?.Id;
+        _recordingProjectCodeId = DefaultProjectCode?.Id;
         _recordingSourceItem = null;
         _recordingTodo = todo;
 
@@ -1079,6 +1080,7 @@ public partial class MainViewModel
         EndTime = end,
         ColorCode = todo.ColorCode,
         CategoryId = todo.CategoryId ?? ResolveCategory(todo.CategoryId, todo.ColorCode)?.Id,
+        ProjectCodeId = DefaultProjectCode?.Id,
         TodoId = todo.Id,
     };
 
