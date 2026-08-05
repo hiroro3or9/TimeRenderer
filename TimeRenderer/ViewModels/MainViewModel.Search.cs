@@ -19,17 +19,23 @@ public partial class MainViewModel
 
     /// <summary>
     /// 検索結果1件分の表示用ラッパー。
-    /// 予定と ToDo を1つの一覧に混ぜるため、両方をこの形に揃える
-    /// （探しているものがどちらか分からないまま打ち込めるようにするため）。
+    /// 予定・ToDo・ふりかえりを1つの一覧に混ぜるため、すべてこの形に揃える
+    /// （探しているものがどれか分からないまま打ち込めるようにするため）。
     /// 種別はアイコンと日付欄の書き方で示す。
     /// </summary>
     public sealed class SearchResultVm
     {
-        /// <summary>予定アイテム（ToDo の結果なら null）</summary>
+        /// <summary>ふりかえりの結果に付ける色（種別が一目で分かればよいので固定色）</summary>
+        private static readonly Brush NoteBrush = CreateFrozenBrush("#94A3B8");
+
+        /// <summary>予定アイテム（他の種別なら null）</summary>
         public ScheduleItem? Item { get; private init; }
 
-        /// <summary>ToDo（予定の結果なら null）</summary>
+        /// <summary>ToDo（他の種別なら null）</summary>
         public TodoItem? Todo { get; private init; }
+
+        /// <summary>ふりかえりの勤務日（他の種別なら null）</summary>
+        public DateTime? NoteDate { get; private init; }
 
         public required string Title { get; init; }
         public required string Content { get; init; }
@@ -68,6 +74,35 @@ public partial class MainViewModel
             Glyph = "\uE73A", // チェックボックス
             SortKey = todo.DueDate ?? DateTime.MinValue,
         };
+
+        /// <summary>
+        /// ふりかえり。タイトルに当たるものが無いので本文の冒頭を見出しに使い、
+        /// 収まりきらない場合だけ全文を Content に置く（同じ文が2行続くのを避ける）。
+        /// </summary>
+        public static SearchResultVm ForWorkDayNote(WorkDayLog log)
+        {
+            var note = log.NoteSingleLine;
+            var head = note.Length > 40 ? string.Concat(note.AsSpan(0, 40), "…") : note;
+
+            return new()
+            {
+                NoteDate = log.StartTime.Date,
+                Title = head,
+                Content = note.Length > head.Length ? note : string.Empty,
+                Brush = NoteBrush,
+                DateText = log.StartTime.ToString("yyyy/MM/dd (ddd)"),
+                TimeText = "ふりかえり",
+                Glyph = "\uE70F", // ペン
+                SortKey = log.StartTime,
+            };
+        }
+
+        private static Brush CreateFrozenBrush(string colorCode)
+        {
+            var brush = CategoryInfo.CreateBrush(colorCode);
+            if (brush.CanFreeze) brush.Freeze();
+            return brush;
+        }
     }
 
     /// <summary>該当アイテムの日付へジャンプ後、その時刻までスクロールさせるための通知。</summary>
@@ -91,6 +126,10 @@ public partial class MainViewModel
 
                 case SearchResultVm { Todo: { } resultTodo }:
                     JumpToTodo(resultTodo);
+                    break;
+
+                case SearchResultVm { NoteDate: { } noteDate }:
+                    JumpToWorkDayNote(noteDate);
                     break;
 
                 case ScheduleItem item:
@@ -162,11 +201,17 @@ public partial class MainViewModel
             .Where(t => Matches(t.Title, t.Content, query))
             .Select(SearchResultVm.ForTodo);
 
+        // ふりかえりは見出しに当たるものが無いので、本文だけを対象にする。
+        // 日付やラベルまで拾うと「ふりかえり」の一語で全件出てきてしまう
+        var notes = _workDayLogs
+            .Where(l => l.HasNote && l.Note.Contains(query, StringComparison.OrdinalIgnoreCase))
+            .Select(SearchResultVm.ForWorkDayNote);
+
         // 種別は混ぜたまま、新しい（期限が近い）ものから並べる。
         // 期限なしの ToDo は SortKey が最小値なので末尾へ回る
         SearchResults =
         [
-            .. items.Concat(todos)
+            .. items.Concat(todos).Concat(notes)
                 .OrderByDescending(r => r.SortKey)
                 .Take(MaxSearchResults)
         ];
@@ -206,6 +251,24 @@ public partial class MainViewModel
         if (todo.DueDate is not { } due) return;
 
         var targetDate = due.Date;
+        if (targetDate < CurrentDate.Date)
+            TransitionDirection = Controls.TransitionDirection.Backward;
+        else if (targetDate > CurrentDate.Date)
+            TransitionDirection = Controls.TransitionDirection.Forward;
+
+        CurrentDate = targetDate;
+    }
+
+    /// <summary>
+    /// 検索結果のふりかえりを選ぶ：その勤務日へ移動する。
+    ///
+    /// ビューモードは変えない。日/週なら勤務ラインのツールチップ、統計ならその期間の
+    /// ふりかえり一覧、ふりかえりビューなら元から全件出ているので、
+    /// どのモードでも「その日に寄る」だけで目的のものに辿り着ける。
+    /// </summary>
+    private void JumpToWorkDayNote(DateTime date)
+    {
+        var targetDate = date.Date;
         if (targetDate < CurrentDate.Date)
             TransitionDirection = Controls.TransitionDirection.Backward;
         else if (targetDate > CurrentDate.Date)

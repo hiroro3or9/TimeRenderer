@@ -759,11 +759,12 @@
     </Style>
 
     <!--
-        統計ビュー：ふりかえり1件分のカード（クリックでその日の勤務記録を編集）。
+        ふりかえり1件分のカード（クリックでその日の勤務記録を編集）。
+        ふりかえりビューと統計ビューの両方で使う。
         BaseButtonStyle はテンプレート内の ContentPresenter を中央寄せで固定しているため、
         横いっぱいに広がる本文を置けない。専用のテンプレートを持たせている。
     -->
-    <Style x:Key="StatsNoteCardStyle" TargetType="Button">
+    <Style x:Key="NoteCardStyle" TargetType="Button">
         <Setter Property="Background" Value="{DynamicResource MutedBackgroundBrush}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>

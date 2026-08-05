@@ -87,7 +87,7 @@ public partial class MainViewModel
         log.Note = value;
         SaveWorkDays();
         RebuildWorkDayMarkers(); // マーカーのツールチップに一言を出しているため
-        UpdateStats();           // 統計のふりかえり一覧にも反映する
+        NotifyWorkDayNotesChanged();
     }
 
     /// <summary>その日に記録した時間の合計（終日アイテムは対象外）</summary>

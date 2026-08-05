@@ -1,6 +1,9 @@
 ﻿namespace TimeRenderer.ViewModels;
 
-/// <summary>メイン画面の表示モード</summary>
+/// <summary>
+/// メイン画面の表示モード。
+/// 設定ファイルに数値で保存されるため、既存の値の並びは変更せず末尾に足すこと。
+/// </summary>
 public enum ViewMode
 {
     Day,
@@ -8,7 +11,9 @@ public enum ViewMode
     Month,
     Sprint,
     SprintTimeline,
-    Stats
+    Stats,
+    /// <summary>ふりかえりの一覧（全期間）</summary>
+    Notes
 }
 
 /// <summary>ツールバーの表示切替ドロップダウン用の選択肢</summary>

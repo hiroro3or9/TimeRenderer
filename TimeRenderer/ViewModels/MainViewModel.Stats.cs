@@ -89,18 +89,13 @@ public partial class MainViewModel
         private set => SetProperty(ref _statsDailyItems, value);
     }
 
+    private IReadOnlyList<WorkDayNote> _statsNoteItems = [];
     /// <summary>
-    /// 統計に並べるふりかえり1件（<see cref="WorkDayLog.Note"/> が書かれている日だけ）。
+    /// 期間内のふりかえり（新しい日が上）。
+    /// 全期間を読み返すのは「ふりかえり」ビュー（MainViewModel.Notes.cs）の役目で、
+    /// ここはあくまで「この週／月はどうだったか」を数字の隣で振り返るためのもの。
     /// </summary>
-    /// <param name="Date">勤務日（クリックで編集を開くときの対象）</param>
-    /// <param name="DateText">日付の表示</param>
-    /// <param name="WorkText">その日の勤務時間帯（何をしていた日か思い出す手がかり）</param>
-    /// <param name="Note">ふりかえり本文</param>
-    public record WorkDayNoteItem(DateTime Date, string DateText, string WorkText, string Note);
-
-    private IReadOnlyList<WorkDayNoteItem> _statsNoteItems = [];
-    /// <summary>期間内のふりかえり（新しい日が上）</summary>
-    public IReadOnlyList<WorkDayNoteItem> StatsNoteItems
+    public IReadOnlyList<WorkDayNote> StatsNoteItems
     {
         get => _statsNoteItems;
         private set
@@ -286,20 +281,14 @@ public partial class MainViewModel
     /// （<see cref="HasStatsData"/> の出し分けとは独立させている）。
     /// 新しい日を上にするのは、直近のふりかえりほど読み返す頻度が高いため。
     /// </summary>
-    private IReadOnlyList<WorkDayNoteItem> BuildStatsNoteItems(DateTime rangeStart, DateTime rangeEnd)
+    private IReadOnlyList<WorkDayNote> BuildStatsNoteItems(DateTime rangeStart, DateTime rangeEnd)
     {
         return
         [
             .. _workDayLogs
                 .Where(l => l.HasNote && l.StartTime.Date >= rangeStart && l.StartTime.Date < rangeEnd)
                 .OrderByDescending(l => l.StartTime)
-                .Select(l => new WorkDayNoteItem(
-                    l.StartTime.Date,
-                    l.StartTime.ToString("M/d(ddd)"),
-                    l.EndTime is { } end
-                        ? $"{l.StartTime:H:mm} - {end:H:mm} ・ {l.DurationText}"
-                        : $"{l.StartTime:H:mm} - 勤務中",
-                    l.Note.Trim()))
+                .Select(ToWorkDayNote)
         ];
     }
 }

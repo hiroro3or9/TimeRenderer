@@ -53,11 +53,15 @@
                             FontFamily="Segoe MDL2 Assets" FontSize="12" Width="32" Padding="0" Margin="0,0,16,0"
                             ToolTip="{Binding RedoToolTip}"/>
 
-                    <Button Content="今日" Command="{Binding TodayCommand}" Style="{StaticResource BaseButtonStyle}" Margin="0,0,8,0"/>
-                    <Button Content="&#xE76B;" Command="{Binding PreviousCommand}" Style="{StaticResource BaseButtonStyle}"
-                            FontFamily="Segoe MDL2 Assets" FontSize="11" Width="32" Padding="0" Margin="0,0,4,0" ToolTip="前へ"/>
-                    <Button Content="&#xE76C;" Command="{Binding NextCommand}" Style="{StaticResource BaseButtonStyle}"
-                            FontFamily="Segoe MDL2 Assets" FontSize="11" Width="32" Padding="0" Margin="0,0,12,0" ToolTip="次へ"/>
+                    <!-- 日付の前後送り。全期間を並べるモードでは押しても何も起きないので隠す -->
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
+                                Visibility="{Binding IsDateNavigationVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <Button Content="今日" Command="{Binding TodayCommand}" Style="{StaticResource BaseButtonStyle}" Margin="0,0,8,0"/>
+                        <Button Content="&#xE76B;" Command="{Binding PreviousCommand}" Style="{StaticResource BaseButtonStyle}"
+                                FontFamily="Segoe MDL2 Assets" FontSize="11" Width="32" Padding="0" Margin="0,0,4,0" ToolTip="前へ"/>
+                        <Button Content="&#xE76C;" Command="{Binding NextCommand}" Style="{StaticResource BaseButtonStyle}"
+                                FontFamily="Segoe MDL2 Assets" FontSize="11" Width="32" Padding="0" Margin="0,0,12,0" ToolTip="次へ"/>
+                    </StackPanel>
 
                     <TextBlock Text="{Binding DateDisplay}" VerticalAlignment="Center" FontSize="17" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="4,0,0,0"/>
                 </StackPanel>
@@ -595,6 +599,10 @@
         <!-- 統計表示用の領域 -->
         <views:StatsView Grid.Row="1" Grid.RowSpan="2"
                          Visibility="{Binding IsStatsMode, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
+        <!-- ふりかえり一覧（全期間）用の領域 -->
+        <views:NotesView Grid.Row="1" Grid.RowSpan="2"
+                         Visibility="{Binding IsNotesMode, Converter={StaticResource BooleanToVisibilityConverter}}"/>
 
         <!-- ToDo パネル -->
         <views:TodoPanel Grid.Row="1" Grid.RowSpan="2" Grid.Column="1"/>
