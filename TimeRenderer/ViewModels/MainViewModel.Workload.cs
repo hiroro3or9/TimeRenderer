@@ -46,7 +46,11 @@ public partial class MainViewModel
         get => _todayWorkload;
         private set
         {
-            if (SetProperty(ref _todayWorkload, value)) OnPropertyChanged(nameof(HasTodayWorkload));
+            if (SetProperty(ref _todayWorkload, value))
+            {
+                OnPropertyChanged(nameof(HasTodayWorkload));
+                RebuildTodayOverview();
+            }
         }
     }
 

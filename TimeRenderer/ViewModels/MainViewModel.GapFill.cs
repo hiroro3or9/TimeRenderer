@@ -104,8 +104,7 @@ public partial class MainViewModel
 
         foreach (var item in ScheduleItems)
         {
-            // 仮想アイテム（未消化の定期予定）は予定であって実績ではない
-            if (item.IsAllDay || item.IsVirtual) continue;
+            if (!item.IsRecorded || item.IsAllDay || item.IsVirtual) continue;
 
             var title = item.Title?.Trim();
             if (string.IsNullOrEmpty(title)) continue;
@@ -175,6 +174,7 @@ public partial class MainViewModel
 
         var item = new ScheduleItem
         {
+            Kind = ScheduleItemKind.Recorded,
             Title = result.Title,
             StartTime = gap.StartTime,
             EndTime = gap.EndTime,

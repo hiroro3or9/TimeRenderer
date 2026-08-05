@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Media;
 using Brush = System.Windows.Media.Brush;
 using Brushes = System.Windows.Media.Brushes;
@@ -17,6 +17,7 @@ namespace TimeRenderer.Views.Dialogs
         /// 色選択肢を表すヘルパークラス
         /// </summary>
         public record ColorOption(string Name, Brush Brush, string? CategoryId);
+        public record KindOption(string Label, ScheduleItemKind Kind);
 
         /// <summary>
         /// 編集対象のスケジュールアイテム（ダイアログ結果）
@@ -24,6 +25,11 @@ namespace TimeRenderer.Views.Dialogs
         public ScheduleItem? ResultItem { get; private set; }
 
         private readonly List<ColorOption> _colorOptions;
+        private readonly List<KindOption> _kindOptions =
+        [
+            new("予定", ScheduleItemKind.Planned),
+            new("実績", ScheduleItemKind.Recorded),
+        ];
 
         // 編集前の時刻（5分丸め・秒消失を防ぐため、変更がなければ元の値をそのまま使う）
         private readonly DateTime? _originalStartTime;
@@ -67,6 +73,7 @@ namespace TimeRenderer.Views.Dialogs
 
             // タイトル候補（手入力も可能な編集可能コンボボックス）
             TitleCombo.ItemsSource = titleSuggestions ?? [];
+            KindCombo.ItemsSource = _kindOptions;
 
             if (existingItem != null)
             {
@@ -119,6 +126,8 @@ namespace TimeRenderer.Views.Dialogs
                 RemindCheckBox.IsChecked = existingItem.RemindAtStart;
                 AutoStartCheckBox.IsChecked = existingItem.AutoStartRecording;
                 ForceStartCheckBox.IsChecked = existingItem.ForceStartRecording;
+                KindCombo.SelectedItem = _kindOptions.First(k => k.Kind ==
+                    (existingItem.Kind == ScheduleItemKind.Recorded ? ScheduleItemKind.Recorded : ScheduleItemKind.Planned));
             }
             else
             {
@@ -133,6 +142,7 @@ namespace TimeRenderer.Views.Dialogs
                 EndHourCombo.SelectedItem = endHour.ToString("D2");
                 EndMinuteCombo.SelectedItem = (now.Minute / 5 * 5).ToString("D2");
                 ColorCombo.SelectedItem = _colorOptions[0];
+                KindCombo.SelectedItem = _kindOptions[0];
             }
 
             UpdateTimePanelState();
@@ -191,9 +201,11 @@ namespace TimeRenderer.Views.Dialogs
             }
 
             var selectedColor = (ColorOption?)ColorCombo.SelectedItem;
+            var selectedKind = (KindOption?)KindCombo.SelectedItem ?? _kindOptions[0];
 
             ResultItem = new ScheduleItem
             {
+                Kind = selectedKind.Kind,
                 Title = TitleCombo.Text.Trim(),
                 Content = ContentTextBox.Text.Trim(),
                 StartTime = startTime,
@@ -202,9 +214,9 @@ namespace TimeRenderer.Views.Dialogs
                 BackgroundColor = selectedColor?.Brush ?? Brushes.LightBlue,
                 CategoryId = selectedColor?.CategoryId,
                 // 終日予定は時刻の概念がないためリマインダー対象外
-                RemindAtStart = !isAllDay && (RemindCheckBox.IsChecked ?? false),
-                AutoStartRecording = !isAllDay && (AutoStartCheckBox.IsChecked ?? false),
-                ForceStartRecording = !isAllDay && (AutoStartCheckBox.IsChecked ?? false) && (ForceStartCheckBox.IsChecked ?? false)
+                RemindAtStart = selectedKind.Kind == ScheduleItemKind.Planned && !isAllDay && (RemindCheckBox.IsChecked ?? false),
+                AutoStartRecording = selectedKind.Kind == ScheduleItemKind.Planned && !isAllDay && (AutoStartCheckBox.IsChecked ?? false),
+                ForceStartRecording = selectedKind.Kind == ScheduleItemKind.Planned && !isAllDay && (AutoStartCheckBox.IsChecked ?? false) && (ForceStartCheckBox.IsChecked ?? false)
             };
 
             DialogResult = true;
@@ -215,6 +227,8 @@ namespace TimeRenderer.Views.Dialogs
 
         private void AllDayCheckBox_Changed(object sender, RoutedEventArgs e) => UpdateTimePanelState();
 
+        private void KindCombo_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e) => UpdateTimePanelState();
+
         private void UpdateTimePanelState()
         {
             // チェックボックスの状態に応じて時刻入力パネルの有効/無効を切り替え
@@ -222,7 +236,8 @@ namespace TimeRenderer.Views.Dialogs
             StartTimePanel?.IsEnabled = isTimeEnabled;
             EndTimePanel?.IsEnabled = isTimeEnabled;
             // 終日予定はリマインダー対象外のため入力も無効化する
-            ReminderPanel?.IsEnabled = isTimeEnabled;
+            var isPlan = (KindCombo?.SelectedItem as KindOption)?.Kind != ScheduleItemKind.Recorded;
+            ReminderPanel?.IsEnabled = isTimeEnabled && isPlan;
         }
     }
 }

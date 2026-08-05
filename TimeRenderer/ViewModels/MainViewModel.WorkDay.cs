@@ -341,7 +341,7 @@ public partial class MainViewModel
         var dayEnd = log.StartTime.Date.AddDays(1);
 
         var lastActivity = ScheduleItems
-            .Where(i => !i.IsAllDay && i.EndTime > log.StartTime && i.EndTime < dayEnd)
+            .Where(i => i.IsRecorded && !i.IsAllDay && i.EndTime > log.StartTime && i.EndTime < dayEnd)
             .Select(i => i.EndTime)
             .DefaultIfEmpty(log.StartTime)
             .Max();

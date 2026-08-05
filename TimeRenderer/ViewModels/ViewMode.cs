@@ -13,7 +13,9 @@ public enum ViewMode
     SprintTimeline,
     Stats,
     /// <summary>ふりかえりの一覧（全期間）</summary>
-    Notes
+    Notes,
+    /// <summary>今日の予定・ToDo・実績を1画面にまとめたホーム</summary>
+    Today
 }
 
 /// <summary>ツールバーの表示切替ドロップダウン用の選択肢</summary>

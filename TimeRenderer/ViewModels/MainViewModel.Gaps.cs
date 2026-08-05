@@ -34,7 +34,10 @@ public partial class MainViewModel
     public IReadOnlyList<UnrecordedGap> UnrecordedGaps
     {
         get => _unrecordedGaps;
-        private set => SetProperty(ref _unrecordedGaps, value);
+        private set
+        {
+            if (SetProperty(ref _unrecordedGaps, value)) RebuildTodayOverview();
+        }
     }
 
     /// <summary>
@@ -98,7 +101,7 @@ public partial class MainViewModel
 
         foreach (var item in ScheduleItems)
         {
-            if (item.IsAllDay || item.IsVirtual) continue;
+            if (!item.IsRecorded || item.IsAllDay || item.IsVirtual) continue;
             if (item.EndTime <= rangeStart || item.StartTime >= rangeEnd) continue;
             covered.Add((item.StartTime, item.EndTime));
         }

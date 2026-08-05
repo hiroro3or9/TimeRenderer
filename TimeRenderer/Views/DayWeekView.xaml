@@ -111,7 +111,7 @@
                                 </ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Border Background="{Binding BackgroundColor}" CornerRadius="6" Padding="6,2" Height="24" Opacity="0.95" BorderBrush="White" BorderThickness="1"
+                                        <Border x:Name="AllDayItemRoot" Background="{Binding BackgroundColor}" CornerRadius="6" Padding="6,2" Height="24" Opacity="0.95" BorderBrush="White" BorderThickness="1"
                                                 Cursor="Hand"
                                                 MouseLeftButtonDown="ScheduleItem_MouseLeftButtonDown">
                                             <Border.Effect>
@@ -125,9 +125,18 @@
                                                     <MenuItem Header="削除" Click="DeleteMenuItem_Click"/>
                                                 </ContextMenu>
                                             </Border.ContextMenu>
-                                            <TextBlock Text="{Binding Title}" FontSize="12" TextTrimming="CharacterEllipsis"
+                                            <TextBlock x:Name="AllDayItemText" Text="{Binding Title}" FontSize="12" TextTrimming="CharacterEllipsis"
                                                        Foreground="{Binding BackgroundColor, Converter={StaticResource BrushToContrastTextConverter}}"/>
                                         </Border>
+                                        <DataTemplate.Triggers>
+                                            <DataTrigger Binding="{Binding IsPlanned}" Value="True">
+                                                <Setter TargetName="AllDayItemRoot" Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+                                                <Setter TargetName="AllDayItemRoot" Property="BorderBrush" Value="{Binding BackgroundColor}"/>
+                                                <Setter TargetName="AllDayItemRoot" Property="BorderThickness" Value="2"/>
+                                                <Setter TargetName="AllDayItemRoot" Property="Effect" Value="{x:Null}"/>
+                                                <Setter TargetName="AllDayItemText" Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+                                            </DataTrigger>
+                                        </DataTemplate.Triggers>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                                 <ItemsControl.ItemContainerStyle>
@@ -559,12 +568,12 @@
                                                 <!-- 文字色は背景の輝度から決める（濃いカテゴリ色・ダークモードでも読めるように） -->
                                                 <Border Padding="8,6" Margin="0,0,0,15" VerticalAlignment="Top">
                                                     <StackPanel>
-                                                        <TextBlock Text="{Binding Title}" FontWeight="Bold" TextTrimming="CharacterEllipsis"
+                                                        <TextBlock x:Name="ItemTitleText" Text="{Binding Title}" FontWeight="Bold" TextTrimming="CharacterEllipsis"
                                                                    Foreground="{Binding BackgroundColor, Converter={StaticResource BrushToContrastTextConverter}}"/>
-                                                        <TextBlock Text="{Binding Content}" TextWrapping="Wrap" FontSize="11" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"
+                                                        <TextBlock x:Name="ItemContentText" Text="{Binding Content}" TextWrapping="Wrap" FontSize="11" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"
                                                                    Foreground="{Binding BackgroundColor, Converter={StaticResource BrushToContrastTextConverter}, ConverterParameter=Muted}"/>
                                                         <!-- 日またぎで分割されたセグメントでも、元アイテムの本来の時間帯を表示する -->
-                                                        <TextBlock FontSize="10" Margin="0,2,0,0"
+                                                        <TextBlock x:Name="ItemTimeText" FontSize="10" Margin="0,2,0,0"
                                                                    Foreground="{Binding BackgroundColor, Converter={StaticResource BrushToContrastTextConverter}, ConverterParameter=Muted}">
                                                             <Run Text="{Binding Item.StartTime, StringFormat=HH:mm, Mode=OneWay}"/>
                                                             <Run Text=" - "/>
@@ -580,13 +589,23 @@
                                                     <Setter TargetName="ItemShape" Property="Opacity" Value="1"/>
                                                     <Setter TargetName="ItemShape" Property="Stroke" Value="{DynamicResource TextSecondaryBrush}"/>
                                                 </Trigger>
-                                                <!-- 選択中：太い枠線で示す（キーボード操作の現在位置） -->
+                                                <!-- 予定は塗りつぶさず、カテゴリ色の枠線で実績と区別する -->
+                                                <DataTrigger Binding="{Binding Item.IsPlanned}" Value="True">
+                                                    <Setter TargetName="ItemShape" Property="Fill" Value="{DynamicResource SurfaceBrush}"/>
+                                                    <Setter TargetName="ItemShape" Property="Stroke" Value="{Binding BackgroundColor}"/>
+                                                    <Setter TargetName="ItemShape" Property="StrokeThickness" Value="2"/>
+                                                    <Setter TargetName="ItemShape" Property="Effect" Value="{x:Null}"/>
+                                                    <Setter TargetName="ItemTitleText" Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+                                                    <Setter TargetName="ItemContentText" Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+                                                    <Setter TargetName="ItemTimeText" Property="Foreground" Value="{DynamicResource TextMutedBrush}"/>
+                                                </DataTrigger>
+                                                <!-- 選択中は予定/実績どちらでも最優先の太い枠線にする -->
                                                 <DataTrigger Binding="{Binding Item.IsSelected}" Value="True">
                                                     <Setter TargetName="ItemShape" Property="Opacity" Value="1"/>
                                                     <Setter TargetName="ItemShape" Property="Stroke" Value="{DynamicResource TextPrimaryBrush}"/>
                                                     <Setter TargetName="ItemShape" Property="StrokeThickness" Value="2.5"/>
                                                 </DataTrigger>
-                                            </DataTemplate.Triggers>
+                                        </DataTemplate.Triggers>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>

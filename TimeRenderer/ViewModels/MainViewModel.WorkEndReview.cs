@@ -94,7 +94,7 @@ public partial class MainViewModel
     private TimeSpan SumRecordedOn(DateTime date)
     {
         var ticks = ScheduleItems
-            .Where(i => !i.IsAllDay && i.StartTime.Date == date.Date && i.EndTime > i.StartTime)
+            .Where(i => i.IsRecorded && !i.IsAllDay && i.StartTime.Date == date.Date && i.EndTime > i.StartTime)
             .Sum(i => (i.EndTime - i.StartTime).Ticks);
 
         return TimeSpan.FromTicks(ticks);
@@ -114,7 +114,7 @@ public partial class MainViewModel
         // 「決めたのに一度も触らなかった」のか「着手はしたが終わらなかった」のかで、
         // 明日へ送るかどうかの判断が変わる
         var recordedByTodo = ScheduleItems
-            .Where(i => !i.IsAllDay && i.StartTime.Date == date.Date && !string.IsNullOrEmpty(i.TodoId))
+            .Where(i => i.IsRecorded && !i.IsAllDay && i.StartTime.Date == date.Date && !string.IsNullOrEmpty(i.TodoId))
             .GroupBy(i => i.TodoId!)
             .ToDictionary(g => g.Key, g => TimeSpan.FromTicks(g.Sum(i => (i.EndTime - i.StartTime).Ticks)));
 

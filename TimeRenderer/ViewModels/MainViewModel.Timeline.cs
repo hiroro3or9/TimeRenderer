@@ -532,7 +532,9 @@ public partial class MainViewModel
         {
             var (name, groupItems, offset, count) = groups[i];
 
-            double totalHours = groupItems.Sum(x => Math.Max(0, (x.EndTime - x.StartTime).TotalHours));
+            double totalHours = groupItems
+                .Where(x => x.IsRecorded)
+                .Sum(x => Math.Max(0, (x.EndTime - x.StartTime).TotalHours));
             var brush = groupItems.Count > 0 ? groupItems[0].BackgroundColor : Brushes.Transparent;
 
             result.Add(new TimelineLaneGroup

@@ -1022,6 +1022,7 @@ public partial class MainViewModel
         if (end <= start) return;
 
         var item = CreateItemForTodo(todo, start, end);
+        item.Kind = ScheduleItemKind.Recorded;
         item.Content = $"記録時間: {(int)(end - start).TotalHours}:{(end - start).Minutes:D2}";
 
         var before = TodoSnapshot.Capture(todo);
@@ -1072,6 +1073,7 @@ public partial class MainViewModel
     /// <summary>ToDo のタイトル・色・紐づけを引き継いだ予定アイテムを作る</summary>
     private ScheduleItem CreateItemForTodo(TodoItem todo, DateTime start, DateTime end) => new()
     {
+        Kind = ScheduleItemKind.Planned,
         Title = todo.Title,
         StartTime = start,
         EndTime = end,

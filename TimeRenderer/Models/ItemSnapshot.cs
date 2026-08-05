@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Windows.Media;
 using Brush = System.Windows.Media.Brush;
 
@@ -16,6 +16,8 @@ public sealed class ItemSnapshot
 {
     public required string Title { get; init; }
     public required string Content { get; init; }
+    public ScheduleItemKind Kind { get; init; }
+    public string? SourcePlanId { get; init; }
     public DateTime StartTime { get; init; }
     public DateTime EndTime { get; init; }
     public bool IsAllDay { get; init; }
@@ -31,6 +33,8 @@ public sealed class ItemSnapshot
     {
         Title = item.Title,
         Content = item.Content,
+        Kind = item.Kind,
+        SourcePlanId = item.SourcePlanId,
         StartTime = item.StartTime,
         EndTime = item.EndTime,
         IsAllDay = item.IsAllDay,
@@ -48,6 +52,8 @@ public sealed class ItemSnapshot
     {
         item.Title = Title;
         item.Content = Content;
+        item.Kind = Kind;
+        item.SourcePlanId = SourcePlanId;
         item.StartTime = StartTime;
         item.EndTime = EndTime;
         item.IsAllDay = IsAllDay;
@@ -64,6 +70,8 @@ public sealed class ItemSnapshot
     public bool IsSameAs(ItemSnapshot other) =>
         Title == other.Title &&
         Content == other.Content &&
+        Kind == other.Kind &&
+        SourcePlanId == other.SourcePlanId &&
         StartTime == other.StartTime &&
         EndTime == other.EndTime &&
         IsAllDay == other.IsAllDay &&

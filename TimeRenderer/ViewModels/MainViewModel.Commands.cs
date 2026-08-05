@@ -27,6 +27,7 @@ public partial class MainViewModel
     public ICommand NextCommand { get; private set; } = null!;
     public ICommand TodayCommand { get; private set; } = null!;
     public ICommand ChangeViewModeCommand { get; private set; } = null!;
+    public ICommand OpenTodayDayViewCommand { get; private set; } = null!;
     public ICommand ShowAddSprintFormCommand { get; private set; } = null!;
     public ICommand HideAddSprintFormCommand { get; private set; } = null!;
     public ICommand SaveNewSprintCommand { get; private set; } = null!;
@@ -72,6 +73,7 @@ public partial class MainViewModel
             {
                 AddViaDialog(new ScheduleItem
                 {
+                    Kind = ScheduleItemKind.Planned,
                     StartTime = date.Date.AddHours(9),
                     EndTime = date.Date.AddHours(10),
                     Title = "新しい予定",
@@ -88,6 +90,7 @@ public partial class MainViewModel
             {
                 AddViaDialog(new ScheduleItem
                 {
+                    Kind = ScheduleItemKind.Planned,
                     StartTime = start,
                     EndTime = start.AddHours(1),
                     Title = "新しい予定",
@@ -107,6 +110,7 @@ public partial class MainViewModel
 
             AddViaDialog(new ScheduleItem
             {
+                Kind = ScheduleItemKind.Planned,
                 StartTime = start,
                 EndTime = end,
                 Title = "新しい予定",
@@ -139,6 +143,7 @@ public partial class MainViewModel
                         {
                             item.Title = editedItem.Title;
                             item.Content = editedItem.Content;
+                            item.Kind = editedItem.Kind;
                             item.StartTime = editedItem.StartTime;
                             item.EndTime = editedItem.EndTime;
                             item.IsAllDay = editedItem.IsAllDay;
@@ -183,6 +188,12 @@ public partial class MainViewModel
             {
                 CurrentViewMode = m;
             }
+        });
+
+        OpenTodayDayViewCommand = new RelayCommand(_ =>
+        {
+            CurrentDate = DateTime.Today;
+            CurrentViewMode = ViewMode.Day;
         });
 
         ToggleRecordingCommand = new RelayCommand(_ => ToggleRecording());
@@ -398,9 +409,8 @@ public partial class MainViewModel
     private string? _recordingCategoryId;
 
     /// <summary>
-    /// 予定アイテムから記録を開始した場合の「消費」対象。
-    /// 停止時にこのアイテム自体を実績（実際の開始〜終了時刻）に更新し、新規アイテムは作らない。
-    /// null の場合は従来どおり停止時に新規アイテムを作成する。
+    /// 予定から記録を開始した場合の元予定。
+    /// 停止時に予定は残し、別に作る実績の SourcePlanId へこのIDを入れる。
     /// </summary>
     private ScheduleItem? _recordingSourceItem;
 
@@ -408,10 +418,7 @@ public partial class MainViewModel
     /// 選択したアイテムと同じタイトル・色で新しい記録を開始する。
     /// 記録中だった場合は現在の記録を保存してから開始する。
     /// </summary>
-    /// <param name="consumeItem">
-    /// true の場合、渡された予定アイテム自体を記録の実績として使う（停止時に時刻を上書きし、別アイテムを作らない）。
-    /// リマインダー通知・自動開始からの記録開始で使用する。
-    /// </param>
+    /// <param name="consumeItem">旧呼び出しとの互換用。予定は常に残すため現在は使用しない。</param>
     private void StartRecordingFromItem(ScheduleItem item, bool consumeItem = false)
     {
         if (IsRecording)
@@ -419,17 +426,12 @@ public partial class MainViewModel
             ToggleRecording(); // 現在の記録を停止・保存
         }
 
-        // 仮想アイテムを実績として使う場合は、この時点で実体化しておく。
-        // 記録中に定期予定が編集されて仮想アイテムが再生成されても、消費対象を見失わないため。
-        if (consumeItem && item.IsVirtual)
-        {
-            MaterializeOccurrence(item);
-        }
+        _ = consumeItem;
 
         RecordingTitle = item.Title;
         _recordingColorCode = item.ColorCode;
         _recordingCategoryId = item.CategoryId ?? ResolveCategory(item)?.Id;
-        _recordingSourceItem = consumeItem ? item : null;
+        _recordingSourceItem = item.IsPlanned ? item : null;
         // ToDo から作られた予定なら、この記録の実績を ToDo へも積む
         _recordingTodo = FindTodoById(item.TodoId);
         ClearAwayState(); // 前回の記録で拾った離席を持ち越さない

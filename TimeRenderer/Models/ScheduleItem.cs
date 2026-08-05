@@ -14,6 +14,45 @@ namespace TimeRenderer.Models;
 /// </summary>
 public class ScheduleItem : INotifyPropertyChanged
 {
+    /// <summary>予定と実績を結び付けるための永続ID。</summary>
+    public string Id { get; set; } = Guid.NewGuid().ToString("N");
+
+    private ScheduleItemKind _kind;
+    /// <summary>予定か実績か。旧データの Legacy は読み込み時に移行される。</summary>
+    public ScheduleItemKind Kind
+    {
+        get => _kind;
+        set
+        {
+            if (SetProperty(ref _kind, value))
+            {
+                OnPropertyChanged(nameof(IsPlanned));
+                OnPropertyChanged(nameof(IsRecorded));
+                OnPropertyChanged(nameof(KindLabel));
+                OnPropertyChanged(nameof(ToolTipText));
+            }
+        }
+    }
+
+    [JsonIgnore]
+    public bool IsPlanned => Kind == ScheduleItemKind.Planned;
+
+    [JsonIgnore]
+    public bool IsRecorded => Kind == ScheduleItemKind.Recorded;
+
+    [JsonIgnore]
+    public string KindLabel => IsPlanned ? "予定" : IsRecorded ? "実績" : "未分類";
+
+    private string? _sourcePlanId;
+    /// <summary>
+    /// 予定から開始した実績が参照する元予定のID。予定を残したまま実績を比較できるようにする。
+    /// </summary>
+    public string? SourcePlanId
+    {
+        get => _sourcePlanId;
+        set => SetProperty(ref _sourcePlanId, value);
+    }
+
     private string _title = string.Empty;
     public string Title
     {
@@ -224,7 +263,8 @@ public class ScheduleItem : INotifyPropertyChanged
 
         var lines = new System.Collections.Generic.List<string>
         {
-            string.IsNullOrWhiteSpace(Title) ? "(無題)" : Title
+            string.IsNullOrWhiteSpace(Title) ? "(無題)" : Title,
+            KindLabel
         };
 
         if (IsAllDay)

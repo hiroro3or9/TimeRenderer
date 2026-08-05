@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows.Threading;
@@ -11,6 +11,9 @@ namespace TimeRenderer.ViewModels;
 
 public partial class MainViewModel
 {
+    /// <summary>種類を持たない旧予定を分類し、初期化後に一度だけ保存し直す。</summary>
+    private bool _scheduleKindMigrationPending;
+
     private bool _isSettingsPanelVisible = false;
     public bool IsSettingsPanelVisible
     {
@@ -226,7 +229,7 @@ public partial class MainViewModel
         // 設定ファイルが壊れていても不正な enum 値にならないよう検証する
         _currentViewMode = Enum.IsDefined(typeof(ViewMode), settings.ViewMode)
             ? (ViewMode)settings.ViewMode
-            : ViewMode.Day;
+            : ViewMode.Today;
         OnPropertyChanged(nameof(CurrentViewMode));
         NotifyViewModeDependents();
 
@@ -433,6 +436,7 @@ public partial class MainViewModel
     private void LoadData()
     {
         var result = Services.FilePersistenceService.LoadData();
+        var migrationNow = DateTime.Now;
 
         _isLoadingData = true;
         try
@@ -445,6 +449,26 @@ public partial class MainViewModel
             ScheduleItems.Clear();
             foreach (var item in result.Items)
             {
+                if (string.IsNullOrWhiteSpace(item.Id))
+                {
+                    item.Id = Guid.NewGuid().ToString("N");
+                    _scheduleKindMigrationPending = true;
+                }
+
+                if (item.Kind == ScheduleItemKind.Legacy)
+                {
+                    // 旧データには予定/実績の印が無い。終日・定期・通知付き・未来の時間帯は
+                    // 予定、それ以外の終了済み時間帯は実績として一度だけ分類する。
+                    item.Kind = item.IsAllDay ||
+                                item.RoutineId != null ||
+                                item.RemindAtStart ||
+                                item.AutoStartRecording ||
+                                item.EndTime > migrationNow
+                        ? ScheduleItemKind.Planned
+                        : ScheduleItemKind.Recorded;
+                    _scheduleKindMigrationPending = true;
+                }
+
                 ScheduleItems.Add(item);
             }
         }
