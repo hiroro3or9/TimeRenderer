@@ -66,6 +66,26 @@
                         <TextBlock Text="ToDo" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
                         <TextBlock Text="{Binding TodoSummaryText}" FontSize="11" Margin="0,2,0,0"
                                    Foreground="{DynamicResource TextSecondaryBrush}"/>
+
+                        <!--
+                            今日やるの見込みと、いつもの退勤時刻までの残り。
+                            積みすぎのときだけ色を変える。止めはしない（毎朝止められると読まなくなる）。
+                        -->
+                        <TextBlock Text="{Binding TodayWorkload.Text}" FontSize="11" Margin="0,3,0,0"
+                                   ToolTip="{Binding TodayWorkload.ToolTipText}"
+                                   Visibility="{Binding HasTodayWorkload, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding TodayWorkload.IsOver}" Value="True">
+                                            <Setter Property="Foreground" Value="{DynamicResource DangerBrush}"/>
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
                     </StackPanel>
 
                     <Button Grid.Column="1" Content="×" Command="{Binding ToggleTodoPanelCommand}"

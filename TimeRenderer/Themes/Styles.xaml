@@ -759,6 +759,44 @@
     </Style>
 
     <!--
+        ふりかえりのタグチップ（押すと絞り込み）。
+        選択中は塗りつぶして、いま何で絞っているかが一目で分かるようにする。
+    -->
+    <Style x:Key="NoteTagChipStyle" TargetType="Button">
+        <Setter Property="Background" Value="{DynamicResource MutedBackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="10,4"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="12"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{DynamicResource HoverBackgroundBrush}"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource HoverBorderBrush}"/>
+            </Trigger>
+            <!-- 選択中はホバーより強い見た目にしたいので、後ろに置いて優先させる -->
+            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                <Setter Property="Background" Value="{DynamicResource PrimaryBrush}"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
+                <Setter Property="Foreground" Value="White"/>
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <!--
         ふりかえり1件分のカード（クリックでその日の勤務記録を編集）。
         ふりかえりビューと統計ビューの両方で使う。
         BaseButtonStyle はテンプレート内の ContentPresenter を中央寄せで固定しているため、

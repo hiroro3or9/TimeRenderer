@@ -136,4 +136,18 @@ public interface IDialogService
         DateTime rangeStart,
         DateTime rangeEnd,
         IReadOnlyList<AppUsageStat> stats);
+
+    /// <summary>
+    /// 未記録の時間帯について、使っていたアプリの内訳を提示して記録を作るか確認します。
+    /// キャンセルされた場合は null を返します。
+    /// </summary>
+    /// <param name="start">未記録の開始時刻</param>
+    /// <param name="end">未記録の終了時刻</param>
+    /// <param name="suggestion">アプリ使用記録から組み立てた下書き</param>
+    /// <param name="categories">選択可能なカテゴリ一覧</param>
+    GapFillResult? ShowGapFillDialog(
+        DateTime start,
+        DateTime end,
+        GapFillSuggestion suggestion,
+        IReadOnlyList<CategoryInfo> categories);
 }

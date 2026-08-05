@@ -131,7 +131,7 @@ public partial class MainViewModel
     }
 
     /// <summary>まとめて1件として積む（積むものが1件だけならそのまま積む）</summary>
-    private void PushEdits(IReadOnlyList<IUndoableEdit> edits, string description)
+    private void PushEdits(List<IUndoableEdit> edits, string description)
     {
         if (edits.Count == 0) return;
 

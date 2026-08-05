@@ -155,7 +155,7 @@ namespace TimeRenderer.Views
         /// <summary>三角を押してサブタスクの一覧を開閉する</summary>
         private void ExpandButton_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is FrameworkElement { DataContext: TodoItem todo }) ViewModel.ToggleTodoExpanded(todo);
+            if (sender is FrameworkElement { DataContext: TodoItem todo }) MainViewModel.ToggleTodoExpanded(todo);
         }
 
         /// <summary>メニューからの追加：一覧を開いて入力欄へフォーカスを移す</summary>

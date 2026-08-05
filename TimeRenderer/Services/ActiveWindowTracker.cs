@@ -123,8 +123,23 @@ public sealed partial class ActiveWindowTracker : IDisposable
     /// 生成時刻をキーに含めるのは、PID が再利用されたときに別アプリの名前を使わないため</summary>
     private readonly Dictionary<(uint Pid, long CreationTime), (string ProcessName, string AppName)> _processInfoCache = [];
 
-    /// <summary>収集中か（記録中のみ true）</summary>
+    /// <summary>収集中か</summary>
     private bool _isCollecting;
+
+    /// <summary>
+    /// ウィンドウタイトルまで控えるか。
+    ///
+    /// タイトルにはファイル名・URL・チャット相手など<b>中身</b>が出る。
+    /// 勤務中はずっと収集するが、タイトルを残すのは記録中だけにして、
+    /// 記録していない時間の中身がログに溜まらないようにしている。
+    /// </summary>
+    private bool _captureWindowTitles;
+
+    /// <summary>
+    /// タイトルを控えるかどうかが切り替わった時刻。
+    /// この時刻より前に閉じた期間へは繋ぎ直さない（境界をまたいでタイトルが伸びないようにする）。
+    /// </summary>
+    private DateTime _captureModeChangedAt = DateTime.MinValue;
 
     /// <summary>確定した使用期間</summary>
     private readonly List<AppUsageInterval> _completed = [];
@@ -151,7 +166,30 @@ public sealed partial class ActiveWindowTracker : IDisposable
         _timer.Tick += (_, _) => Sample();
     }
 
-    /// <summary>収集を開始する（記録開始時に呼ぶ）</summary>
+    /// <summary>
+    /// ウィンドウタイトルを控えるかどうかを切り替える（記録の開始・終了で呼ぶ）。
+    ///
+    /// 切り替わった瞬間に進行中の期間を確定する。同じ期間の中に
+    /// 「タイトルを残す時間」と「残さない時間」が混ざると、
+    /// 記録していない時間の中身がその期間のタイトルとして残ってしまうため。
+    /// </summary>
+    public void SetCaptureWindowTitles(bool capture)
+    {
+        if (_captureWindowTitles == capture) return;
+
+        _captureWindowTitles = capture;
+
+        if (!_isCollecting) return;
+
+        var now = DateTime.Now;
+        CloseCurrent(now);
+        _captureModeChangedAt = now;
+
+        // 切り替え直後の状態をすぐ拾い直す（次のポーリングまで空白にしない）
+        Sample();
+    }
+
+    /// <summary>収集を開始する（出勤時・アプリ起動時に勤務中なら呼ぶ）</summary>
     public void Start()
     {
         // 既に収集中なら何もしない。ここで _completed を捨てると、
@@ -170,7 +208,7 @@ public sealed partial class ActiveWindowTracker : IDisposable
     }
 
     /// <summary>
-    /// 収集を終了し、集めた使用期間を返す（記録停止時に呼ぶ）。
+    /// 収集を終了し、集めた使用期間を返す（退勤時・アプリ終了時に呼ぶ）。
     /// 進行中の期間もここで確定する。
     /// </summary>
     public List<AppUsageInterval> Stop()
@@ -180,6 +218,22 @@ public sealed partial class ActiveWindowTracker : IDisposable
         UnhookForegroundChanges();
 
         CloseCurrent(DateTime.Now);
+
+        var result = new List<AppUsageInterval>(_completed);
+        _completed.Clear();
+        return result;
+    }
+
+    /// <summary>
+    /// 収集を続けたまま、確定済みの期間だけを取り出す。
+    ///
+    /// 勤務中はずっと収集するようになったため、退勤まで書き出さないと
+    /// 途中で落ちた日のぶんがまるごと消える。定期的にここで吐き出す。
+    /// 進行中の期間は確定しない（次の切り替えかポーリングで自然に閉じる）。
+    /// </summary>
+    public List<AppUsageInterval> Drain()
+    {
+        if (_completed.Count == 0) return [];
 
         var result = new List<AppUsageInterval>(_completed);
         _completed.Clear();
@@ -292,7 +346,8 @@ public sealed partial class ActiveWindowTracker : IDisposable
                 return;
             }
 
-            var title = GetWindowTitle(hwnd);
+            // 記録していない時間はアプリ名と滞在時間だけを残す
+            var title = _captureWindowTitles ? GetWindowTitle(hwnd) : string.Empty;
 
             if (_current != null && _current.ProcessName == processName)
             {
@@ -337,6 +392,10 @@ public sealed partial class ActiveWindowTracker : IDisposable
 
         var last = _completed[^1];
         if (last.ProcessName != processName || now - last.End > MergeGap) return false;
+
+        // タイトルを控えるかどうかが切り替わった直後は繋がない。
+        // 繋ぐと、記録中に付いたタイトルが記録していない時間まで伸びてしまう
+        if (last.End <= _captureModeChangedAt) return false;
 
         _completed.RemoveAt(_completed.Count - 1);
         last.End = now;

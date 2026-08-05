@@ -178,4 +178,20 @@ public class DefaultDialogService(Window owner) : IDialogService
 
         dialog.ShowDialog();
     }
+
+    public GapFillResult? ShowGapFillDialog(
+        System.DateTime start,
+        System.DateTime end,
+        GapFillSuggestion suggestion,
+        IReadOnlyList<CategoryInfo> categories)
+    {
+        GapFillDialog dialog = new(start, end, suggestion, categories)
+        {
+            Owner = owner
+        };
+
+        if (!owner.IsVisible) owner.Show();
+
+        return dialog.ShowDialog() == true ? dialog.Result : null;
+    }
 }

@@ -202,12 +202,28 @@ namespace TimeRenderer.Views
         /// <summary>帯を右クリック →「ToDo から埋める」：その時間幅の実績を ToDo から作る</summary>
         private void FillGapMenuItem_Click(object sender, RoutedEventArgs e)
         {
+            if (TryGetGap(sender, out var gap)) ViewModel.FillGapFromTodoPicker(gap);
+        }
+
+        /// <summary>その時間帯に使っていたアプリを手がかりに、記録を作り直す</summary>
+        private void FillGapFromAppUsageMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (TryGetGap(sender, out var gap)) ViewModel.FillGapFromAppUsage(gap);
+        }
+
+        /// <summary>コンテキストメニューの発生元から、対象の未記録の帯を取り出す</summary>
+        private static bool TryGetGap(object sender, out UnrecordedGap gap)
+        {
             if (sender is System.Windows.Controls.MenuItem menuItem &&
                 menuItem.Parent is System.Windows.Controls.ContextMenu contextMenu &&
-                contextMenu.PlacementTarget is FrameworkElement { DataContext: UnrecordedGap gap })
+                contextMenu.PlacementTarget is FrameworkElement { DataContext: UnrecordedGap found })
             {
-                ViewModel.FillGapFromTodoPicker(gap);
+                gap = found;
+                return true;
             }
+
+            gap = null!;
+            return false;
         }
 
         // ===== コンテキストメニュー =====

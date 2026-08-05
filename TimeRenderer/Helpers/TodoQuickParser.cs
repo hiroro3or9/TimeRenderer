@@ -49,7 +49,7 @@ public sealed class TodoQuickParseResult
 /// 前を縛らないと "9時〜10時 打ち合わせ" の 〜 が見積もりに化けるが、
 /// 後ろまで縛ると単語を空白で区切らない日本語では書きにくくなる。
 /// </summary>
-public static class TodoQuickParser
+public static partial class TodoQuickParser
 {
     /// <summary>通知時刻を省略したときに使う時（設定から差し替える）</summary>
     public static int DefaultRemindHour { get; set; } = 9;
@@ -65,7 +65,7 @@ public static class TodoQuickParser
 
     private const string Head = @"(?:^|(?<=[\s　]))";
 
-    private static readonly Regex DueRegex = new(
+    [GeneratedRegex(
         Head + @"[@＠](?:" +
         @"(?<ymd>\d{4}/\d{1,2}/\d{1,2})" +
         @"|(?<md>\d{1,2}/\d{1,2})" +
@@ -73,26 +73,28 @@ public static class TodoQuickParser
         @"|(?<word>明後日|あさって|今週末|週末|再来週|来週|来月|今日|きょう|本日|明日|あした|あす|tomorrow|today)" +
         @"|(?<dow>[月火水木金土日])(?:曜日?)?" +
         @")",
-        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        RegexOptions.IgnoreCase)]
+    private static partial Regex DueRegex();
 
-    private static readonly Regex PriorityRegex = new(
+    [GeneratedRegex(
         Head + @"[!！](?:(?<jp>高|低|中|標準)|(?<en>high|normal|low|h|n|l)(?=$|[\s　#＃~〜@＠*＊]))",
-        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        RegexOptions.IgnoreCase)]
+    private static partial Regex PriorityRegex();
 
-    private static readonly Regex CategoryRegex = new(
-        Head + @"[#＃](?<v>[^\s　#＃!！~〜@＠*＊]{1,20})",
-        RegexOptions.Compiled);
+    [GeneratedRegex(Head + @"[#＃](?<v>[^\s　#＃!！~〜@＠*＊]{1,20})")]
+    private static partial Regex CategoryRegex();
 
     // 単位を省いた数字（~30）だけは後ろの区切りも要る。"~50%" を 50分 と読まないため
-    private static readonly Regex EstimateRegex = new(
+    [GeneratedRegex(
         Head + @"[~〜](?:" +
         @"(?<h>\d{1,3}(?:\.\d{1,2})?)(?:時間|h)(?:(?<hm>\d{1,2})(?:分|m)?)?" +
         @"|(?<m>\d{1,4})(?:分|m)" +
         @"|(?<mbare>\d{1,4})(?=$|[\s　#＃!！@＠*＊])" +
         @")",
-        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        RegexOptions.IgnoreCase)]
+    private static partial Regex EstimateRegex();
 
-    private static readonly Regex RemindRegex = new(
+    [GeneratedRegex(
         Head + @"[*＊]" +
         @"(?:(?<rel>当日|前日)|(?<nd>\d{1,2})日前" +
         @"|(?<ymd>\d{4}/\d{1,2}/\d{1,2})" +
@@ -102,10 +104,11 @@ public static class TodoQuickParser
         @")?" +
         // 裸の数字（*9）は後ろの区切りも要る。"*30回" を 30時 と読まないため
         @"(?:(?<th>\d{1,2}):(?<tm>\d{2})|(?<th2>\d{1,2})時(?:(?<tm2>\d{1,2})分?)?" +
-        @"|(?<th3>\d{1,2})(?=$|[\s　#＃!！~〜@＠]))?",
-        RegexOptions.Compiled);
+        @"|(?<th3>\d{1,2})(?=$|[\s　#＃!！~〜@＠]))?")]
+    private static partial Regex RemindRegex();
 
-    private static readonly Regex SpaceRegex = new(@"[ \t　]{2,}", RegexOptions.Compiled);
+    [GeneratedRegex(@"[ \t　]{2,}")]
+    private static partial Regex SpaceRegex();
 
     private static readonly string[] DayNames = ["日", "月", "火", "水", "木", "金", "土"];
 
@@ -133,7 +136,7 @@ public static class TodoQuickParser
         var today = now.Date;
 
         // 期限を先に確定させる。通知の「前日」「当日」がこれを基準にするため
-        text = DueRegex.Replace(text, m =>
+        text = DueRegex().Replace(text, m =>
         {
             if (due.HasValue) return m.Value; // 2つ目以降は本文として扱う
             var resolved = ResolveDueDate(m, today);
@@ -143,7 +146,7 @@ public static class TodoQuickParser
             return " ";
         });
 
-        text = PriorityRegex.Replace(text, m =>
+        text = PriorityRegex().Replace(text, m =>
         {
             if (priority.HasValue) return m.Value;
             var resolved = ResolvePriority(m);
@@ -153,7 +156,7 @@ public static class TodoQuickParser
             return " ";
         });
 
-        text = EstimateRegex.Replace(text, m =>
+        text = EstimateRegex().Replace(text, m =>
         {
             if (estimate.HasValue) return m.Value;
             var parsed = ResolveEstimate(m);
@@ -163,7 +166,7 @@ public static class TodoQuickParser
             return " ";
         });
 
-        text = RemindRegex.Replace(text, m =>
+        text = RemindRegex().Replace(text, m =>
         {
             if (remindMatch != null) return m.Value;
             // 日付も時刻も無い裸の記号は、ただの「*」なので本文に残す
@@ -176,7 +179,7 @@ public static class TodoQuickParser
         // カテゴリは「一致した分だけ取り込み、残りは本文へ戻す」ため最後に処理する
         if (categories is { Count: > 0 })
         {
-            text = CategoryRegex.Replace(text, m =>
+            text = CategoryRegex().Replace(text, m =>
             {
                 if (category != null) return m.Value;
 
@@ -220,7 +223,7 @@ public static class TodoQuickParser
 
         return new TodoQuickParseResult
         {
-            Title = SpaceRegex.Replace(text, " ").Trim(),
+            Title = SpaceRegex().Replace(text, " ").Trim(),
             DueDate = due,
             RemindAt = remindAt,
             RemindOffsetDays = remindOffset,

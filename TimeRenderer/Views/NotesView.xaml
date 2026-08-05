@@ -23,9 +23,45 @@
                        Text="退勤したときに出るふりかえりで書いた一言が、ここに全部並びます。過去の日のぶんは、日/週ビューの勤務ラインをクリックしても書けます。"/>
         </StackPanel>
 
-        <ScrollViewer VerticalScrollBarVisibility="Auto"
-                      helpers:ScrollViewerHelper.EnableMiddleButtonScroll="True"
-                      Visibility="{Binding HasNotes, Converter={StaticResource BooleanToVisibilityConverter}}">
+        <Grid Visibility="{Binding HasNotes, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!--
+                タグでの絞り込み。本文に書いた #タグ を拾って並べる。
+                スクロールの外に置いて、どこまで遡っても押し直せるようにしている。
+            -->
+            <Border Grid.Row="0" Padding="24,16,24,12" BorderThickness="0,0,0,1"
+                    BorderBrush="{DynamicResource BorderBrush}"
+                    Visibility="{Binding HasNoteTags, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <ItemsControl ItemsSource="{Binding NoteTagChips}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Button Command="{Binding DataContext.SelectNoteTagCommand,
+                                                      RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                    CommandParameter="{Binding Tag}"
+                                    Margin="0,0,6,6" ToolTip="押すと絞り込み・もう一度押すと解除"
+                                    Style="{StaticResource NoteTagChipStyle}">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="{Binding Display}" FontSize="12"/>
+                                    <TextBlock Text="{Binding CountText}" FontSize="10" Margin="6,0,0,0"
+                                               VerticalAlignment="Center" Opacity="0.7"/>
+                                </StackPanel>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Border>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                      helpers:ScrollViewerHelper.EnableMiddleButtonScroll="True">
             <StackPanel Margin="24" MaxWidth="960" HorizontalAlignment="Left">
                 <ItemsControl ItemsSource="{Binding NoteGroups}">
                     <ItemsControl.ItemTemplate>
@@ -66,6 +102,27 @@
                                                     </StackPanel>
                                                     <TextBlock Text="{Binding Note}" FontSize="13" TextWrapping="Wrap"
                                                                Foreground="{DynamicResource TextPrimaryBrush}"/>
+
+                                                    <!-- 本文に書かれたタグ。ここでは表示だけ（絞り込みは上のチップ） -->
+                                                    <ItemsControl ItemsSource="{Binding Tags}" Margin="0,8,0,0"
+                                                                  Visibility="{Binding HasTags, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                        <ItemsControl.ItemsPanel>
+                                                            <ItemsPanelTemplate>
+                                                                <WrapPanel/>
+                                                            </ItemsPanelTemplate>
+                                                        </ItemsControl.ItemsPanel>
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <Border Background="{DynamicResource PrimarySubtleBrush}"
+                                                                        CornerRadius="3" Padding="6,2" Margin="0,0,4,4">
+                                                                    <TextBlock FontSize="10"
+                                                                               Foreground="{DynamicResource PrimaryBrush}">
+                                                                        <Run Text="#"/><Run Text="{Binding Mode=OneWay}"/>
+                                                                    </TextBlock>
+                                                                </Border>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
                                                 </StackPanel>
                                             </Button>
                                         </DataTemplate>
@@ -77,5 +134,6 @@
                 </ItemsControl>
             </StackPanel>
         </ScrollViewer>
+        </Grid>
     </Grid>
 </UserControl>
