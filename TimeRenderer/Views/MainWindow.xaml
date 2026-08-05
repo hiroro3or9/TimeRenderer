@@ -15,7 +15,12 @@
         Icon="pack://application:,,,/Assets/AppIcon.ico"
         Title="TimeRenderer" Height="700" Width="1100"
         PreviewKeyDown="Window_PreviewKeyDownForUndo">
-    
+
+    <Window.InputBindings>
+        <!-- Ctrl+T：ToDo パネルを開いて即時追加欄へ。思いついた瞬間に打ち込めるようにする -->
+        <KeyBinding Key="T" Modifiers="Control" Command="{Binding FocusQuickAddTodoCommand}"/>
+    </Window.InputBindings>
+
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -384,6 +389,81 @@
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
         </ItemsControl>
+
+        <!--
+            ToDo の通知（通知日時に達した ToDo ごとに1行表示）。
+            定期予定のリマインダーと形は揃えつつ、色とアイコンを変えて別物だと分かるようにする。
+        -->
+        <ItemsControl ItemsSource="{Binding PendingTodoReminders}">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Border Background="{DynamicResource TodoReminderSubtleBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="12,8">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="&#xEA8F;" FontFamily="Segoe MDL2 Assets" FontSize="14"
+                                       VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TodoDueTodayBrush}"/>
+                            <TextBlock Grid.Column="1" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="13"
+                                       TextTrimming="CharacterEllipsis">
+                                <Run Text="ToDo: " Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <Run Text="{Binding Title, Mode=OneWay}" FontWeight="Bold"/>
+                            </TextBlock>
+                            <Button Grid.Column="2" Content="記録開始"
+                                    Command="{Binding DataContext.StartRecordingFromTodoReminderCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                    CommandParameter="{Binding}"
+                                    Style="{StaticResource PrimaryButtonStyle}" Padding="10,4" FontSize="12" Margin="0,0,6,0" Cursor="Hand"/>
+                            <Button Grid.Column="3" Content="完了"
+                                    Command="{Binding DataContext.CompleteTodoReminderCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                    CommandParameter="{Binding}"
+                                    Style="{StaticResource BaseButtonStyle}" Padding="10,4" FontSize="12" Margin="0,0,6,0" Cursor="Hand"/>
+                            <Button Grid.Column="4" Content="10分後"
+                                    Command="{Binding DataContext.SnoozeTodoReminderCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                    CommandParameter="{Binding}"
+                                    Style="{StaticResource BaseButtonStyle}" Padding="10,4" FontSize="12" Margin="0,0,8,0" Cursor="Hand"
+                                    ToolTip="10分後にもう一度通知します"/>
+                            <Button Grid.Column="5" Content="✕"
+                                    Command="{Binding DataContext.DismissTodoReminderCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                    CommandParameter="{Binding}"
+                                    Style="{StaticResource IconButtonStyle}" Foreground="{DynamicResource TextSecondaryBrush}"
+                                    Width="24" Height="24" Cursor="Hand" ToolTip="この通知を閉じる（ToDo は残ります）"/>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <!--
+            ToDo のまとめ通知（1日1回）。
+            個別の通知日時を付け忘れていても、その日に片付ける量が一度は目に入るようにする。
+        -->
+        <Border Background="{DynamicResource TodoReminderSubtleBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="12,8"
+                Visibility="{Binding HasTodoDigest, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="&#xE8FD;" FontFamily="Segoe MDL2 Assets" FontSize="14"
+                           VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TodoDueTodayBrush}"/>
+                <TextBlock Grid.Column="1" Text="{Binding TodoDigestNotice}" VerticalAlignment="Center"
+                           Foreground="{DynamicResource TextPrimaryBrush}" FontSize="13" TextTrimming="CharacterEllipsis"/>
+                <Button Grid.Column="2" Content="ToDo を開く"
+                        Command="{Binding FocusQuickAddTodoCommand}"
+                        Style="{StaticResource PrimaryButtonStyle}" Padding="10,4" FontSize="12" Margin="0,0,8,0" Cursor="Hand"/>
+                <Button Grid.Column="3" Content="✕"
+                        Command="{Binding DismissTodoDigestCommand}"
+                        Style="{StaticResource IconButtonStyle}" Foreground="{DynamicResource TextSecondaryBrush}"
+                        Width="24" Height="24" Cursor="Hand" ToolTip="この通知を閉じる"/>
+            </Grid>
+        </Border>
 
         <!-- 自動記録開始の通知（数秒で自動的に消える） -->
         <Border Background="{DynamicResource PrimarySubtleBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="12,8"

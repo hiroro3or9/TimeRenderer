@@ -225,6 +225,9 @@ public partial class MainViewModel
         IsTodoPanelVisible = IsTodoPanelVisible,
         ShowCompletedTodos = ShowCompletedTodos,
         TodoSortMode = (int)CurrentTodoSortMode,
+        IsTodoDigestEnabled = IsTodoDigestEnabled,
+        TodoDigestHour = TodoDigestHour,
+        LastTodoDigestDate = FormatTodoDigestDate(),
         ViewMode = (int)CurrentViewMode,
         DisplayStartHour = DisplayStartHour,
         DisplayEndHour = DisplayEndHour,
@@ -281,6 +284,12 @@ public partial class MainViewModel
             : TodoSortMode.DueDate;
         OnPropertyChanged(nameof(CurrentTodoSortMode));
         OnPropertyChanged(nameof(SelectedTodoSortOption));
+
+        _isTodoDigestEnabled = settings.IsTodoDigestEnabled;
+        _todoDigestHour = Math.Clamp(settings.TodoDigestHour, 0, 23);
+        ParseTodoDigestDate(settings.LastTodoDigestDate);
+        OnPropertyChanged(nameof(IsTodoDigestEnabled));
+        OnPropertyChanged(nameof(TodoDigestHour));
 
         // 設定ファイルが壊れていても不正な enum 値にならないよう検証する
         _currentViewMode = Enum.IsDefined(typeof(ViewMode), settings.ViewMode)

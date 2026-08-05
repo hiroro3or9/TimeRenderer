@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
+using System.Media;
 using System.Windows.Input;
 using System.Windows.Threading;
 
@@ -17,6 +18,7 @@ namespace TimeRenderer.ViewModels;
 /// 予定アイテムと違い時刻を持たないため、「いつやるか決めていないが忘れたくないこと」を置ける。
 /// 期限日を持つものだけが日/週ビューの終日行にチップとして並ぶ（TodoChips）。
 /// ToDo から記録を開始でき、停止時にその時間が ToDo へ積算される。
+/// 通知日時（RemindAt）を設定した ToDo は、その時刻にバナー・通知音・トレイ通知で知らせる。
 /// </summary>
 public partial class MainViewModel
 {
@@ -71,6 +73,7 @@ public partial class MainViewModel
         new(TodoSortMode.DueDate, "期限順"),
         new(TodoSortMode.Priority, "優先度順"),
         new(TodoSortMode.Created, "追加順"),
+        new(TodoSortMode.Manual, "手動"),
     ];
 
     private TodoSortMode _todoSortMode = TodoSortMode.DueDate;
@@ -95,6 +98,14 @@ public partial class MainViewModel
         {
             if (value != null) CurrentTodoSortMode = value.Mode;
         }
+    }
+
+    private TodoItem? _selectedTodo;
+    /// <summary>一覧で選択中の ToDo（キーボード操作の現在位置）</summary>
+    public TodoItem? SelectedTodo
+    {
+        get => _selectedTodo;
+        set => SetProperty(ref _selectedTodo, value);
     }
 
     private string _newTodoTitle = string.Empty;
@@ -149,6 +160,20 @@ public partial class MainViewModel
     public ICommand SetTodoDueTomorrowCommand { get; private set; } = null!;
     public ICommand ClearTodoDueCommand { get; private set; } = null!;
     public ICommand ClearCompletedTodosCommand { get; private set; } = null!;
+    public ICommand StartRecordingFromTodoReminderCommand { get; private set; } = null!;
+    public ICommand CompleteTodoReminderCommand { get; private set; } = null!;
+    public ICommand SnoozeTodoReminderCommand { get; private set; } = null!;
+    public ICommand DismissTodoReminderCommand { get; private set; } = null!;
+    public ICommand MoveTodoUpCommand { get; private set; } = null!;
+    public ICommand MoveTodoDownCommand { get; private set; } = null!;
+    public ICommand FocusQuickAddTodoCommand { get; private set; } = null!;
+    public ICommand DismissTodoDigestCommand { get; private set; } = null!;
+
+    /// <summary>
+    /// 即時追加欄へ入力を移す要求（Ctrl+T）。パネル側が購読してフォーカスを移す。
+    /// VM からコントロールを直接触らないための経路。
+    /// </summary>
+    public event EventHandler? QuickAddTodoFocusRequested;
 
     private void InitializeTodoCommands()
     {
@@ -164,7 +189,7 @@ public partial class MainViewModel
             // 即時追加は「思いついた瞬間に置ける」ことが値なので、期限・優先度は後から付ける。
             // カテゴリは予定の新規作成と同じく先頭カテゴリを既定にする
             var category = Categories.FirstOrDefault();
-            Todos.Add(new TodoItem
+            AddTodo(new TodoItem
             {
                 Title = title,
                 ColorCode = category?.ColorCode ?? CategoryInfo.CreateBrush("LightBlue").ToString(),
@@ -177,7 +202,7 @@ public partial class MainViewModel
         AddTodoCommand = new RelayCommand(_ =>
         {
             var result = _dialogService.ShowTodoEditDialog(null, [.. Categories], GetTitleSuggestions());
-            if (result != null) Todos.Add(result);
+            if (result != null) AddTodo(result);
         });
 
         EditTodoCommand = new RelayCommand(
@@ -196,9 +221,14 @@ public partial class MainViewModel
                     todo.Title = edited.Title;
                     todo.Content = edited.Content;
                     todo.DueDate = edited.DueDate;
+                    todo.RemindAt = edited.RemindAt;
                     todo.Priority = edited.Priority;
                     todo.CategoryId = edited.CategoryId;
                     todo.ColorCode = edited.ColorCode;
+                    todo.EstimatedMinutes = edited.EstimatedMinutes;
+                    todo.Recurrence = edited.Recurrence;
+                    todo.RecurrenceInterval = edited.RecurrenceInterval;
+                    todo.RecurrenceFromCompletion = edited.RecurrenceFromCompletion;
                 }
                 finally
                 {
@@ -260,9 +290,69 @@ public partial class MainViewModel
                 }
             },
             _ => HasCompletedTodos);
+
+        StartRecordingFromTodoReminderCommand = new RelayCommand(
+            param =>
+            {
+                if (param is not TodoItem todo) return;
+                PendingTodoReminders.Remove(todo);
+                StartRecordingFromTodo(todo);
+            },
+            param => param is TodoItem);
+
+        CompleteTodoReminderCommand = new RelayCommand(
+            param =>
+            {
+                if (param is not TodoItem todo) return;
+                todo.IsCompleted = true; // 完了にすると通知一覧からも取り除かれる
+            },
+            param => param is TodoItem);
+
+        SnoozeTodoReminderCommand = new RelayCommand(
+            param =>
+            {
+                if (param is not TodoItem todo) return;
+                PendingTodoReminders.Remove(todo);
+                // 通知日時を先送りすると通知済みのキーも変わるため、その時刻に再び通知される
+                todo.RemindAt = DateTime.Now.Add(TodoSnoozeDuration);
+            },
+            param => param is TodoItem);
+
+        DismissTodoReminderCommand = new RelayCommand(
+            param =>
+            {
+                if (param is TodoItem todo) PendingTodoReminders.Remove(todo);
+            },
+            param => param is TodoItem);
+
+        MoveTodoUpCommand = new RelayCommand(
+            param => MoveTodoBy(param as TodoItem, -1),
+            param => param is TodoItem);
+
+        MoveTodoDownCommand = new RelayCommand(
+            param => MoveTodoBy(param as TodoItem, 1),
+            param => param is TodoItem);
+
+        FocusQuickAddTodoCommand = new RelayCommand(_ =>
+        {
+            IsTodoPanelVisible = true;
+            QuickAddTodoFocusRequested?.Invoke(this, EventArgs.Empty);
+        });
+
+        DismissTodoDigestCommand = new RelayCommand(_ => TodoDigestNotice = null);
     }
 
-    private void SetTodoDue(TodoItem? todo, DateTime? due)
+    /// <summary>
+    /// ToDo を一覧へ加える。手動並べ替え用の位置は末尾にする
+    /// （追加したものが上に割り込むと、並べ直した意味が消える）。
+    /// </summary>
+    private void AddTodo(TodoItem todo)
+    {
+        todo.SortOrder = Todos.Count == 0 ? 0 : Todos.Max(t => t.SortOrder) + 1;
+        Todos.Add(todo);
+    }
+
+    private static void SetTodoDue(TodoItem? todo, DateTime? due)
     {
         if (todo == null) return;
         todo.DueDate = due;
@@ -288,6 +378,9 @@ public partial class MainViewModel
             foreach (TodoItem todo in e.OldItems)
             {
                 todo.PropertyChanged -= OnTodoPropertyChanged;
+
+                // 消えた ToDo の通知を残さない（バナーの「記録開始」が行き先を失う）
+                PendingTodoReminders.Remove(todo);
             }
         }
 
@@ -306,15 +399,60 @@ public partial class MainViewModel
                            or nameof(TodoItem.HasRecorded)
                            or nameof(TodoItem.HasContent)
                            or nameof(TodoItem.HasDueDate)
+                           or nameof(TodoItem.HasReminder)
+                           or nameof(TodoItem.RemindDisplay)
                            or nameof(TodoItem.IsOverdue)
                            or nameof(TodoItem.IsDueToday)
                            or nameof(TodoItem.IsHighPriority)
                            or nameof(TodoItem.IsLowPriority)
+                           or nameof(TodoItem.HasEstimate)
+                           or nameof(TodoItem.EstimatedDuration)
+                           or nameof(TodoItem.EstimateDisplay)
+                           or nameof(TodoItem.ProgressPercent)
+                           or nameof(TodoItem.ProgressDisplay)
+                           or nameof(TodoItem.IsOverEstimate)
+                           or nameof(TodoItem.HasRecurrence)
+                           or nameof(TodoItem.RecurrenceDisplay)
                            or nameof(TodoItem.ToolTipText)) return;
+
+        // 完了にしたものは、まだ出ているバナーを片付け、繰り返しなら次回分を用意する
+        if (e.PropertyName == nameof(TodoItem.IsCompleted) &&
+            sender is TodoItem { IsCompleted: true } completed)
+        {
+            PendingTodoReminders.Remove(completed);
+            SpawnNextOccurrence(completed);
+        }
 
         if (_isUpdatingTodo || _isLoadingTodos) return;
 
         OnTodoChanged();
+    }
+
+    /// <summary>
+    /// 繰り返す ToDo を完了したとき、次回分を作って一覧へ加える。
+    /// 完了した方は実績として残す（何をいつ済ませたかが消えないようにするため）。
+    /// </summary>
+    private void SpawnNextOccurrence(TodoItem completed)
+    {
+        if (_isLoadingTodos) return;
+
+        var next = completed.CreateNextOccurrence(completed.CompletedAt ?? DateTime.Now);
+        if (next == null) return;
+
+        // 次回分は繰り返しを引き継ぐので、完了した方の繰り返しは解除する。
+        // 残したままだと、完了を取り消して付け直すたびに次回分が増えていく
+        _isUpdatingTodo = true;
+        try
+        {
+            completed.Recurrence = TodoRecurrenceUnit.None;
+        }
+        finally
+        {
+            _isUpdatingTodo = false;
+        }
+
+        AddTodo(next);
+        ShowAutoStartNotice($"「{next.Title}」の次回分（期限 {next.DueDate:M/d}）を作成しました");
     }
 
     /// <summary>ToDo が増減・変化したときの共通処理（表示の作り直しと保存）</summary>
@@ -350,12 +488,100 @@ public partial class MainViewModel
                 .ThenBy(t => t.DueDate ?? DateTime.MaxValue)
                 .ThenBy(t => t.CreatedAt),
 
+            TodoSortMode.Manual => source
+                .OrderBy(t => t.IsCompleted)
+                .ThenBy(t => t.SortOrder)
+                .ThenBy(t => t.CreatedAt),
+
             _ => source
                 .OrderBy(t => t.IsCompleted)
                 .ThenBy(t => t.CreatedAt),
         };
 
         VisibleTodos = [.. ordered];
+    }
+
+    // ===== 手動並べ替え =====
+
+    /// <summary>
+    /// 手動モードでなければ切り替える。
+    /// 切り替えた瞬間に並びが崩れないよう、今見えている順をそのまま初期値にする。
+    /// </summary>
+    private void EnsureManualSort()
+    {
+        if (CurrentTodoSortMode == TodoSortMode.Manual) return;
+
+        ApplyManualOrder(VisibleTodos);
+        CurrentTodoSortMode = TodoSortMode.Manual;
+    }
+
+    /// <summary>
+    /// 並び順を SortOrder へ書き戻す。
+    /// 一覧に出ていない ToDo（完了済み・絞り込みで隠れているもの）は、
+    /// 番号がぶつからないよう後ろへ続けて振る。
+    /// </summary>
+    private void ApplyManualOrder(IReadOnlyList<TodoItem> ordered)
+    {
+        var placed = new HashSet<TodoItem>(ordered);
+
+        // 1件ごとの再構築・保存を避けるため、書き戻しの間は通知の処理を止める
+        _isUpdatingTodo = true;
+        try
+        {
+            var index = 0;
+            foreach (var todo in ordered) todo.SortOrder = index++;
+            foreach (var todo in Todos)
+            {
+                if (!placed.Contains(todo)) todo.SortOrder = index++;
+            }
+        }
+        finally
+        {
+            _isUpdatingTodo = false;
+        }
+    }
+
+    /// <summary>
+    /// 手動並べ替え：moved を target の位置へ差し込む（ドラッグ＆ドロップ用）。
+    /// 並べ替えは手動モードでしか意味がないため、必要なら自動で切り替える。
+    /// </summary>
+    public void MoveTodoTo(TodoItem moved, TodoItem target)
+    {
+        if (ReferenceEquals(moved, target)) return;
+
+        EnsureManualSort();
+
+        var list = VisibleTodos.ToList();
+        var from = list.IndexOf(moved);
+        var to = list.IndexOf(target);
+        if (from < 0 || to < 0) return;
+
+        list.RemoveAt(from);
+        list.Insert(to, moved);
+
+        ApplyManualOrder(list);
+        OnTodoChanged();
+    }
+
+    /// <summary>手動並べ替え：1つ上／下へ移動する（Ctrl+↑↓ とコンテキストメニュー用）</summary>
+    private void MoveTodoBy(TodoItem? todo, int delta)
+    {
+        if (todo == null) return;
+
+        EnsureManualSort();
+
+        var list = VisibleTodos.ToList();
+        var from = list.IndexOf(todo);
+        var to = from + delta;
+        if (from < 0 || to < 0 || to >= list.Count) return;
+
+        list.RemoveAt(from);
+        list.Insert(to, todo);
+
+        ApplyManualOrder(list);
+        OnTodoChanged();
+
+        SelectedTodo = todo; // 移動しても選択が外れないようにする
     }
 
     /// <summary>
@@ -367,7 +593,7 @@ public partial class MainViewModel
     /// <param name="allDayRowCounts">日付ごとの終日イベントの段数</param>
     /// <returns>チップまで含めた必要段数（チップが無ければ 0）</returns>
     private int RebuildTodoChips(
-        DateTime rangeStart, DateTime rangeEnd, IReadOnlyDictionary<DateTime, int> allDayRowCounts)
+        DateTime rangeStart, DateTime rangeEnd, Dictionary<DateTime, int> allDayRowCounts)
     {
         // 終日行を描くのは日/週ビューだけ。他のモードでは作っても誰も見ない
         if (!IsDayOrWeekMode || Todos.Count == 0)
@@ -450,16 +676,158 @@ public partial class MainViewModel
         todo.RecordedTicks += ticks;
     }
 
+    // ===== 通知 =====
+
+    /// <summary>通知日時に達し、まだユーザーの操作を待っている ToDo</summary>
+    public ObservableCollection<TodoItem> PendingTodoReminders { get; } = [];
+
+    /// <summary>
+    /// 通知済みの ToDo。「Id｜通知日時」をキーにする。
+    /// 通知日時を変えれば別のキーになるため、設定し直せば同じ ToDo でも再び通知される
+    /// （スヌーズはこの性質をそのまま使っている）。
+    /// </summary>
+    private readonly HashSet<string> _remindedTodoKeys = [];
+
+    /// <summary>
+    /// 通知時刻からこれ以上遅れた通知は出さない。
+    /// アプリを何日も起動していなかった場合に、過ぎた通知がまとめて溢れるのを防ぐ。
+    /// </summary>
+    private static readonly TimeSpan TodoReminderGrace = TimeSpan.FromMinutes(15);
+
+    /// <summary>「あとで」を押したときに先送りする時間</summary>
+    private static readonly TimeSpan TodoSnoozeDuration = TimeSpan.FromMinutes(10);
+
+    /// <summary>
+    /// 通知日時に達した ToDo をバナーへ積み、通知音を鳴らす。
+    /// アプリが非アクティブなら、MainWindow 側がこの追加を拾ってトレイ通知も出す。
+    /// </summary>
+    private void CheckTodoReminders(DateTime now)
+    {
+        foreach (var todo in Todos)
+        {
+            if (todo.IsCompleted) continue;
+            if (todo.RemindAt is not { } remindAt) continue;
+            if (now < remindAt) continue;
+
+            // 判定済みのものは、通知したかどうかに関わらず二度と見ない
+            if (!_remindedTodoKeys.Add(BuildTodoReminderKey(todo))) continue;
+
+            if (now - remindAt > TodoReminderGrace) continue;
+
+            if (!PendingTodoReminders.Contains(todo))
+            {
+                PendingTodoReminders.Add(todo);
+                SystemSounds.Asterisk.Play();
+            }
+        }
+    }
+
+    private static string BuildTodoReminderKey(TodoItem todo) => $"{todo.Id}|{todo.RemindAt:O}";
+
+    // ===== 朝のまとめ通知 =====
+    //
+    // 個別の通知日時を付け忘れていても、その日に片付けるべき量が朝に一度は目に入るようにする。
+
+    private bool _isTodoDigestEnabled = true;
+    /// <summary>1日1回、期限が今日・期限超過の件数をまとめて知らせるか</summary>
+    public bool IsTodoDigestEnabled
+    {
+        get => _isTodoDigestEnabled;
+        set
+        {
+            if (SetProperty(ref _isTodoDigestEnabled, value)) SaveSettings();
+        }
+    }
+
+    public static IReadOnlyList<int> TodoDigestHourOptions { get; } = [.. Enumerable.Range(0, 24)];
+
+    private int _todoDigestHour = 9;
+    /// <summary>まとめ通知を出す時刻（時）</summary>
+    public int TodoDigestHour
+    {
+        get => _todoDigestHour;
+        set
+        {
+            if (SetProperty(ref _todoDigestHour, Math.Clamp(value, 0, 23))) SaveSettings();
+        }
+    }
+
+    /// <summary>まとめ通知を最後に出した日。1日に何度も出さないため設定へ保存する</summary>
+    private DateTime _lastTodoDigestDate;
+
+    private const string TodoDigestDateFormat = "yyyy-MM-dd";
+
+    /// <summary>設定へ書き出す形（未通知なら null）。カルチャに依存しない形式で持つ</summary>
+    private string? FormatTodoDigestDate() =>
+        _lastTodoDigestDate == default
+            ? null
+            : _lastTodoDigestDate.ToString(TodoDigestDateFormat, System.Globalization.CultureInfo.InvariantCulture);
+
+    /// <summary>設定から読み戻す。壊れていれば「未通知」として扱う</summary>
+    private void ParseTodoDigestDate(string? value)
+    {
+        _lastTodoDigestDate = DateTime.TryParseExact(
+            value, TodoDigestDateFormat, System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.None, out var parsed)
+            ? parsed
+            : default;
+    }
+
+    private string? _todoDigestNotice;
+    /// <summary>まとめ通知の本文（出していないときは null）</summary>
+    public string? TodoDigestNotice
+    {
+        get => _todoDigestNotice;
+        private set
+        {
+            if (SetProperty(ref _todoDigestNotice, value))
+            {
+                OnPropertyChanged(nameof(HasTodoDigest));
+            }
+        }
+    }
+
+    public bool HasTodoDigest => !string.IsNullOrEmpty(TodoDigestNotice);
+
+    /// <summary>
+    /// 設定した時刻を過ぎていれば、その日の1回目のまとめ通知を出す。
+    /// 出す時刻より遅く起動した日でも、その日ぶんはまだ出していないので1回出す
+    /// （朝に見られなかった日ほど、いま何件あるかを知りたい）。
+    /// </summary>
+    private void CheckTodoDigest(DateTime now)
+    {
+        if (!IsTodoDigestEnabled) return;
+        if (_lastTodoDigestDate.Date == now.Date) return;
+        if (now.Hour < TodoDigestHour) return;
+
+        _lastTodoDigestDate = now.Date;
+        SaveSettings();
+
+        var dueToday = Todos.Count(t => t.IsDueToday);
+        var overdue = TodoOverdueCount;
+        if (dueToday == 0 && overdue == 0) return;
+
+        var parts = new List<string>();
+        if (dueToday > 0) parts.Add($"今日が期限の ToDo が {dueToday} 件");
+        if (overdue > 0) parts.Add($"期限を過ぎた ToDo が {overdue} 件");
+
+        TodoDigestNotice = string.Join("、", parts) + " あります。";
+    }
+
     // ===== 日付またぎ =====
 
     private DateTime _lastTodoDueRefreshDate = DateTime.MinValue;
 
     /// <summary>
-    /// 日付が変わったら、期限に依存する表示（超過・今日・残り日数）を作り直す。
-    /// 起動しっぱなしのまま日をまたぐと、昨日の「今日」がそのまま残ってしまう。
+    /// 毎tickの処理：通知の判定と、日付が変わったときの表示の作り直し。
+    /// 期限に依存する表示（超過・今日・残り日数）は、起動しっぱなしで日をまたぐと
+    /// 昨日の「今日」がそのまま残ってしまうため作り直す。
     /// </summary>
     private void UpdateTodoTick(DateTime now)
     {
+        CheckTodoReminders(now);
+        CheckTodoDigest(now);
+
         if (_lastTodoDueRefreshDate == now.Date) return;
         _lastTodoDueRefreshDate = now.Date;
 
@@ -519,6 +887,9 @@ public partial class MainViewModel
             {
                 old.PropertyChanged -= OnTodoPropertyChanged;
             }
+            // 読み込みでインスタンスが入れ替わるため、通知の状態も作り直す
+            PendingTodoReminders.Clear();
+            _remindedTodoKeys.Clear();
             Todos.Clear();
             foreach (var todo in loaded)
             {

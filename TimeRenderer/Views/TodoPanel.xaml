@@ -1,7 +1,6 @@
 ﻿<UserControl x:Class="TimeRenderer.Views.TodoPanel"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:helpers="clr-namespace:TimeRenderer.Helpers">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <!--
         ToDo パネル。
         メモパネルと同じく、IsTodoPanelVisible による幅アニメーションで開閉する。
@@ -131,17 +130,44 @@
                           DisplayMemberPath="Label" ToolTip="並べ替え"/>
             </Grid>
 
-            <!-- 一覧 -->
-            <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto"
-                          helpers:ScrollViewerHelper.EnableMiddleButtonScroll="True">
-                <ItemsControl ItemsSource="{Binding VisibleTodos}" Margin="6,0,6,6">
-                    <ItemsControl.ItemTemplate>
+            <!--
+                一覧。ListBox にしているのは、上下キーでの移動と選択の維持を自前で持たないため。
+                選択中の ToDo は VM 側（SelectedTodo）で持ち、並べ替えで一覧を作り直しても
+                選択が失われないようにしている。
+            -->
+            <ListBox x:Name="TodoList" Grid.Row="3" Margin="6,0,6,6"
+                     ItemsSource="{Binding VisibleTodos}"
+                     SelectedItem="{Binding SelectedTodo}"
+                     Background="Transparent" BorderThickness="0"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+                     PreviewKeyDown="TodoList_PreviewKeyDown">
+                <ListBox.ItemContainerStyle>
+                    <!-- 既定の選択表示（青い塗り）は行のデザインと合わないので、行側のトリガーで描く -->
+                    <Style TargetType="ListBoxItem">
+                        <Setter Property="Padding" Value="0"/>
+                        <Setter Property="Margin" Value="0"/>
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="ListBoxItem">
+                                    <ContentPresenter/>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </ListBox.ItemContainerStyle>
+                <ListBox.ItemTemplate>
                         <DataTemplate>
                             <Border x:Name="RowRoot" CornerRadius="6" Margin="0,1" Padding="0"
-                                    Background="Transparent" Cursor="Hand"
+                                    Background="Transparent" Cursor="Hand" AllowDrop="True"
                                     ToolTip="{Binding ToolTipText}"
                                     ToolTipService.InitialShowDelay="400"
-                                    MouseLeftButtonDown="TodoRow_MouseLeftButtonDown">
+                                    MouseLeftButtonDown="TodoRow_MouseLeftButtonDown"
+                                    PreviewMouseLeftButtonDown="TodoRow_PreviewMouseLeftButtonDown"
+                                    PreviewMouseMove="TodoRow_PreviewMouseMove"
+                                    DragOver="TodoRow_DragOver"
+                                    Drop="TodoRow_Drop">
                                 <Border.ContextMenu>
                                     <ContextMenu>
                                         <MenuItem Header="編集" Click="EditTodoMenuItem_Click"/>
@@ -150,6 +176,9 @@
                                         <MenuItem Header="期限を今日にする" Click="DueTodayMenuItem_Click"/>
                                         <MenuItem Header="期限を明日にする" Click="DueTomorrowMenuItem_Click"/>
                                         <MenuItem Header="期限を外す" Click="ClearDueMenuItem_Click"/>
+                                        <Separator/>
+                                        <MenuItem Header="上へ移動 (Ctrl+↑)" Click="MoveUpMenuItem_Click"/>
+                                        <MenuItem Header="下へ移動 (Ctrl+↓)" Click="MoveDownMenuItem_Click"/>
                                         <Separator/>
                                         <MenuItem Header="削除" Click="DeleteTodoMenuItem_Click"/>
                                     </ContextMenu>
@@ -185,22 +214,58 @@
                                                            Foreground="{DynamicResource TextSecondaryBrush}"/>
                                             </Border>
 
+                                            <!-- 通知日時（設定しているものだけ） -->
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,6,0"
+                                                        Visibility="{Binding HasReminder, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                <TextBlock Text="&#xEA8F;" FontFamily="Segoe MDL2 Assets" FontSize="9"
+                                                           VerticalAlignment="Center" Margin="0,0,3,0"
+                                                           Foreground="{DynamicResource TextMutedBrush}"/>
+                                                <TextBlock Text="{Binding RemindDisplay}" FontSize="10"
+                                                           Foreground="{DynamicResource TextMutedBrush}"/>
+                                            </StackPanel>
+
+                                            <!-- 繰り返し（設定しているものだけ） -->
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,6,0"
+                                                        Visibility="{Binding HasRecurrence, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                <TextBlock Text="&#xE895;" FontFamily="Segoe MDL2 Assets" FontSize="9"
+                                                           VerticalAlignment="Center" Margin="0,0,3,0"
+                                                           Foreground="{DynamicResource TextMutedBrush}"/>
+                                                <TextBlock Text="{Binding RecurrenceDisplay}" FontSize="10"
+                                                           Foreground="{DynamicResource TextMutedBrush}"/>
+                                            </StackPanel>
+
                                             <!-- 優先度（標準のときは何も出さない） -->
                                             <TextBlock x:Name="PriorityText" Text="優先度 高" FontSize="10" Margin="0,0,6,0"
                                                        VerticalAlignment="Center"
                                                        Foreground="{DynamicResource TodoHighPriorityBrush}"
                                                        Visibility="{Binding IsHighPriority, Converter={StaticResource BooleanToVisibilityConverter}}"/>
 
-                                            <!-- この ToDo で記録した累計 -->
+                                            <!-- 見積もりがあるときは「実績 / 見積もり」、無ければ記録した累計だけ -->
                                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
-                                                        Visibility="{Binding HasRecorded, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                        Visibility="{Binding ShowRecordedOnly, Converter={StaticResource BooleanToVisibilityConverter}}">
                                                 <TextBlock Text="&#xE916;" FontFamily="Segoe MDL2 Assets" FontSize="9"
                                                            VerticalAlignment="Center" Margin="0,0,3,0"
                                                            Foreground="{DynamicResource TextMutedBrush}"/>
                                                 <TextBlock Text="{Binding RecordedDisplay}" FontSize="10"
                                                            Foreground="{DynamicResource TextMutedBrush}"/>
                                             </StackPanel>
+
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
+                                                        Visibility="{Binding HasEstimate, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                <TextBlock Text="&#xE916;" FontFamily="Segoe MDL2 Assets" FontSize="9"
+                                                           VerticalAlignment="Center" Margin="0,0,3,0"
+                                                           Foreground="{DynamicResource TextMutedBrush}"/>
+                                                <TextBlock x:Name="ProgressText" Text="{Binding ProgressDisplay}" FontSize="10"
+                                                           Foreground="{DynamicResource TextMutedBrush}"/>
+                                            </StackPanel>
                                         </StackPanel>
+
+                                        <!-- 見積もりに対する進捗（見積もりを設定したものだけ） -->
+                                        <ProgressBar x:Name="ProgressBar" Height="4" Margin="0,5,0,1"
+                                                     Minimum="0" Maximum="100" Value="{Binding ProgressPercent, Mode=OneWay}"
+                                                     Style="{StaticResource StatsBarStyle}"
+                                                     Foreground="{Binding Brush}"
+                                                     Visibility="{Binding HasEstimate, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                                     </StackPanel>
 
                                     <!-- 記録開始（この ToDo のタイトル・色で記録を始める） -->
@@ -239,11 +304,21 @@
                                     <Setter TargetName="DueText" Property="Foreground" Value="{DynamicResource TodoOverdueBrush}"/>
                                     <Setter TargetName="DueText" Property="FontWeight" Value="SemiBold"/>
                                 </DataTrigger>
+
+                                <!-- 見積もり超過：バーと数字を警告色にする（バー自体は満杯で止まっている） -->
+                                <DataTrigger Binding="{Binding IsOverEstimate}" Value="True">
+                                    <Setter TargetName="ProgressBar" Property="Foreground" Value="{DynamicResource TodoOverdueBrush}"/>
+                                    <Setter TargetName="ProgressText" Property="Foreground" Value="{DynamicResource TodoOverdueBrush}"/>
+                                </DataTrigger>
+
+                                <!-- 選択中：キーボード操作の現在位置。ホバーより後に置いて優先させる -->
+                                <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
+                                    <Setter TargetName="RowRoot" Property="Background" Value="{DynamicResource PressedBackgroundBrush}"/>
+                                </DataTrigger>
                             </DataTemplate.Triggers>
                         </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </ScrollViewer>
+                </ListBox.ItemTemplate>
+            </ListBox>
 
             <!-- フッター -->
             <Border Grid.Row="4" Padding="10" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0">

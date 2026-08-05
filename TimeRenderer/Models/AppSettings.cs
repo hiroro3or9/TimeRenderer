@@ -11,8 +11,17 @@ public class AppSettings
     public bool IsTodoPanelVisible { get; set; } = false;
     /// <summary>ToDo 一覧に完了済みも表示するか</summary>
     public bool ShowCompletedTodos { get; set; } = false;
-    /// <summary>ToDo 一覧の並べ替え（0: 期限順, 1: 優先度順, 2: 追加順）</summary>
+    /// <summary>ToDo 一覧の並べ替え（0: 期限順, 1: 優先度順, 2: 追加順, 3: 手動）</summary>
     public int TodoSortMode { get; set; } = 0;
+    /// <summary>1日1回、ToDo の件数をまとめて通知するか</summary>
+    public bool IsTodoDigestEnabled { get; set; } = true;
+    /// <summary>まとめ通知を出す時刻（時）</summary>
+    public int TodoDigestHour { get; set; } = 9;
+    /// <summary>
+    /// まとめ通知を最後に出した日（yyyy-MM-dd）。
+    /// 起動のたびに出さないよう、セッションをまたいで覚えておく。
+    /// </summary>
+    public string? LastTodoDigestDate { get; set; }
     public int ViewMode { get; set; } = 0; // 0: Day, 1: Week
     public int DisplayStartHour { get; set; } = 0;  // 表示開始時刻（0～23）
     public int DisplayEndHour { get; set; } = 24;    // 表示終了時刻（1～24）

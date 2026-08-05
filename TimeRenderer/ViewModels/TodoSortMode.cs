@@ -14,6 +14,9 @@ public enum TodoSortMode
 
     /// <summary>追加した順</summary>
     Created = 2,
+
+    /// <summary>手動（ドラッグや Ctrl+↑↓ で決めた順）</summary>
+    Manual = 3,
 }
 
 /// <summary>ToDo の並べ替えドロップダウン1項目</summary>
