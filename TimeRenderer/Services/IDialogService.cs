@@ -50,6 +50,14 @@ public interface IDialogService
         TodoEstimateStats? estimateStats = null);
 
     /// <summary>
+    /// 未完了の ToDo から1件選ぶダイアログを開きます。
+    /// キャンセルされた場合、または選択肢が無い場合は null を返します。
+    /// </summary>
+    /// <param name="message">何を選ぶのかの説明</param>
+    /// <param name="todos">選択肢（未完了のもの）</param>
+    TodoItem? ShowTodoPickerDialog(string message, IReadOnlyList<TodoItem> todos);
+
+    /// <summary>
     /// 記録開始ダイアログを開き、入力されたタイトルと選択されたタイマーオプションを返します。
     /// キャンセルされた場合はnullを返します。
     /// </summary>

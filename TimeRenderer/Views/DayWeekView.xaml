@@ -321,11 +321,16 @@
                                                       HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
                     <controls:TransitioningContentControl.ContentTemplate>
                         <DataTemplate>
-                            <!-- Background=Transparent: 空白部分のクリック・ドラッグ（予定追加）をヒットテスト可能にする -->
-                            <Grid Background="Transparent"
+                            <!--
+                                Background=Transparent: 空白部分のクリック・ドラッグ（予定追加）をヒットテスト可能にする。
+                                AllowDrop: ToDo パネルから ToDo を落として作業時間を押さえられるようにする。
+                            -->
+                            <Grid Background="Transparent" AllowDrop="True"
                                   MouseLeftButtonDown="ScheduleBackground_MouseLeftButtonDown"
                                   MouseMove="ScheduleBackground_MouseMove"
-                                  MouseLeftButtonUp="ScheduleBackground_MouseLeftButtonUp">
+                                  MouseLeftButtonUp="ScheduleBackground_MouseLeftButtonUp"
+                                  DragOver="ScheduleBackground_DragOver"
+                                  Drop="ScheduleBackground_Drop">
                                 <!-- 背景グリッド（縦：日付区切り） -->
                                 <ItemsControl>
                                     <ItemsControl.ItemsSource>
@@ -372,11 +377,13 @@
                                 <!--
                                     未記録の帯（記録漏れの候補）。
                                     勤務時間内で記録が1件も無い区間に、破線の枠だけを敷く。
-                                    予定バーより先に置いて背面にし、クリックは一切受けない
-                                    （空白のドラッグ＝予定追加を邪魔しないため。この操作こそが穴埋めになる）。
+                                    予定バーより先に置いて背面にする。
+
+                                    左クリックは受け取らず背景へ透過させる（空白のドラッグ＝予定追加を
+                                    邪魔しないため。この操作こそが穴埋めになる）。
+                                    右クリックだけは帯自身が受け、ToDo から埋める導線を出す。
                                 -->
-                                <ItemsControl ItemsSource="{Binding DataContext.UnrecordedGaps, RelativeSource={RelativeSource AncestorType=Window}}"
-                                              IsHitTestVisible="False">
+                                <ItemsControl ItemsSource="{Binding DataContext.UnrecordedGaps, RelativeSource={RelativeSource AncestorType=Window}}">
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate>
                                             <Canvas ClipToBounds="True"/>
@@ -435,7 +442,13 @@
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
                                             <!-- 破線＋薄い塗り。記録済みの箱と見間違えないよう、実線・影は使わない -->
-                                            <Grid Height="{Binding DurationHours, Converter={StaticResource DurationToHeightConverter}}" Margin="1,0,1,0">
+                                            <Grid Height="{Binding DurationHours, Converter={StaticResource DurationToHeightConverter}}" Margin="1,0,1,0"
+                                                  ToolTip="{Binding ToolTipText}">
+                                                <Grid.ContextMenu>
+                                                    <ContextMenu>
+                                                        <MenuItem Header="ToDo から埋める…" Click="FillGapMenuItem_Click"/>
+                                                    </ContextMenu>
+                                                </Grid.ContextMenu>
                                                 <Rectangle Fill="{DynamicResource UnrecordedGapBrush}"
                                                            Stroke="{DynamicResource UnrecordedGapBorderBrush}"
                                                            StrokeThickness="1" StrokeDashArray="3 3"
