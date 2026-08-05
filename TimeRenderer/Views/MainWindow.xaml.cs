@@ -320,6 +320,15 @@ namespace TimeRenderer.Views
             }
         }
 
+        /// <summary>月・スプリントビューのセル内で ToDo をダブルクリック：編集を開く</summary>
+        private void MonthCell_TodoClicked(object sender, Controls.TodoClickedEventArgs e)
+        {
+            if (ViewModel.EditTodoCommand.CanExecute(e.Todo))
+            {
+                ViewModel.EditTodoCommand.Execute(e.Todo);
+            }
+        }
+
         /// <summary>
         /// 月表示のカレンダーセル内、スケジュールアイテムが右クリックされた時のイベント
         /// </summary>

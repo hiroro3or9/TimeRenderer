@@ -1,7 +1,7 @@
 ﻿<Window x:Class="TimeRenderer.Views.Dialogs.TodoEditDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="ToDo の編集" Height="700" Width="440"
+        Title="ToDo の編集" Height="760" Width="460"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         Background="{DynamicResource BackgroundBrush}">
@@ -63,6 +63,10 @@
                 <TextBlock x:Name="RecordedText" VerticalAlignment="Center" Margin="12,0,0,0" FontSize="12"
                            Foreground="{DynamicResource TextSecondaryBrush}"/>
             </StackPanel>
+            <!-- 過去の完了分から見た傾向。見積もる、その瞬間に目に入るのが要点 -->
+            <TextBlock x:Name="AccuracyText" TextWrapping="Wrap" FontSize="11" Margin="0,6,0,0"
+                       Visibility="Collapsed"
+                       Foreground="{DynamicResource TextSecondaryBrush}"/>
         </StackPanel>
 
         <!-- 繰り返し（完了すると次回分が自動で作られる） -->
@@ -75,6 +79,20 @@
                            Foreground="{DynamicResource TextSecondaryBrush}"/>
                 <ComboBox x:Name="RecurrenceIntervalCombo" Width="70" FontSize="14" Padding="6,6"/>
             </StackPanel>
+
+            <!-- 週ごとのときだけ：曜日を決めると「毎週 月・水・金」のように週に複数回にできる -->
+            <StackPanel x:Name="RecurrenceDaysPanel" Orientation="Horizontal" Margin="0,8,0,0">
+                <TextBlock Text="曜日" VerticalAlignment="Center" Margin="0,0,8,0" FontSize="13"
+                           Foreground="{DynamicResource TextSecondaryBrush}"/>
+                <CheckBox x:Name="DayMonCheck" Content="月" Checked="RecurrenceDay_Changed" Unchecked="RecurrenceDay_Changed" Margin="0,0,6,0" VerticalContentAlignment="Center"/>
+                <CheckBox x:Name="DayTueCheck" Content="火" Checked="RecurrenceDay_Changed" Unchecked="RecurrenceDay_Changed" Margin="0,0,6,0" VerticalContentAlignment="Center"/>
+                <CheckBox x:Name="DayWedCheck" Content="水" Checked="RecurrenceDay_Changed" Unchecked="RecurrenceDay_Changed" Margin="0,0,6,0" VerticalContentAlignment="Center"/>
+                <CheckBox x:Name="DayThuCheck" Content="木" Checked="RecurrenceDay_Changed" Unchecked="RecurrenceDay_Changed" Margin="0,0,6,0" VerticalContentAlignment="Center"/>
+                <CheckBox x:Name="DayFriCheck" Content="金" Checked="RecurrenceDay_Changed" Unchecked="RecurrenceDay_Changed" Margin="0,0,6,0" VerticalContentAlignment="Center"/>
+                <CheckBox x:Name="DaySatCheck" Content="土" Checked="RecurrenceDay_Changed" Unchecked="RecurrenceDay_Changed" Margin="0,0,6,0" VerticalContentAlignment="Center"/>
+                <CheckBox x:Name="DaySunCheck" Content="日" Checked="RecurrenceDay_Changed" Unchecked="RecurrenceDay_Changed" VerticalContentAlignment="Center"/>
+            </StackPanel>
+
             <CheckBox x:Name="RecurrenceFromCompletionCheckBox" Content="完了した日から次回の期限を数える"
                       VerticalContentAlignment="Center" Margin="0,8,0,0"/>
             <TextBlock x:Name="RecurrenceHint" TextWrapping="Wrap" FontSize="11" Margin="0,6,0,0"
@@ -85,7 +103,8 @@
         <!-- カテゴリ（チップの色と、この ToDo から記録を始めたときの色になる） -->
         <StackPanel Grid.Row="5" Margin="0,0,0,16">
             <TextBlock Text="カテゴリ" Style="{StaticResource FieldLabelStyle}"/>
-            <ComboBox x:Name="ColorCombo" Width="200" HorizontalAlignment="Left" FontSize="14" Padding="6,6">
+            <ComboBox x:Name="ColorCombo" Width="200" HorizontalAlignment="Left" FontSize="14" Padding="6,6"
+                      SelectionChanged="ColorCombo_SelectionChanged">
                 <ComboBox.ItemTemplate>
                     <DataTemplate>
                         <StackPanel Orientation="Horizontal">

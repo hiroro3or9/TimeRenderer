@@ -729,6 +729,36 @@
         <Setter Property="BorderThickness" Value="1,1,1,1"/> <!-- 境界線が太くなるのを防ぐため左側も描画し、重なりを考慮するか、0,1,1,1にするか。ここでは左ボーダーありにして、並べたときに重なるようにマージン調整する手もあるが、シンプルに 1,1,1,1 で左隣のボーダーと重なるように Margin="-1,0,0,0" するのが綺麗に見える。 -->
         <Setter Property="Margin" Value="-1,0,0,0"/>
     </Style>
+    <!--
+        ToDo の完了チェック。
+        見た目はチェックボックスだが、変更前の状態を掴んで取り消し履歴へ積むため
+        双方向バインドではなくコマンドで動かしたく、実体はボタンにしている。
+    -->
+    <Style x:Key="TodoCheckButtonStyle" TargetType="Button">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="box" CornerRadius="3" Background="{TemplateBinding Background}"
+                            BorderBrush="{DynamicResource TextMutedBrush}" BorderThickness="1.5">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="box" Property="BorderBrush" Value="{DynamicResource TextSecondaryBrush}"/>
+                            <Setter TargetName="box" Property="Background" Value="{DynamicResource HoverBackgroundBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="box" Property="Background" Value="{DynamicResource PressedBackgroundBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- 統計ビュー：カテゴリ別横棒グラフ用スタイル -->
     <Style x:Key="StatsBarStyle" TargetType="ProgressBar">
         <Setter Property="Template">

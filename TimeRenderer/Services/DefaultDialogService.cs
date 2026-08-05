@@ -37,9 +37,13 @@ public class DefaultDialogService(Window owner) : IDialogService
         return null;
     }
 
-    public TodoItem? ShowTodoEditDialog(TodoItem? initialTodo = null, IReadOnlyList<CategoryInfo>? categories = null, IReadOnlyList<string>? titleSuggestions = null)
+    public TodoItem? ShowTodoEditDialog(
+        TodoItem? initialTodo = null,
+        IReadOnlyList<CategoryInfo>? categories = null,
+        IReadOnlyList<string>? titleSuggestions = null,
+        TodoEstimateStats? estimateStats = null)
     {
-        TodoEditDialog dialog = new(initialTodo, categories, titleSuggestions)
+        TodoEditDialog dialog = new(initialTodo, categories, titleSuggestions, estimateStats)
         {
             Owner = owner
         };

@@ -50,7 +50,7 @@ public sealed class UndoManager
     }
 
     /// <summary>直前の編集を取り消す。実行したら true</summary>
-    public bool Undo(ObservableCollection<ScheduleItem> items)
+    public bool Undo(UndoContext context)
     {
         if (!CanUndo) return false;
 
@@ -60,7 +60,7 @@ public sealed class UndoManager
         IsApplying = true;
         try
         {
-            edit.Undo(items);
+            edit.Undo(context);
         }
         finally
         {
@@ -73,7 +73,7 @@ public sealed class UndoManager
     }
 
     /// <summary>取り消した編集をやり直す。実行したら true</summary>
-    public bool Redo(ObservableCollection<ScheduleItem> items)
+    public bool Redo(UndoContext context)
     {
         if (!CanRedo) return false;
 
@@ -82,7 +82,7 @@ public sealed class UndoManager
         IsApplying = true;
         try
         {
-            edit.Redo(items);
+            edit.Redo(context);
         }
         finally
         {

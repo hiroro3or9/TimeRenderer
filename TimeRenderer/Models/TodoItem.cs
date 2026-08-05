@@ -104,6 +104,28 @@ public class TodoItem : INotifyPropertyChanged
         }
     }
 
+    private DateTime? _plannedOn;
+    /// <summary>
+    /// 「この日にやる」と決めた日（日付部分のみ）。null は未設定。
+    ///
+    /// 真偽値ではなく日付で持つことで、日をまたげば自動的に「今日やる」ではなくなる。
+    /// 昨日つけた印が今日まで残って意味を失う、ということが起きない。
+    /// 期限（DueDate）とは別の軸で、「期限は来週だが今日着手する」を表せる。
+    /// </summary>
+    public DateTime? PlannedOn
+    {
+        get => _plannedOn;
+        set
+        {
+            var normalized = value?.Date;
+            if (SetProperty(ref _plannedOn, normalized))
+            {
+                OnPropertyChanged(nameof(IsPlannedToday));
+                OnPropertyChanged(nameof(ToolTipText));
+            }
+        }
+    }
+
     private TodoPriority _priority = TodoPriority.Normal;
     public TodoPriority Priority
     {
@@ -243,6 +265,23 @@ public class TodoItem : INotifyPropertyChanged
         }
     }
 
+    private List<DayOfWeek> _recurrenceDaysOfWeek = [];
+    /// <summary>
+    /// 繰り返す曜日（週ごとのときのみ使う）。
+    /// 空なら「期限日から Interval 週後」、指定があれば「その曜日のうち次に来る日」になる。
+    /// 「毎週 月・水・金」のように、1週間に複数回あるものを表せる。
+    /// </summary>
+    public List<DayOfWeek> RecurrenceDaysOfWeek
+    {
+        get => _recurrenceDaysOfWeek;
+        set
+        {
+            _recurrenceDaysOfWeek = value ?? [];
+            OnPropertyChanged();
+            NotifyRecurrenceChanged();
+        }
+    }
+
     private bool _recurrenceFromCompletion;
     /// <summary>
     /// true なら「完了した日」から次回の期限を数える（掃除・片付けのように、やった日が起点のもの）。
@@ -301,6 +340,10 @@ public class TodoItem : INotifyPropertyChanged
     /// <summary>期限が今日の未完了の ToDo か</summary>
     [JsonIgnore]
     public bool IsDueToday => !IsCompleted && DueDate.HasValue && DueDate.Value.Date == DateTime.Today;
+
+    /// <summary>「今日やる」と決めた未完了の ToDo か</summary>
+    [JsonIgnore]
+    public bool IsPlannedToday => !IsCompleted && PlannedOn?.Date == DateTime.Today;
 
     /// <summary>一覧表示用：期限（例: "今日" / "明日" / "3日超過" / "8/12 (水)"）</summary>
     [JsonIgnore]
@@ -375,7 +418,32 @@ public class TodoItem : INotifyPropertyChanged
     [JsonIgnore]
     public bool HasRecurrence => Recurrence != TodoRecurrenceUnit.None;
 
-    /// <summary>一覧表示用：繰り返し（例: "毎週" / "隔週" / "3日ごと" / "毎月（完了日から）"）</summary>
+    /// <summary>曜日を指定した週ごとの繰り返しか</summary>
+    [JsonIgnore]
+    public bool HasRecurrenceDays =>
+        Recurrence == TodoRecurrenceUnit.Week && RecurrenceDaysOfWeek.Count > 0;
+
+    private static readonly DayOfWeek[] WeekOrder =
+    [
+        DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday,
+        DayOfWeek.Friday, DayOfWeek.Saturday, DayOfWeek.Sunday
+    ];
+
+    private static readonly Dictionary<DayOfWeek, string> DayNames = new()
+    {
+        [DayOfWeek.Monday] = "月",
+        [DayOfWeek.Tuesday] = "火",
+        [DayOfWeek.Wednesday] = "水",
+        [DayOfWeek.Thursday] = "木",
+        [DayOfWeek.Friday] = "金",
+        [DayOfWeek.Saturday] = "土",
+        [DayOfWeek.Sunday] = "日",
+    };
+
+    /// <summary>
+    /// 一覧表示用：繰り返し
+    /// （例: "毎週" / "隔週" / "3日ごと" / "毎週 月・水・金" / "毎月（完了日から）"）
+    /// </summary>
     [JsonIgnore]
     public string RecurrenceDisplay
     {
@@ -397,7 +465,16 @@ public class TodoItem : INotifyPropertyChanged
                 _ => $"{RecurrenceInterval}{unit}ごと",
             };
 
-            return RecurrenceFromCompletion ? $"{head}（完了日から）" : head;
+            if (HasRecurrenceDays)
+            {
+                var days = RecurrenceDaysOfWeek.Count == 7
+                    ? "毎日"
+                    : string.Join("・", WeekOrder.Where(RecurrenceDaysOfWeek.Contains).Select(d => DayNames[d]));
+                head = $"{head} {days}";
+            }
+
+            // 曜日を決めている場合は、その曜日に来ること自体が起点なので完了日基準の注記は出さない
+            return RecurrenceFromCompletion && !HasRecurrenceDays ? $"{head}（完了日から）" : head;
         }
     }
 
@@ -421,17 +498,7 @@ public class TodoItem : INotifyPropertyChanged
         if (!HasRecurrence) return null;
 
         var baseDate = (RecurrenceFromCompletion ? completedOn : DueDate ?? completedOn).Date;
-        var next = AddRecurrenceInterval(baseDate);
-
-        if (!RecurrenceFromCompletion)
-        {
-            // 間隔が 0 日になることは無いので必ず抜けるが、壊れたデータ対策に上限も置く
-            var guard = 0;
-            while (next <= completedOn.Date && guard++ < 500)
-            {
-                next = AddRecurrenceInterval(next);
-            }
-        }
+        var next = FindNextOccurrence(baseDate, completedOn.Date);
 
         return new TodoItem
         {
@@ -445,10 +512,57 @@ public class TodoItem : INotifyPropertyChanged
             EstimatedMinutes = EstimatedMinutes,
             Recurrence = Recurrence,
             RecurrenceInterval = RecurrenceInterval,
+            RecurrenceDaysOfWeek = [.. RecurrenceDaysOfWeek],
             RecurrenceFromCompletion = RecurrenceFromCompletion,
             SortOrder = SortOrder,
         };
     }
+
+    /// <summary><paramref name="notBefore"/> より後に来る、次の発生日を求める</summary>
+    private DateTime FindNextOccurrence(DateTime baseDate, DateTime notBefore)
+    {
+        if (HasRecurrenceDays) return FindNextWeekday(baseDate, notBefore);
+
+        var next = AddRecurrenceInterval(baseDate);
+        if (RecurrenceFromCompletion) return next;
+
+        // 間隔が 0 日になることは無いので必ず抜けるが、壊れたデータ対策に上限も置く
+        var guard = 0;
+        while (next <= notBefore && guard++ < 500)
+        {
+            next = AddRecurrenceInterval(next);
+        }
+        return next;
+    }
+
+    /// <summary>
+    /// 指定した曜日のうち、次に来る日を探す。
+    /// 間隔が2以上なら、起点の週から数えて間隔の倍数にあたる週の曜日だけを拾う。
+    /// </summary>
+    private DateTime FindNextWeekday(DateTime baseDate, DateTime notBefore)
+    {
+        var anchorWeek = StartOfWeek(baseDate);
+        var from = baseDate > notBefore ? baseDate : notBefore;
+
+        // 1年ぶん見ても見つからないのは設定が壊れている場合だけ
+        for (var day = from.AddDays(1); day <= from.AddDays(400); day = day.AddDays(1))
+        {
+            if (!RecurrenceDaysOfWeek.Contains(day.DayOfWeek)) continue;
+
+            if (RecurrenceInterval > 1)
+            {
+                var weeks = (StartOfWeek(day) - anchorWeek).Days / 7;
+                if (weeks % RecurrenceInterval != 0) continue;
+            }
+            return day;
+        }
+
+        return AddRecurrenceInterval(baseDate);
+    }
+
+    /// <summary>週の始まり（月曜日）を返す</summary>
+    private static DateTime StartOfWeek(DateTime date) =>
+        date.Date.AddDays(-(((int)date.DayOfWeek + 6) % 7));
 
     private DateTime AddRecurrenceInterval(DateTime date) => Recurrence switch
     {
@@ -492,6 +606,8 @@ public class TodoItem : INotifyPropertyChanged
                 : $"期限 {DueDate.Value:yyyy/MM/dd (ddd)}");
         }
 
+        if (IsPlannedToday) lines.Add("今日やる");
+
         if (RemindAt.HasValue) lines.Add($"通知 {RemindAt.Value:yyyy/MM/dd (ddd) HH:mm}");
 
         if (Priority != TodoPriority.Normal)
@@ -532,6 +648,7 @@ public class TodoItem : INotifyPropertyChanged
         OnPropertyChanged(nameof(HasDueDate));
         OnPropertyChanged(nameof(IsOverdue));
         OnPropertyChanged(nameof(IsDueToday));
+        OnPropertyChanged(nameof(IsPlannedToday));
         OnPropertyChanged(nameof(DueDisplay));
         OnPropertyChanged(nameof(ToolTipText));
     }

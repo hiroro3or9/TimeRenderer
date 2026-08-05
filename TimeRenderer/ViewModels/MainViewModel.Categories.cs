@@ -211,6 +211,19 @@ public partial class MainViewModel
         return category == null || category.IsFilterEnabled;
     }
 
+    /// <summary>
+    /// 色フィルタでこの ToDo をビューに表示するか。
+    ///
+    /// 効くのは日/週ビューのチップと月ビューのセルまでで、ToDo パネルには効かせない。
+    /// パネルは「やることの全体像」なので、フィルタを付けたことを忘れると
+    /// ToDo が消えたように見えてしまう。
+    /// </summary>
+    public bool IsTodoVisible(TodoItem todo)
+    {
+        var category = ResolveCategory(todo.CategoryId, todo.ColorCode);
+        return category == null || category.IsFilterEnabled;
+    }
+
     // ===== 記録開始時の既定カテゴリ =====
 
     private string? _recordingCategoryDefaultId;

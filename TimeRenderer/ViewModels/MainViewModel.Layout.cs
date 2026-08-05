@@ -466,10 +466,16 @@ public partial class MainViewModel
         var cells = new List<CalendarCellViewModel>();
         var sprint = CurrentViewMode == ViewMode.Sprint ? Helpers.SprintHelper.GetSprintForDate(ManualSprints, CurrentDate) : null;
 
+        // その日が期限の未完了 ToDo を日付ごとに引けるようにしておく
+        var todosByDate = GetVisibleTodosByDueDate();
+
         foreach (var day in VisibleDays)
         {
             DailyScheduleItems.TryGetValue(day.Date, out var items);
             items ??= [];
+
+            todosByDate.TryGetValue(day.Date, out var todos);
+            todos ??= [];
 
             bool isCurrent = false;
             if (CurrentViewMode == ViewMode.Month)
@@ -483,7 +489,7 @@ public partial class MainViewModel
 
             bool isToday = day.Date == DateTime.Today;
 
-            cells.Add(new CalendarCellViewModel(day, isCurrent, isToday, items));
+            cells.Add(new CalendarCellViewModel(day, isCurrent, isToday, items, todos));
         }
         CalendarCells = cells;
     }
