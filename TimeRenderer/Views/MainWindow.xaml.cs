@@ -235,6 +235,7 @@ namespace TimeRenderer.Views
                 {
                     hiding.FlushMemoSave();
                     hiding.FlushDataSave();
+                    hiding.FlushTodoSave();
                 }
 
                 e.Cancel = true;
@@ -261,6 +262,7 @@ namespace TimeRenderer.Views
             {
                  vm.FlushMemoSave(); // デバウンス中の未保存メモを書き込む
                  vm.FlushDataSave(); // デバウンス中の未保存の予定データを書き込む
+                 vm.FlushTodoSave(); // デバウンス中の未保存の ToDo を書き込む
                  vm.PropertyChanged -= ViewModel_PropertyChanged;
                  vm.PendingReminders.CollectionChanged -= PendingReminders_CollectionChanged;
                  vm.DisposeAwayDetection(); // 監視タイマーと SystemEvents の購読を解除する

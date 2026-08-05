@@ -328,6 +328,7 @@ public partial class MainViewModel
         {
             if (StandardItems.Count > 0) StandardItems = [];
             if (AllDayItems.Count > 0) AllDayItems = [];
+            if (TodoChips.Count > 0) TodoChips = [];
             if (DailyScheduleItems.Count > 0) DailyScheduleItems = new Dictionary<DateTime, List<ScheduleItem>>();
 
             UpdateCalendarCells();
@@ -385,10 +386,11 @@ public partial class MainViewModel
             }
         }
 
-        var allDayGrouped = newAllDayItems.GroupBy(x => x.StartTime.Date);
+        // 終日行の段数は日付ごとに数える。ToDo チップはこの続きの段へ積む
+        var allDayRowCounts = new Dictionary<DateTime, int>();
         int maxStackIndex = 0;
 
-        foreach (var group in allDayGrouped)
+        foreach (var group in newAllDayItems.GroupBy(x => x.StartTime.Date))
         {
             int index = 0;
             foreach (var item in group.OrderBy(x => x.Title))
@@ -396,8 +398,12 @@ public partial class MainViewModel
                 item.ColumnIndex = index;
                 index++;
             }
+            allDayRowCounts[group.Key] = index;
             if (index > maxStackIndex) maxStackIndex = index;
         }
+
+        // 期限付きの未完了 ToDo を終日イベントの下に並べる
+        maxStackIndex = Math.Max(maxStackIndex, RebuildTodoChips(rangeStart, rangeEnd, allDayRowCounts));
 
         AllDayPanelHeight = Math.Max(30, (maxStackIndex * 24) + 6);
 

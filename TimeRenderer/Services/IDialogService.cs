@@ -35,6 +35,16 @@ public interface IDialogService
     RoutineScheduleItem? ShowRoutineEditDialog(RoutineScheduleItem? initialRoutine = null, IReadOnlyList<CategoryInfo>? categories = null, IReadOnlyList<string>? titleSuggestions = null);
 
     /// <summary>
+    /// ToDo の編集ダイアログを開き、結果の ToDo を返します。
+    /// キャンセルされた場合は null を返します。
+    /// </summary>
+    /// <param name="initialTodo">編集対象の ToDo。新規作成時は null</param>
+    /// <param name="categories">選択可能なカテゴリ一覧</param>
+    /// <param name="titleSuggestions">タイトル入力欄のドロップダウン候補</param>
+    /// <returns>追加または更新された TodoItem。キャンセルされた場合は null</returns>
+    TodoItem? ShowTodoEditDialog(TodoItem? initialTodo = null, IReadOnlyList<CategoryInfo>? categories = null, IReadOnlyList<string>? titleSuggestions = null);
+
+    /// <summary>
     /// 記録開始ダイアログを開き、入力されたタイトルと選択されたタイマーオプションを返します。
     /// キャンセルされた場合はnullを返します。
     /// </summary>

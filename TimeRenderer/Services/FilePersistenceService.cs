@@ -15,6 +15,7 @@ public static class FilePersistenceService
     private const string MemosFilePath = "memos.json";
     private const string WorkDaysFilePath = "workdays.json";
     private const string AppUsageFilePath = "appusage.json";
+    private const string TodosFilePath = "todos.json";
 
     /// <summary>アプリ使用記録の保持日数。裏付け用の補助データなので古いものは自動で捨てる</summary>
     private const int AppUsageRetentionDays = 60;
@@ -92,6 +93,25 @@ public static class FilePersistenceService
         return [.. intervals
             .Where(i => i.End > i.Start && i.End >= cutoff && !string.IsNullOrEmpty(i.ProcessName))
             .OrderBy(i => i.Start)];
+    }
+
+    /// <summary>
+    /// ToDo を保存する。
+    /// 予定データとは独立した一覧なので専用ファイルに分け、片方の破損で両方を失わないようにする。
+    /// </summary>
+    public static void SaveTodos(IEnumerable<TodoItem> todos) =>
+        JsonFileRepository.SaveToFileSync(TodosFilePath, todos);
+
+    /// <summary>
+    /// ToDo を読み込む。読めなかった場合は空で始める。
+    /// タイトルの無い行は保存事故の残骸とみなして捨てる（一覧に空行が並ぶのを防ぐ）。
+    /// </summary>
+    public static List<TodoItem> LoadTodos()
+    {
+        var result = JsonFileRepository.LoadFromFileSync<List<TodoItem>>(TodosFilePath);
+        var todos = result.Value ?? [];
+
+        return [.. todos.Where(t => !string.IsNullOrWhiteSpace(t.Title))];
     }
 
     public static void SaveMemos(Dictionary<DateTime, string> memos)

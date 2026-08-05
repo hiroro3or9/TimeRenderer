@@ -26,6 +26,7 @@ namespace TimeRenderer.ViewModels;
 /// - .Gaps.cs                         : 勤務時間内で記録が無い区間（記録漏れ）の検出
 /// - .AppUsage.cs                     : 記録中の使用アプリの自動記録と内訳表示
 /// - .Undo.cs                         : 取り消し・やり直し
+/// - .Todos.cs                        : ToDo（やることリスト）と終日行のチップ・記録との連動
 /// - .Search.cs / .Selection.cs / .Categories.cs / .Titles.cs / .Routines.cs : 各機能
 ///
 /// 共有の enum / record（ViewMode, TimerOption, TimelineGroupMode, AwayHandlingMode など）は
@@ -402,6 +403,7 @@ public partial class MainViewModel : INotifyPropertyChanged
         InitializeSearchCommands();
         InitializeTitleCommands();
         InitializeRoutineCommands();
+        InitializeTodoCommands();
         InitializeWorkDayCommands();
         InitializeUndo();
         InitializeAwayDetection();
@@ -423,6 +425,7 @@ public partial class MainViewModel : INotifyPropertyChanged
         LoadMemos();
         LoadWorkDays(); // 予定データの読み込み後（未退勤の自動締めが作業記録を参照するため）
         LoadAppUsage();
+        LoadTodos(); // 設定の読み込み後（並べ替え・絞り込みの設定を反映して一覧を組むため）
         UpdateMemoTextForCurrentWeek();
         StartClock();
 
@@ -455,6 +458,7 @@ public partial class MainViewModel : INotifyPropertyChanged
                 CheckReminders(CurrentTime);
                 UpdateWorkDayTick(CurrentTime); // 勤務時間の表示更新と、日付またぎの自動締め
                 UpdateUnrecordedGapTick(CurrentTime); // 当日の未記録は時間の経過だけでも伸びる
+                UpdateTodoTick(CurrentTime); // 日付またぎで ToDo の「今日」「超過」を作り直す
             }
             if (IsRecording && RecordingStartTime.HasValue)
             {

@@ -89,14 +89,20 @@
                 <Border Grid.Column="0" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,1,0" Background="{DynamicResource BackgroundBrush}">
                     <TextBlock Text="終日" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,4,8,4" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
                 </Border>
-                <controls:TransitioningContentControl Grid.Column="1" 
-                                                      Content="{Binding CurrentDate}" 
+                <controls:TransitioningContentControl Grid.Column="1"
+                                                      Content="{Binding CurrentDate}"
                                                       TransitionDirection="{Binding TransitionDirection}"
                                                       Height="{Binding AllDayPanelHeight}"
                                                       HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
                     <controls:TransitioningContentControl.ContentTemplate>
                         <DataTemplate>
-                            <ItemsControl ItemsSource="{Binding DataContext.AllDayItems, RelativeSource={RelativeSource AncestorType=Window}}" 
+                          <!--
+                              終日イベントと ToDo チップを同じ領域に重ねて置く。
+                              チップの縦位置（RowIndex）は終日イベントの段数の続きから始まるため、
+                              2つの Canvas を重ねても行がぶつからない。
+                          -->
+                          <Grid>
+                            <ItemsControl ItemsSource="{Binding DataContext.AllDayItems, RelativeSource={RelativeSource AncestorType=Window}}"
                                           Margin="0,2">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
@@ -170,6 +176,112 @@
                                     </Style>
                                 </ItemsControl.ItemContainerStyle>
                             </ItemsControl>
+
+                            <!--
+                                ToDo チップ（期限日を持つ未完了の ToDo）。
+                                予定バーと同じ塗りつぶしの箱にすると作業記録と混ざるため、
+                                枠線だけの丸いチップにして「まだやっていないこと」だと分かるようにする。
+                            -->
+                            <ItemsControl ItemsSource="{Binding DataContext.TodoChips, RelativeSource={RelativeSource AncestorType=Window}}"
+                                          Margin="0,2">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <Canvas/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemContainerStyle>
+                                    <Style TargetType="ContentPresenter">
+                                        <Setter Property="Visibility">
+                                            <Setter.Value>
+                                                <MultiBinding Converter="{StaticResource DateToPageVisibilityConverter}" FallbackValue="Collapsed">
+                                                    <Binding Path="Date" />
+                                                    <Binding Path="DataContext" RelativeSource="{RelativeSource AncestorType=ItemsControl}"/> <!-- CurrentDate -->
+                                                    <Binding Path="DataContext.CurrentViewMode" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                    <Binding Path="DataContext.EnabledDaysOfWeek" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                </MultiBinding>
+                                            </Setter.Value>
+                                        </Setter>
+                                        <!-- 縦位置：終日イベントの段の続き（RowIndex は VM 側で連番になっている） -->
+                                        <Setter Property="Canvas.Top" Value="{Binding RowIndex, Converter={StaticResource IndexToTopMarginConverter}}"/>
+                                        <Setter Property="Canvas.Left">
+                                            <Setter.Value>
+                                                <MultiBinding Converter="{StaticResource DateToPagePositionConverter}">
+                                                    <Binding Path="Date" />
+                                                    <Binding Source="{StaticResource Zero}" /> <!-- ColumnIndex = 0 -->
+                                                    <Binding Source="{StaticResource Zero}" /> <!-- MaxColumnIndex = 0 -->
+                                                    <Binding Path="DataContext" RelativeSource="{RelativeSource AncestorType=ItemsControl}"/> <!-- CurrentDate -->
+                                                    <Binding Path="DataContext.CurrentViewMode" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                    <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=Canvas}" />
+                                                    <Binding Source="{StaticResource TrueValue}" /> <!-- IsAllDay（終日行に並べる） -->
+                                                    <Binding Path="DataContext.EnabledDaysOfWeek" RelativeSource="{RelativeSource AncestorType=Window}"/>
+                                                </MultiBinding>
+                                            </Setter.Value>
+                                        </Setter>
+                                        <Setter Property="Width">
+                                            <Setter.Value>
+                                                <MultiBinding Converter="{StaticResource DateToPagePositionConverter}" ConverterParameter="WIDTH">
+                                                    <Binding Path="Date" />
+                                                    <Binding Source="{StaticResource Zero}" />
+                                                    <Binding Source="{StaticResource Zero}" />
+                                                    <Binding Path="DataContext" RelativeSource="{RelativeSource AncestorType=ItemsControl}"/>
+                                                    <Binding Path="DataContext.CurrentViewMode" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                    <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=Canvas}" />
+                                                    <Binding Source="{StaticResource TrueValue}" />
+                                                    <Binding Path="DataContext.EnabledDaysOfWeek" RelativeSource="{RelativeSource AncestorType=Window}"/>
+                                                </MultiBinding>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </ItemsControl.ItemContainerStyle>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border x:Name="ChipRoot" Height="22" Margin="2,1,2,0" CornerRadius="11" Padding="7,0"
+                                                Background="{DynamicResource SurfaceBrush}"
+                                                BorderBrush="{Binding Todo.Brush}" BorderThickness="1.5"
+                                                Cursor="Hand"
+                                                ToolTip="{Binding Todo.ToolTipText}"
+                                                ToolTipService.InitialShowDelay="250"
+                                                MouseLeftButtonDown="TodoChip_MouseLeftButtonDown">
+                                            <Border.ContextMenu>
+                                                <ContextMenu>
+                                                    <MenuItem Header="完了にする" Click="TodoChipCompleteMenuItem_Click"/>
+                                                    <MenuItem Header="この ToDo で記録開始" Click="TodoChipRecordMenuItem_Click"/>
+                                                    <Separator/>
+                                                    <MenuItem Header="編集" Click="TodoChipEditMenuItem_Click"/>
+                                                    <MenuItem Header="期限を明日にする" Click="TodoChipDueTomorrowMenuItem_Click"/>
+                                                    <MenuItem Header="期限を外す" Click="TodoChipClearDueMenuItem_Click"/>
+                                                    <MenuItem Header="削除" Click="TodoChipDeleteMenuItem_Click"/>
+                                                </ContextMenu>
+                                            </Border.ContextMenu>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <TextBlock x:Name="ChipGlyph" Text="&#xE73A;" FontFamily="Segoe MDL2 Assets" FontSize="10"
+                                                           VerticalAlignment="Center" Margin="0,0,5,0"
+                                                           Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                                <TextBlock x:Name="ChipText" Text="{Binding Todo.Title}" FontSize="11"
+                                                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <DataTemplate.Triggers>
+                                            <Trigger SourceName="ChipRoot" Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="ChipRoot" Property="Background" Value="{DynamicResource HoverBackgroundBrush}"/>
+                                            </Trigger>
+                                            <!-- 期限切れは枠と文字を警告色にする（今日の列に並んでいても見落とさないように） -->
+                                            <DataTrigger Binding="{Binding Todo.IsOverdue}" Value="True">
+                                                <Setter TargetName="ChipRoot" Property="BorderBrush" Value="{DynamicResource TodoOverdueBrush}"/>
+                                                <Setter TargetName="ChipText" Property="Foreground" Value="{DynamicResource TodoOverdueBrush}"/>
+                                                <Setter TargetName="ChipGlyph" Property="Foreground" Value="{DynamicResource TodoOverdueBrush}"/>
+                                            </DataTrigger>
+                                            <!-- 優先度が高いものは枠を太くする（色はカテゴリを優先するため変えない） -->
+                                            <DataTrigger Binding="{Binding Todo.IsHighPriority}" Value="True">
+                                                <Setter TargetName="ChipRoot" Property="BorderThickness" Value="2.5"/>
+                                            </DataTrigger>
+                                        </DataTemplate.Triggers>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                          </Grid>
                         </DataTemplate>
                     </controls:TransitioningContentControl.ContentTemplate>
                 </controls:TransitioningContentControl>

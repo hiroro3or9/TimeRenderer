@@ -25,10 +25,11 @@
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="Auto"/> <!-- Memo Panel -->
+            <ColumnDefinition Width="Auto"/> <!-- ToDo Panel -->
         </Grid.ColumnDefinitions>
 
         <!-- ツールバー + 定期予定リマインダー通知（縦に積むための StackPanel） -->
-        <StackPanel Grid.Row="0" Grid.ColumnSpan="2">
+        <StackPanel Grid.Row="0" Grid.ColumnSpan="3">
         <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="12,8">
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -325,7 +326,21 @@
 
                     <Border Style="{StaticResource ToolbarSeparatorStyle}"/>
 
-                    <!-- メモ / 設定 -->
+                    <!-- ToDo / メモ / 設定 -->
+                    <ToggleButton IsChecked="{Binding IsTodoPanelVisible}"
+                                  Style="{StaticResource IconToggleButtonStyle}"
+                                  ToolTip="{Binding TodoSummaryText}"
+                                  Margin="0,0,2,0" VerticalAlignment="Center">
+                        <Grid Width="32" Height="32">
+                            <TextBlock Text="&#xE73A;" FontFamily="Segoe MDL2 Assets" FontSize="15"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <!-- 期限を過ぎた ToDo があるときだけ点を出す（閉じていても気づけるように） -->
+                            <Ellipse Width="7" Height="7" Fill="{DynamicResource TodoOverdueBrush}"
+                                     HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,4,0"
+                                     Visibility="{Binding HasOverdueTodos, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                        </Grid>
+                    </ToggleButton>
+
                     <ToggleButton Content="&#xE70B;" IsChecked="{Binding IsMemoPanelVisible}"
                                   Style="{StaticResource IconToggleButtonStyle}" ToolTip="メモ"
                                   Margin="0,0,2,0" VerticalAlignment="Center"/>
@@ -449,8 +464,11 @@
         <!-- メモパネル -->
         <views:MemoPanel Grid.Row="1" Grid.RowSpan="2" Grid.Column="1"/>
 
+        <!-- ToDo パネル -->
+        <views:TodoPanel Grid.Row="1" Grid.RowSpan="2" Grid.Column="2"/>
+
         <!-- 設定パネル (右スライドイン・オーバーレイ) -->
-        <views:SettingsPanel Grid.Row="1" Grid.RowSpan="2" Grid.ColumnSpan="2"
+        <views:SettingsPanel Grid.Row="1" Grid.RowSpan="2" Grid.ColumnSpan="3"
                              HorizontalAlignment="Right" Panel.ZIndex="100"/>
 
     </Grid>

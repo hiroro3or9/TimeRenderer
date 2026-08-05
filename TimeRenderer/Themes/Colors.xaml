@@ -23,6 +23,14 @@
     <Color x:Key="UnrecordedGapBorderColor">#8094A3B8</Color>
     <SolidColorBrush x:Key="UnrecordedGapBorderBrush" Color="{StaticResource UnrecordedGapBorderColor}"/>
 
+    <!-- ToDo（期限の状態を示す色。予定バーのカテゴリ色とは別の軸なので固定色にする） -->
+    <Color x:Key="TodoOverdueColor">#DC2626</Color>
+    <SolidColorBrush x:Key="TodoOverdueBrush" Color="{StaticResource TodoOverdueColor}"/>
+    <Color x:Key="TodoDueTodayColor">#D97706</Color>
+    <SolidColorBrush x:Key="TodoDueTodayBrush" Color="{StaticResource TodoDueTodayColor}"/>
+    <Color x:Key="TodoHighPriorityColor">#F97316</Color>
+    <SolidColorBrush x:Key="TodoHighPriorityBrush" Color="{StaticResource TodoHighPriorityColor}"/>
+
     <!-- Danger Colors (Red based) -->
     <Color x:Key="DangerColor">#EF4444</Color>
     <SolidColorBrush x:Key="DangerBrush" Color="{StaticResource DangerColor}"/>

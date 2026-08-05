@@ -1,0 +1,84 @@
+﻿<Window x:Class="TimeRenderer.Views.Dialogs.TodoEditDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="ToDo の編集" Height="480" Width="420"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="{DynamicResource BackgroundBrush}">
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- タイトル（手入力＋ドロップダウン候補：定型タイトル・直近1か月のタイトル） -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,16">
+            <TextBlock Text="タイトル" Style="{StaticResource FieldLabelStyle}"/>
+            <ComboBox x:Name="TitleCombo" IsEditable="True" FontSize="14" Padding="6,6"
+                      IsTextSearchEnabled="False" MaxDropDownHeight="240"/>
+        </StackPanel>
+
+        <!-- 期限（未設定なら日/週ビューには並ばず、パネルにだけ残る） -->
+        <StackPanel Grid.Row="1" Margin="0,0,0,16">
+            <TextBlock Text="期限" Style="{StaticResource FieldLabelStyle}"/>
+            <StackPanel Orientation="Horizontal">
+                <DatePicker x:Name="DueDatePicker" Width="160" Padding="4,4" VerticalContentAlignment="Center"/>
+                <Button Content="今日" Width="56" Height="30" Margin="8,0,0,0"
+                        Click="TodayButton_Click" Style="{StaticResource BaseButtonStyle}"/>
+                <Button Content="明日" Width="56" Height="30" Margin="4,0,0,0"
+                        Click="TomorrowButton_Click" Style="{StaticResource BaseButtonStyle}"/>
+                <Button Content="なし" Width="56" Height="30" Margin="4,0,0,0"
+                        Click="ClearDueButton_Click" Style="{StaticResource BaseButtonStyle}"
+                        ToolTip="期限を外す（一覧には残ります）"/>
+            </StackPanel>
+        </StackPanel>
+
+        <!-- 優先度 -->
+        <StackPanel Grid.Row="2" Margin="0,0,0,16">
+            <TextBlock Text="優先度" Style="{StaticResource FieldLabelStyle}"/>
+            <StackPanel Orientation="Horizontal">
+                <RadioButton x:Name="PriorityHighRadio" Content="高" GroupName="TodoPriority"
+                             Style="{StaticResource SegmentedLeftStyle}"/>
+                <RadioButton x:Name="PriorityNormalRadio" Content="標準" GroupName="TodoPriority"
+                             Style="{StaticResource SegmentedMiddleStyle}"/>
+                <RadioButton x:Name="PriorityLowRadio" Content="低" GroupName="TodoPriority"
+                             Style="{StaticResource SegmentedRightStyle}"/>
+            </StackPanel>
+        </StackPanel>
+
+        <!-- カテゴリ（チップの色と、この ToDo から記録を始めたときの色になる） -->
+        <StackPanel Grid.Row="3" Margin="0,0,0,16">
+            <TextBlock Text="カテゴリ" Style="{StaticResource FieldLabelStyle}"/>
+            <ComboBox x:Name="ColorCombo" Width="200" HorizontalAlignment="Left" FontSize="14" Padding="6,6">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel Orientation="Horizontal">
+                            <Border Width="20" Height="20" Background="{Binding Brush}" CornerRadius="3" Margin="0,0,8,0" BorderBrush="#CCCCCC" BorderThickness="1"/>
+                            <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
+        </StackPanel>
+
+        <!-- メモ -->
+        <StackPanel Grid.Row="4" VerticalAlignment="Top">
+            <TextBlock Text="メモ" Style="{StaticResource FieldLabelStyle}"/>
+            <TextBox x:Name="ContentTextBox" Style="{StaticResource InputTextBoxStyle}" Height="90"
+                     TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto"/>
+        </StackPanel>
+
+        <!-- ボタン -->
+        <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button Content="キャンセル" Width="100" Height="36" Margin="0,0,12,0"
+                    IsCancel="True" Click="CancelButton_Click" Style="{StaticResource BaseButtonStyle}"/>
+            <Button Content="OK" Width="100" Height="36" IsDefault="True"
+                    Click="OkButton_Click" Style="{StaticResource PrimaryButtonStyle}"/>
+        </StackPanel>
+    </Grid>
+</Window>

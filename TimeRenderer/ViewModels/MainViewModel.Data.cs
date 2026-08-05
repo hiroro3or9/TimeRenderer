@@ -222,6 +222,9 @@ public partial class MainViewModel
         IsMemoPanelVisible = IsMemoPanelVisible,
         IsSettingsPanelVisible = IsSettingsPanelVisible,
         IsMemoEditMode = IsMemoEditMode,
+        IsTodoPanelVisible = IsTodoPanelVisible,
+        ShowCompletedTodos = ShowCompletedTodos,
+        TodoSortMode = (int)CurrentTodoSortMode,
         ViewMode = (int)CurrentViewMode,
         DisplayStartHour = DisplayStartHour,
         DisplayEndHour = DisplayEndHour,
@@ -265,6 +268,19 @@ public partial class MainViewModel
 
         _isMemoEditMode = settings.IsMemoEditMode;
         OnPropertyChanged(nameof(IsMemoEditMode));
+
+        _isTodoPanelVisible = settings.IsTodoPanelVisible;
+        OnPropertyChanged(nameof(IsTodoPanelVisible));
+
+        _showCompletedTodos = settings.ShowCompletedTodos;
+        OnPropertyChanged(nameof(ShowCompletedTodos));
+
+        // 並べ替えも壊れた設定ファイルで不正な enum 値にならないよう検証する
+        _todoSortMode = Enum.IsDefined(typeof(TodoSortMode), settings.TodoSortMode)
+            ? (TodoSortMode)settings.TodoSortMode
+            : TodoSortMode.DueDate;
+        OnPropertyChanged(nameof(CurrentTodoSortMode));
+        OnPropertyChanged(nameof(SelectedTodoSortOption));
 
         // 設定ファイルが壊れていても不正な enum 値にならないよう検証する
         _currentViewMode = Enum.IsDefined(typeof(ViewMode), settings.ViewMode)

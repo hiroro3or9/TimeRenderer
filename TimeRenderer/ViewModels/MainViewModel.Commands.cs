@@ -432,6 +432,7 @@ public partial class MainViewModel
         _recordingColorCode = item.ColorCode;
         _recordingCategoryId = item.CategoryId ?? ResolveCategory(item)?.Id;
         _recordingSourceItem = consumeItem ? item : null;
+        _recordingTodo = null;
         ClearAwayState(); // 前回の記録で拾った離席を持ち越さない
         IsRecording = true;
         RecordingStartTime = DateTime.Now;
@@ -455,6 +456,7 @@ public partial class MainViewModel
         _recordingColorCode = null;
         _recordingCategoryId = null;
         _recordingSourceItem = null;
+        _recordingTodo = null;
         RecordingTitle = $"作業ログ {DateTime.Now:HH:mm}";
         ClearAwayState(); // 前回の記録で拾った離席を持ち越さない
         IsRecording = true;
@@ -478,6 +480,9 @@ public partial class MainViewModel
                 var source = _recordingSourceItem;
                 _recordingSourceItem = null;
 
+                var todo = _recordingTodo;
+                _recordingTodo = null;
+
                 // 離席を検知していれば、ここでユーザーに扱いを確認する。
                 // 「除く」を選ぶと、離席をまたぐ記録は複数の区間に分かれる
                 var segments = ResolveRecordingSegments(title, startTime, endTime);
@@ -491,6 +496,9 @@ public partial class MainViewModel
                 {
                     SaveRecordingSegments(title, source, segments);
                 }
+
+                // ToDo から始めた記録は、実際に残った区間ぶんだけ ToDo へ積算する
+                AccumulateTodoRecording(todo, segments);
             }
 
             IsRecording = false;
@@ -500,6 +508,7 @@ public partial class MainViewModel
             _recordingColorCode = null;
             _recordingCategoryId = null;
             _recordingSourceItem = null;
+            _recordingTodo = null;
             IsCountdownMode = false;
             CountdownRemaining = null;
         }
@@ -508,6 +517,7 @@ public partial class MainViewModel
             _recordingColorCode = null;
             _recordingCategoryId = null;
             _recordingSourceItem = null;
+            _recordingTodo = null;
             string defaultTitle = $"作業ログ {DateTime.Now:HH:mm}";
             var result = _dialogService.ShowRecordingStartDialog(defaultTitle, TimerOptions, SelectedTimerOption, GetTitleSuggestions());
             if (result != null) // Cancel以外（OK押下時）は開始
