@@ -8,7 +8,6 @@
         xmlns:conv="clr-namespace:TimeRenderer.Converters"
         xmlns:controls="clr-namespace:TimeRenderer.Controls"
         xmlns:views="clr-namespace:TimeRenderer.Views"
-        xmlns:markdig="clr-namespace:Markdig.Wpf;assembly=Markdig.Wpf"
         xmlns:sys="clr-namespace:System;assembly=mscorlib"
         mc:Ignorable="d"
         Background="{DynamicResource BackgroundBrush}"
@@ -29,12 +28,11 @@
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
-            <ColumnDefinition Width="Auto"/> <!-- Memo Panel -->
             <ColumnDefinition Width="Auto"/> <!-- ToDo Panel -->
         </Grid.ColumnDefinitions>
 
         <!-- ツールバー + 定期予定リマインダー通知（縦に積むための StackPanel） -->
-        <StackPanel Grid.Row="0" Grid.ColumnSpan="3">
+        <StackPanel Grid.Row="0" Grid.ColumnSpan="2">
         <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="12,8">
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -351,10 +349,6 @@
                         </Grid>
                     </ToggleButton>
 
-                    <ToggleButton Content="&#xE70B;" IsChecked="{Binding IsMemoPanelVisible}"
-                                  Style="{StaticResource IconToggleButtonStyle}" ToolTip="メモ"
-                                  Margin="0,0,2,0" VerticalAlignment="Center"/>
-
                     <ToggleButton Content="&#xE713;" IsChecked="{Binding IsSettingsPanelVisible}"
                                   Style="{StaticResource IconToggleButtonStyle}" ToolTip="設定"
                                   VerticalAlignment="Center"/>
@@ -602,14 +596,11 @@
         <views:StatsView Grid.Row="1" Grid.RowSpan="2"
                          Visibility="{Binding IsStatsMode, Converter={StaticResource BooleanToVisibilityConverter}}"/>
 
-        <!-- メモパネル -->
-        <views:MemoPanel Grid.Row="1" Grid.RowSpan="2" Grid.Column="1"/>
-
         <!-- ToDo パネル -->
-        <views:TodoPanel Grid.Row="1" Grid.RowSpan="2" Grid.Column="2"/>
+        <views:TodoPanel Grid.Row="1" Grid.RowSpan="2" Grid.Column="1"/>
 
         <!-- 設定パネル (右スライドイン・オーバーレイ) -->
-        <views:SettingsPanel Grid.Row="1" Grid.RowSpan="2" Grid.ColumnSpan="3"
+        <views:SettingsPanel Grid.Row="1" Grid.RowSpan="2" Grid.ColumnSpan="2"
                              HorizontalAlignment="Right" Panel.ZIndex="100"/>
 
     </Grid>

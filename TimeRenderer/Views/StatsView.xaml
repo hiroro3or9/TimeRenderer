@@ -34,6 +34,39 @@
                                Foreground="{DynamicResource TextMutedBrush}" FontSize="13" Margin="0,8,0,24"
                                Visibility="{Binding HasStatsData, Converter={StaticResource InvertedBooleanToVisibilityConverter}}"/>
 
+                    <!--
+                        ふりかえり（退勤時に書いた一言）。
+                        書きっぱなしにせず読み返せる場所がここ。記録が0時間の期間でも出したいので、
+                        カテゴリ別・日別（HasStatsData で出し分ける塊）とは別に置いている。
+                    -->
+                    <StackPanel Visibility="{Binding HasStatsNotes, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <TextBlock Text="ふりかえり" FontWeight="SemiBold" FontSize="14"
+                                   Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,12"/>
+                        <ItemsControl ItemsSource="{Binding StatsNoteItems}" Margin="0,0,0,28">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <!-- クリックで勤務時間の編集を開き、そのまま書き直せるようにする -->
+                                    <Button Command="{Binding DataContext.EditWorkDayCommand,
+                                                              RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                            CommandParameter="{Binding Date}"
+                                            Margin="0,0,0,8" ToolTip="クリックで書き直す"
+                                            Style="{StaticResource StatsNoteCardStyle}">
+                                        <StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                                <TextBlock Text="{Binding DateText}" FontSize="12" FontWeight="SemiBold"
+                                                           Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,10,0"/>
+                                                <TextBlock Text="{Binding WorkText}" FontSize="11"
+                                                           Foreground="{DynamicResource TextMutedBrush}"/>
+                                            </StackPanel>
+                                            <TextBlock Text="{Binding Note}" FontSize="13" TextWrapping="Wrap"
+                                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        </StackPanel>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+
                     <!-- カテゴリ別作業時間 -->
                     <StackPanel Visibility="{Binding HasStatsData, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <TextBlock Text="カテゴリ別作業時間" FontWeight="SemiBold" FontSize="14"

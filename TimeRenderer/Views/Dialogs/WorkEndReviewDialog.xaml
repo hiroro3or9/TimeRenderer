@@ -1,7 +1,7 @@
 ﻿<Window x:Class="TimeRenderer.Views.Dialogs.WorkEndReviewDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="今日のふりかえり" Height="520" Width="480"
+        Title="今日のふりかえり" Height="620" Width="480"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         Background="{DynamicResource BackgroundBrush}">
@@ -24,8 +24,15 @@
         <TextBlock Grid.Row="0" x:Name="HeadlineText" FontSize="15" FontWeight="Bold" TextWrapping="Wrap"
                    Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,10"/>
 
+        <!--
+            今日どうだったか。実績（自動で出る数字）と、ふりかえりの一言（自分で書くもの）を並べる。
+            一言は勤務記録に付く。予定にも ToDo にも紐づかない文章の置き場はここだけなので、
+            退勤という1日で唯一はっきりした区切りで書けるようにしている。
+        -->
+        <StackPanel Grid.Row="1" Margin="0,0,0,16">
+
         <!-- 今日の実績 -->
-        <Border Grid.Row="1" CornerRadius="4" Padding="12,10" Margin="0,0,0,16"
+        <Border CornerRadius="4" Padding="12,10" Margin="0,0,0,12"
                 Background="{DynamicResource MutedBackgroundBrush}">
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -57,6 +64,20 @@
                 </StackPanel>
             </Grid>
         </Border>
+
+        <!--
+            ふりかえりの一言。空のままでも構わないので、フォーカスは既定ボタンに残す
+            （Enter だけで確定できる流れを崩さないため）
+        -->
+        <TextBlock Text="今日のひとこと（任意）" FontSize="12" Margin="0,0,0,4"
+                   Foreground="{DynamicResource TextSecondaryBrush}"/>
+        <TextBox x:Name="NoteTextBox" Height="58" Padding="8,6" FontSize="13"
+                 AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
+                 VerticalContentAlignment="Top"
+                 Background="{DynamicResource SurfaceBrush}"
+                 BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"/>
+
+        </StackPanel>
 
         <!-- 繰り越しの見出し -->
         <Grid Grid.Row="2" Margin="0,0,0,6">

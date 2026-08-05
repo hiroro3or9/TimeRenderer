@@ -20,6 +20,10 @@ public enum WorkEndSource
 /// 作業内容の記録（<see cref="ScheduleItem"/>）とは別の軸で、
 /// 「その日いつ働き始めて、いつ終えたか」だけを持つ。
 /// 予定バーと混ざらないよう、日/週ビューでは横ラインのマーカーとして描く。
+///
+/// ふりかえりの一言（<see cref="Note"/>）もここに置く。
+/// 個々の予定にも ToDo にも紐づかない文章の置き場は他に無く、
+/// かつ「その日どうだったか」は勤務の記録と同じ粒度で残るのが自然なため。
 /// </summary>
 public sealed class WorkDayLog
 {
@@ -34,6 +38,21 @@ public sealed class WorkDayLog
 
     /// <summary>退勤がどう入ったか（自動で入ったものはマーカーに印を付ける）</summary>
     public WorkEndSource EndSource { get; set; } = WorkEndSource.Manual;
+
+    /// <summary>
+    /// その日のふりかえり（一言）。書いていなければ空。
+    /// 退勤時のふりかえりダイアログか、勤務時間の編集から入力する。
+    /// </summary>
+    public string Note { get; set; } = string.Empty;
+
+    /// <summary>ふりかえりが書かれているか（表示の出し分けに使う）</summary>
+    [JsonIgnore]
+    public bool HasNote => !string.IsNullOrWhiteSpace(Note);
+
+    /// <summary>ふりかえりを1行に潰したもの（ツールチップやマーカー用）</summary>
+    [JsonIgnore]
+    public string NoteSingleLine =>
+        Note.Replace("\r\n", " ").Replace('\n', ' ').Replace('\r', ' ').Trim();
 
     [JsonIgnore]
     public bool IsFinished => EndTime.HasValue;

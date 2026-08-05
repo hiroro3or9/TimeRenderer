@@ -138,18 +138,12 @@ public partial class MainViewModel : INotifyPropertyChanged
         {
             if (_currentDate != value)
             {
-                var oldWeekStart = CurrentWeekStart;
                 _currentDate = value;
                 UpdateVisibleDays();
                 EnsureRoutineOccurrences(value);
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(CurrentWeekStart));
                 OnPropertyChanged(nameof(DateDisplay));
-
-                if (CurrentWeekStart != oldWeekStart)
-                {
-                    UpdateMemoTextForCurrentWeek();
-                }
             }
         }
     }
@@ -424,11 +418,9 @@ public partial class MainViewModel : INotifyPropertyChanged
         UpdateVisibleDays();
         LoadData();
         LoadSettings();
-        LoadMemos();
         LoadWorkDays(); // 予定データの読み込み後（未退勤の自動締めが作業記録を参照するため）
         LoadAppUsage();
         LoadTodos(); // 設定の読み込み後（並べ替え・絞り込みの設定を反映して一覧を組むため）
-        UpdateMemoTextForCurrentWeek();
         StartClock();
 
         _isInitialized = true;

@@ -4,9 +4,7 @@ namespace TimeRenderer.Models;
 
 public class AppSettings
 {
-    public bool IsMemoPanelVisible { get; set; } = true;
     public bool IsSettingsPanelVisible { get; set; } = false;
-    public bool IsMemoEditMode { get; set; } = true;
     /// <summary>ToDo パネルを開いているか</summary>
     public bool IsTodoPanelVisible { get; set; } = false;
     /// <summary>ToDo 一覧に完了済みも表示するか</summary>

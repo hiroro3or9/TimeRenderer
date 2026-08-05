@@ -670,7 +670,6 @@
     <sys:Boolean x:Key="TrueValue">True</sys:Boolean>
     <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
     <conv:InvertedBooleanToVisibilityConverter x:Key="InvertedBooleanToVisibilityConverter"/>
-    <conv:InverseBooleanConverter x:Key="InverseBooleanConverter"/>
     <conv:LShapeGeometryConverter x:Key="LShapeGeometryConverter"/>
 
 
@@ -757,6 +756,41 @@
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
+    </Style>
+
+    <!--
+        統計ビュー：ふりかえり1件分のカード（クリックでその日の勤務記録を編集）。
+        BaseButtonStyle はテンプレート内の ContentPresenter を中央寄せで固定しているため、
+        横いっぱいに広がる本文を置けない。専用のテンプレートを持たせている。
+    -->
+    <Style x:Key="StatsNoteCardStyle" TargetType="Button">
+        <Setter Property="Background" Value="{DynamicResource MutedBackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="12,10"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="6"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{DynamicResource HoverBackgroundBrush}"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource HoverBorderBrush}"/>
+            </Trigger>
+            <Trigger Property="IsPressed" Value="True">
+                <Setter Property="Background" Value="{DynamicResource PressedBackgroundBrush}"/>
+            </Trigger>
+        </Style.Triggers>
     </Style>
 
     <!-- 統計ビュー：カテゴリ別横棒グラフ用スタイル -->

@@ -89,6 +89,29 @@ public partial class MainViewModel
         private set => SetProperty(ref _statsDailyItems, value);
     }
 
+    /// <summary>
+    /// 統計に並べるふりかえり1件（<see cref="WorkDayLog.Note"/> が書かれている日だけ）。
+    /// </summary>
+    /// <param name="Date">勤務日（クリックで編集を開くときの対象）</param>
+    /// <param name="DateText">日付の表示</param>
+    /// <param name="WorkText">その日の勤務時間帯（何をしていた日か思い出す手がかり）</param>
+    /// <param name="Note">ふりかえり本文</param>
+    public record WorkDayNoteItem(DateTime Date, string DateText, string WorkText, string Note);
+
+    private IReadOnlyList<WorkDayNoteItem> _statsNoteItems = [];
+    /// <summary>期間内のふりかえり（新しい日が上）</summary>
+    public IReadOnlyList<WorkDayNoteItem> StatsNoteItems
+    {
+        get => _statsNoteItems;
+        private set
+        {
+            if (SetProperty(ref _statsNoteItems, value)) OnPropertyChanged(nameof(HasStatsNotes));
+        }
+    }
+
+    /// <summary>この期間にふりかえりが1件でもあるか（見出しごと出し分ける）</summary>
+    public bool HasStatsNotes => StatsNoteItems.Count > 0;
+
     private string _statsSummaryText = "";
     public string StatsSummaryText
     {
@@ -250,8 +273,33 @@ public partial class MainViewModel
             dailyStats.Add(new DailyStat(d, label, d.Date == DateTime.Today, dayTotal, segments));
         }
         StatsDailyItems = dailyStats;
+        StatsNoteItems = BuildStatsNoteItems(rangeStart, rangeEnd);
 
         HasStatsData = grandTotal > 0;
         StatsSummaryText = $"合計 {FormatHours(grandTotal)} ／ {itemCount} 件";
+    }
+
+    /// <summary>
+    /// 期間内のふりかえりを集める。
+    ///
+    /// 書いたものを読み返す場所がここしか無いので、記録が0時間の期間でも出す
+    /// （<see cref="HasStatsData"/> の出し分けとは独立させている）。
+    /// 新しい日を上にするのは、直近のふりかえりほど読み返す頻度が高いため。
+    /// </summary>
+    private IReadOnlyList<WorkDayNoteItem> BuildStatsNoteItems(DateTime rangeStart, DateTime rangeEnd)
+    {
+        return
+        [
+            .. _workDayLogs
+                .Where(l => l.HasNote && l.StartTime.Date >= rangeStart && l.StartTime.Date < rangeEnd)
+                .OrderByDescending(l => l.StartTime)
+                .Select(l => new WorkDayNoteItem(
+                    l.StartTime.Date,
+                    l.StartTime.ToString("M/d(ddd)"),
+                    l.EndTime is { } end
+                        ? $"{l.StartTime:H:mm} - {end:H:mm} ・ {l.DurationText}"
+                        : $"{l.StartTime:H:mm} - 勤務中",
+                    l.Note.Trim()))
+        ];
     }
 }

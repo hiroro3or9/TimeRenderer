@@ -12,7 +12,6 @@ namespace TimeRenderer.Services;
 public static class FilePersistenceService
 {
     private const string ScheduleFilePath = "schedules.json";
-    private const string MemosFilePath = "memos.json";
     private const string WorkDaysFilePath = "workdays.json";
     private const string AppUsageFilePath = "appusage.json";
     private const string TodosFilePath = "todos.json";
@@ -130,30 +129,6 @@ public static class FilePersistenceService
         var todos = result.Value ?? [];
 
         return [.. todos.Where(t => !string.IsNullOrWhiteSpace(t.Title))];
-    }
-
-    public static void SaveMemos(Dictionary<DateTime, string> memos)
-    {
-        var serializableDict = memos.ToDictionary(k => k.Key.ToString("yyyy-MM-dd"), v => v.Value);
-        JsonFileRepository.SaveToFileSync(MemosFilePath, serializableDict);
-    }
-
-    public static Dictionary<DateTime, string> LoadMemos()
-    {
-        var serializableDict = JsonFileRepository.LoadFromFileSync<Dictionary<string, string>>(MemosFilePath).Value;
-        if (serializableDict == null) return [];
-
-        // カルチャ非依存で解析し、壊れたキーは読み飛ばす
-        var result = new Dictionary<DateTime, string>();
-        foreach (var (key, value) in serializableDict)
-        {
-            if (DateTime.TryParseExact(key, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture,
-                    System.Globalization.DateTimeStyles.None, out var date))
-            {
-                result[date] = value;
-            }
-        }
-        return result;
     }
 
     private static ObservableCollection<ScheduleItem> LoadSampleData()

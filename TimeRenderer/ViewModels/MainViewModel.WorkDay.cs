@@ -213,7 +213,8 @@ public partial class MainViewModel
         var existing = FindLogByDate(date);
 
         var result = _dialogService.ShowWorkDayEditDialog(
-            date.Date, existing?.StartTime, existing?.EndTime, canDelete: existing != null);
+            date.Date, existing?.StartTime, existing?.EndTime,
+            canDelete: existing != null, note: existing?.Note ?? string.Empty);
 
         if (result == null) return;
 
@@ -236,6 +237,7 @@ public partial class MainViewModel
         RefreshActiveWorkLog();
         SaveWorkDays();
         NotifyWorkDayChanged();
+        UpdateStats(); // ふりかえり一覧からも消す
     }
 
     /// <summary>
@@ -250,13 +252,21 @@ public partial class MainViewModel
         var conflict = FindLogByDate(result.Date);
         if (conflict != null) _workDayLogs.Remove(conflict);
 
+        // ふりかえりを書き足しただけのときに「手で直した」ことにすると、
+        // 自動で入った退勤の印がマーカーから黙って消えてしまう
+        var timesUnchanged = original != null
+            && original.Date == result.Date
+            && original.StartTime == result.StartTime
+            && original.EndTime == result.EndTime;
+
         _workDayLogs.Add(new WorkDayLog
         {
             Date = result.Date,
             StartTime = result.StartTime,
             EndTime = result.EndTime,
+            Note = result.Note,
             // 手で直した時刻は「自動で入れた値」ではなくなるので印を外す
-            EndSource = WorkEndSource.Manual
+            EndSource = timesUnchanged ? original!.EndSource : WorkEndSource.Manual
         });
 
         _workDayLogs.Sort((a, b) => a.StartTime.CompareTo(b.StartTime));
@@ -264,6 +274,7 @@ public partial class MainViewModel
         RefreshActiveWorkLog();
         SaveWorkDays();
         NotifyWorkDayChanged();
+        UpdateStats(); // 統計のふりかえり一覧に反映する
     }
 
     /// <summary>
@@ -449,8 +460,12 @@ public partial class MainViewModel
             var date = log.StartTime.Date;
             if (date < from || date > to) continue;
 
+            // ふりかえりは出勤・退勤どちらのマーカーからも読めるようにする
+            // （どちらに触るかは日によって違い、探させる意味が無いため）
+            var note = log.HasNote ? log.NoteSingleLine : string.Empty;
+
             markers.Add(new WorkDayMarker(
-                log.StartTime, IsStart: true, $"出勤 {log.StartTime:H:mm}", IsAuto: false, date));
+                log.StartTime, IsStart: true, $"出勤 {log.StartTime:H:mm}", IsAuto: false, date, note));
 
             if (log.EndTime.HasValue)
             {
@@ -458,7 +473,7 @@ public partial class MainViewModel
                 var suffix = auto ? "（自動）" : string.Empty;
                 markers.Add(new WorkDayMarker(
                     log.EndTime.Value, IsStart: false,
-                    $"退勤 {log.EndTime.Value:H:mm}{suffix} ・ {log.DurationText}", auto, date));
+                    $"退勤 {log.EndTime.Value:H:mm}{suffix} ・ {log.DurationText}", auto, date, note));
             }
         }
 
