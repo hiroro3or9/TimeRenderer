@@ -351,7 +351,7 @@ public partial class MainViewModel
 
         // セグメント（と終日パネル）は日/週ビュー専用。
         // 月・スプリント・タイムライン・統計のときは組み立てても誰も描画しないので飛ばす
-        var segmentSources = IsDayOrWeekMode ? visibleItems : new List<ScheduleItem>();
+        List<ScheduleItem> segmentSources = IsDayOrWeekMode ? visibleItems : [];
 
         foreach (var item in segmentSources)
         {

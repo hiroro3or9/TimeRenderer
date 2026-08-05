@@ -19,11 +19,62 @@ namespace TimeRenderer.Views.Dialogs
         /// <summary>カテゴリ選択肢（色つき）</summary>
         public record ColorOption(string Name, Brush Brush, string? CategoryId, string ColorCode);
 
+        /// <summary>見積もり時間の選択肢</summary>
+        public record EstimateOption(string Label, int Minutes);
+
+        /// <summary>繰り返しの単位の選択肢</summary>
+        public record RecurrenceOption(string Label, TodoRecurrenceUnit Unit);
+
+        /// <summary>
+        /// 見積もりの選択肢。刻んだ選択肢にすることで、入力の手間と精度のつり合いを取る
+        /// （分単位で正確に見積もっても、実績と比べる用途では意味がない）。
+        /// </summary>
+        private static readonly List<EstimateOption> EstimateOptions =
+        [
+            new("なし", 0),
+            new("15分", 15),
+            new("30分", 30),
+            new("45分", 45),
+            new("1時間", 60),
+            new("1時間30分", 90),
+            new("2時間", 120),
+            new("3時間", 180),
+            new("4時間", 240),
+            new("6時間", 360),
+            new("8時間", 480),
+        ];
+
+        private static readonly List<RecurrenceOption> RecurrenceOptions =
+        [
+            new("しない", TodoRecurrenceUnit.None),
+            new("日ごと", TodoRecurrenceUnit.Day),
+            new("週ごと", TodoRecurrenceUnit.Week),
+            new("月ごと", TodoRecurrenceUnit.Month),
+        ];
+
         /// <summary>入力結果（キャンセル時は null のまま）</summary>
         public TodoItem? ResultTodo { get; private set; }
 
         private readonly List<ColorOption> _colorOptions;
         private readonly TodoItem? _existingTodo;
+
+        /// <summary>通知時刻の既定（この時刻に思い出したい、が最も多いため）</summary>
+        private const int DefaultRemindHour = 9;
+
+        /// <summary>
+        /// 5分刻みの分の選択肢。既存の通知時刻が5分刻みでない場合はその値も残す
+        /// （スヌーズで作られた任意の分を、編集しただけで勝手に丸めないため）。
+        /// </summary>
+        private static List<string> BuildMinuteOptions(int? exactMinute = null)
+        {
+            var minutes = Enumerable.Range(0, 12).Select(m => m * 5).ToList();
+            if (exactMinute.HasValue && !minutes.Contains(exactMinute.Value))
+            {
+                minutes.Add(exactMinute.Value);
+                minutes.Sort();
+            }
+            return [.. minutes.Select(m => m.ToString("D2"))];
+        }
 
         /// <summary>
         /// コンストラクタ。既存の ToDo を渡すと編集モード、null なら新規追加モード。
@@ -57,6 +108,13 @@ namespace TimeRenderer.Views.Dialogs
             }
             ColorCombo.ItemsSource = _colorOptions;
 
+            RemindHourCombo.ItemsSource = Enumerable.Range(0, 24).Select(h => h.ToString("D2")).ToList();
+            RemindMinuteCombo.ItemsSource = BuildMinuteOptions(existingTodo?.RemindAt?.Minute);
+
+            EstimateCombo.ItemsSource = BuildEstimateOptions(existingTodo?.EstimatedMinutes);
+            RecurrenceCombo.ItemsSource = RecurrenceOptions;
+            RecurrenceIntervalCombo.ItemsSource = Enumerable.Range(1, 12).ToList();
+
             if (existingTodo != null)
             {
                 TitleCombo.Text = existingTodo.Title;
@@ -64,6 +122,12 @@ namespace TimeRenderer.Views.Dialogs
                 DueDatePicker.SelectedDate = existingTodo.DueDate;
 
                 SelectPriority(existingTodo.Priority);
+                ApplyReminder(existingTodo.RemindAt, existingTodo.DueDate);
+                ApplyEstimate(existingTodo.EstimatedMinutes);
+                ApplyRecurrence(existingTodo.Recurrence, existingTodo.RecurrenceInterval, existingTodo.RecurrenceFromCompletion);
+
+                // 見積もりの横に、これまでこの ToDo で記録した時間を出す（見直しの手がかりになる）
+                if (existingTodo.HasRecorded) RecordedText.Text = $"記録済み {existingTodo.RecordedDisplay}";
 
                 // カテゴリを選択（ID一致を優先し、旧データは色一致でフォールバック）
                 var matching =
@@ -75,12 +139,103 @@ namespace TimeRenderer.Views.Dialogs
             }
             else
             {
-                // 新規は「期限なし・標準」で始める。決まっていない段階でも置けることを優先する
+                // 新規は「期限なし・通知なし・見積もりなし・繰り返しなし・標準」で始める。
+                // 決まっていない段階でも置けることを優先する
                 SelectPriority(TodoPriority.Normal);
+                ApplyReminder(null, null);
+                ApplyEstimate(0);
+                ApplyRecurrence(TodoRecurrenceUnit.None, 1, false);
                 ColorCombo.SelectedItem = _colorOptions[0];
             }
 
             Loaded += (_, _) => TitleCombo.Focus();
+        }
+
+        /// <summary>
+        /// 見積もりの選択肢。既存の値が選択肢に無い場合（設定を刻み直した後など）はその値も残す。
+        /// </summary>
+        private static List<EstimateOption> BuildEstimateOptions(int? exactMinutes)
+        {
+            var options = new List<EstimateOption>(EstimateOptions);
+            if (exactMinutes is > 0 && options.All(o => o.Minutes != exactMinutes.Value))
+            {
+                options.Add(new EstimateOption($"{exactMinutes.Value}分", exactMinutes.Value));
+                options.Sort((a, b) => a.Minutes.CompareTo(b.Minutes));
+            }
+            return options;
+        }
+
+        private void ApplyEstimate(int minutes)
+        {
+            var options = (List<EstimateOption>)EstimateCombo.ItemsSource;
+            EstimateCombo.SelectedItem = options.FirstOrDefault(o => o.Minutes == minutes) ?? options[0];
+        }
+
+        private void ApplyRecurrence(TodoRecurrenceUnit unit, int interval, bool fromCompletion)
+        {
+            RecurrenceCombo.SelectedItem = RecurrenceOptions.FirstOrDefault(o => o.Unit == unit) ?? RecurrenceOptions[0];
+            RecurrenceIntervalCombo.SelectedItem = Math.Clamp(interval, 1, 12);
+            RecurrenceFromCompletionCheckBox.IsChecked = fromCompletion;
+            UpdateRecurrenceState();
+        }
+
+        private void RecurrenceCombo_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e) =>
+            UpdateRecurrenceState();
+
+        /// <summary>繰り返さない場合は間隔などの入力を無効にし、説明文も切り替える</summary>
+        private void UpdateRecurrenceState()
+        {
+            // InitializeComponent 中の SelectionChanged では、まだ他の要素が作られていない
+            if (RecurrenceIntervalCombo == null || RecurrenceFromCompletionCheckBox == null || RecurrenceHint == null) return;
+
+            var unit = ((RecurrenceOption?)RecurrenceCombo.SelectedItem)?.Unit ?? TodoRecurrenceUnit.None;
+            var enabled = unit != TodoRecurrenceUnit.None;
+
+            RecurrenceIntervalCombo.IsEnabled = enabled;
+            RecurrenceFromCompletionCheckBox.IsEnabled = enabled;
+            RecurrenceHint.Visibility = enabled ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private TodoRecurrenceUnit ReadRecurrenceUnit() =>
+            ((RecurrenceOption?)RecurrenceCombo.SelectedItem)?.Unit ?? TodoRecurrenceUnit.None;
+
+        /// <summary>
+        /// 通知欄へ初期値を入れる。未設定なら、チェックを入れたときにそのまま使える値を置いておく
+        /// （期限日の 9:00。期限も無ければ今日の 9:00）。
+        /// </summary>
+        private void ApplyReminder(DateTime? remindAt, DateTime? dueDate)
+        {
+            RemindCheckBox.IsChecked = remindAt.HasValue;
+
+            var value = remindAt ?? (dueDate ?? DateTime.Today).Date.AddHours(DefaultRemindHour);
+            RemindDatePicker.SelectedDate = value.Date;
+            RemindHourCombo.SelectedItem = value.Hour.ToString("D2");
+            RemindMinuteCombo.SelectedItem = value.Minute.ToString("D2");
+        }
+
+        /// <summary>
+        /// 通知を有効にしたとき、日付が空なら期限日（無ければ今日）で埋める。
+        /// チェックを入れただけで通知できる状態にしておく。
+        /// </summary>
+        private void RemindCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            if (RemindDatePicker.SelectedDate != null) return;
+
+            RemindDatePicker.SelectedDate = (DueDatePicker.SelectedDate ?? DateTime.Today).Date;
+            RemindHourCombo.SelectedItem ??= DefaultRemindHour.ToString("D2");
+            RemindMinuteCombo.SelectedItem ??= "00";
+        }
+
+        /// <summary>通知欄の入力から通知日時を組み立てる（無効・未入力なら null）</summary>
+        private DateTime? ReadRemindAt()
+        {
+            if (RemindCheckBox.IsChecked != true) return null;
+            if (RemindDatePicker.SelectedDate is not { } date) return null;
+
+            var hour = int.TryParse(RemindHourCombo.SelectedItem as string, out var h) ? h : DefaultRemindHour;
+            var minute = int.TryParse(RemindMinuteCombo.SelectedItem as string, out var m) ? m : 0;
+
+            return date.Date.AddHours(hour).AddMinutes(minute);
         }
 
         private void SelectPriority(TodoPriority priority)
@@ -123,15 +278,21 @@ namespace TimeRenderer.Views.Dialogs
                 Id = _existingTodo?.Id ?? Guid.NewGuid().ToString("N"),
                 CreatedAt = _existingTodo?.CreatedAt ?? DateTime.Now,
                 RecordedTicks = _existingTodo?.RecordedTicks ?? 0,
+                SortOrder = _existingTodo?.SortOrder ?? 0,
                 IsCompleted = _existingTodo?.IsCompleted ?? false,
                 CompletedAt = _existingTodo?.CompletedAt,
 
                 Title = TitleCombo.Text.Trim(),
                 Content = ContentTextBox.Text.Trim(),
                 DueDate = DueDatePicker.SelectedDate?.Date,
+                RemindAt = ReadRemindAt(),
                 Priority = ReadPriority(),
                 CategoryId = selectedColor?.CategoryId,
                 ColorCode = selectedColor?.ColorCode ?? Brushes.LightBlue.ToString(),
+                EstimatedMinutes = ((EstimateOption?)EstimateCombo.SelectedItem)?.Minutes ?? 0,
+                Recurrence = ReadRecurrenceUnit(),
+                RecurrenceInterval = RecurrenceIntervalCombo.SelectedItem is int interval ? interval : 1,
+                RecurrenceFromCompletion = RecurrenceFromCompletionCheckBox.IsChecked ?? false,
             };
 
             DialogResult = true;

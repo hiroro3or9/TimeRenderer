@@ -38,6 +38,7 @@ namespace TimeRenderer.Views
             viewModel.PropertyChanged += ViewModel_PropertyChanged;
             // リマインダー発生時、アプリが非アクティブならトレイのバルーン通知でも知らせる
             viewModel.PendingReminders.CollectionChanged += PendingReminders_CollectionChanged;
+            viewModel.PendingTodoReminders.CollectionChanged += PendingTodoReminders_CollectionChanged;
 
             // 各ビュー（DayWeekView / TimelineView 等）は自身の Loaded で VM のイベントを購読する
             SetupNotifyIcon();
@@ -144,6 +145,14 @@ namespace TimeRenderer.Views
                     ShowTrayBalloon("自動記録開始", ViewModel.AutoStartNotice);
                 }
             }
+            else if (e.PropertyName == nameof(MainViewModel.TodoDigestNotice))
+            {
+                // 朝のまとめ通知。アプリを開いていない朝ほど届いてほしい
+                if (!string.IsNullOrEmpty(ViewModel.TodoDigestNotice) && !IsActive)
+                {
+                    ShowTrayBalloon("今日の ToDo", ViewModel.TodoDigestNotice);
+                }
+            }
         }
 
         /// <summary>
@@ -158,6 +167,22 @@ namespace TimeRenderer.Views
             foreach (ScheduleItem item in e.NewItems)
             {
                 ShowTrayBalloon($"「{item.Title}」の開始時刻です", "クリックすると記録を開始できます");
+            }
+        }
+
+        /// <summary>
+        /// ToDo の通知追加時：アプリが非アクティブならトレイのバルーン通知でも知らせる。
+        /// クリックでウィンドウが開き、バナーから記録開始・完了・スヌーズを選べる。
+        /// </summary>
+        private void PendingTodoReminders_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+        {
+            if (e.Action != System.Collections.Specialized.NotifyCollectionChangedAction.Add || e.NewItems == null) return;
+            if (IsActive) return; // アプリを見ているときはアプリ内バナーで十分
+
+            foreach (TodoItem todo in e.NewItems)
+            {
+                var due = todo.HasDueDate ? $"期限 {todo.DueDisplay}・" : string.Empty;
+                ShowTrayBalloon($"ToDo「{todo.Title}」", $"{due}クリックすると記録開始・完了を選べます");
             }
         }
 
@@ -265,6 +290,7 @@ namespace TimeRenderer.Views
                  vm.FlushTodoSave(); // デバウンス中の未保存の ToDo を書き込む
                  vm.PropertyChanged -= ViewModel_PropertyChanged;
                  vm.PendingReminders.CollectionChanged -= PendingReminders_CollectionChanged;
+                 vm.PendingTodoReminders.CollectionChanged -= PendingTodoReminders_CollectionChanged;
                  vm.DisposeAwayDetection(); // 監視タイマーと SystemEvents の購読を解除する
                  vm.DisposeAppUsageTracking(); // 収集中の使用アプリを確定・保存して監視を止める
             }

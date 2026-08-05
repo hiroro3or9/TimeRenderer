@@ -262,6 +262,51 @@
                         </StackPanel>
                     </Expander>
 
+                    <!-- ToDo の通知 -->
+                    <Expander Style="{StaticResource SettingsExpanderStyle}" IsExpanded="True">
+                        <Expander.Header>
+                            <TextBlock Text="ToDo の通知" Style="{StaticResource SettingsSectionHeaderStyle}"/>
+                        </Expander.Header>
+                        <StackPanel>
+                            <TextBlock TextWrapping="Wrap" FontSize="11" Margin="0,0,0,12"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Text="ToDo ごとの通知日時とは別に、1日1回「今日が期限」「期限超過」の件数をまとめて知らせます。個別の通知日時を付け忘れていても、その日に片付ける量が一度は目に入ります。"/>
+
+                            <Grid Margin="0,0,0,16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" SharedSizeGroup="LabelG"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="まとめて通知する" Style="{StaticResource FieldLabelStyle}"
+                                           VerticalAlignment="Center" Margin="0,0,16,0"/>
+                                <CheckBox Grid.Column="1" IsChecked="{Binding IsTodoDigestEnabled}"
+                                          VerticalAlignment="Center"/>
+                            </Grid>
+
+                            <Grid Margin="0,0,0,6"
+                                  Visibility="{Binding IsTodoDigestEnabled, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" SharedSizeGroup="LabelG"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="通知する時刻" Style="{StaticResource FieldLabelStyle}"
+                                           VerticalAlignment="Center" Margin="0,0,16,0"/>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <ComboBox ItemsSource="{Binding TodoDigestHourOptions}"
+                                              SelectedItem="{Binding TodoDigestHour, UpdateSourceTrigger=PropertyChanged}"
+                                              Width="70" FontSize="13"/>
+                                    <TextBlock Text="時ごろ" VerticalAlignment="Center" Margin="8,0,0,0"
+                                               FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <TextBlock TextWrapping="Wrap" FontSize="11" Margin="0,0,0,4"
+                                       Visibility="{Binding IsTodoDigestEnabled, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Text="この時刻より後にアプリを起動した日も、その日ぶんをまだ出していなければ1回だけ通知します。対象が0件の日は通知しません。"/>
+                        </StackPanel>
+                    </Expander>
+
                     <!-- 勤務（出勤・退勤）の記録 -->
                     <Expander Style="{StaticResource SettingsExpanderStyle}" IsExpanded="True">
                         <Expander.Header>

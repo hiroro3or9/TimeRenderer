@@ -30,6 +30,9 @@
     <SolidColorBrush x:Key="TodoDueTodayBrush" Color="{StaticResource TodoDueTodayColor}"/>
     <Color x:Key="TodoHighPriorityColor">#F97316</Color>
     <SolidColorBrush x:Key="TodoHighPriorityBrush" Color="{StaticResource TodoHighPriorityColor}"/>
+    <!-- ToDo 通知バナーの地色（定期予定のリマインダーと見分けられるよう青系にしない） -->
+    <Color x:Key="TodoReminderSubtleColor">#FFFBEB</Color>
+    <SolidColorBrush x:Key="TodoReminderSubtleBrush" Color="{StaticResource TodoReminderSubtleColor}"/>
 
     <!-- Danger Colors (Red based) -->
     <Color x:Key="DangerColor">#EF4444</Color>

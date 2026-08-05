@@ -1,10 +1,20 @@
 ﻿using System.Windows;
+using System.Windows.Media;
+using ButtonBase = System.Windows.Controls.Primitives.ButtonBase;
 using ContextMenu = System.Windows.Controls.ContextMenu;
+using DataObject = System.Windows.DataObject;
+using DragDropEffects = System.Windows.DragDropEffects;
+using DragEventArgs = System.Windows.DragEventArgs;
 using ICommand = System.Windows.Input.ICommand;
 using Key = System.Windows.Input.Key;
 using KeyEventArgs = System.Windows.Input.KeyEventArgs;
+using Keyboard = System.Windows.Input.Keyboard;
 using MenuItem = System.Windows.Controls.MenuItem;
+using ModifierKeys = System.Windows.Input.ModifierKeys;
 using MouseButtonEventArgs = System.Windows.Input.MouseButtonEventArgs;
+using MouseButtonState = System.Windows.Input.MouseButtonState;
+using MouseEventArgs = System.Windows.Input.MouseEventArgs;
+using Point = System.Windows.Point;
 using UserControl = System.Windows.Controls.UserControl;
 
 using TimeRenderer.Models;
@@ -23,9 +33,48 @@ namespace TimeRenderer.Views
     {
         private MainViewModel ViewModel => (MainViewModel)DataContext;
 
+        private MainViewModel? _subscribedViewModel;
+
+        // ドラッグ並べ替えの開始判定用（しきい値を超えるまでは通常のクリックとして扱う）
+        private Point _dragStart;
+        private TodoItem? _dragCandidate;
+
         public TodoPanel()
         {
             InitializeComponent();
+            Loaded += OnLoaded;
+            Unloaded += OnUnloaded;
+        }
+
+        private void OnLoaded(object sender, RoutedEventArgs e)
+        {
+            if (_subscribedViewModel == null && DataContext is MainViewModel vm)
+            {
+                _subscribedViewModel = vm;
+                vm.QuickAddTodoFocusRequested += OnQuickAddFocusRequested;
+            }
+        }
+
+        private void OnUnloaded(object sender, RoutedEventArgs e)
+        {
+            _subscribedViewModel?.QuickAddTodoFocusRequested -= OnQuickAddFocusRequested;
+            _subscribedViewModel = null;
+        }
+
+        /// <summary>
+        /// Ctrl+T：即時追加欄へ入力を移す。
+        /// パネルが閉じていた場合は開く幅アニメーションの途中なので、
+        /// レイアウトが確定してからフォーカスを移す。
+        /// </summary>
+        private void OnQuickAddFocusRequested(object? sender, EventArgs e)
+        {
+            Dispatcher.BeginInvoke(
+                new Action(() =>
+                {
+                    QuickAddTextBox.Focus();
+                    QuickAddTextBox.SelectAll();
+                }),
+                System.Windows.Threading.DispatcherPriority.Loaded);
         }
 
         /// <summary>即時追加：Enter で1件追加して入力欄を空に戻す</summary>
@@ -46,8 +95,117 @@ namespace TimeRenderer.Views
             if (e.ClickCount != 2) return;
             if (sender is not FrameworkElement element || element.DataContext is not TodoItem todo) return;
 
+            _dragCandidate = null; // ダブルクリックをドラッグ開始と取り違えない
             Execute(ViewModel.EditTodoCommand, todo);
             e.Handled = true;
+        }
+
+        // ===== キーボード操作 =====
+
+        /// <summary>
+        /// 一覧のキー操作。上下キーによる選択移動は ListBox 自身が行うので、
+        /// ここでは選択中の ToDo に対する操作だけを受ける。
+        /// </summary>
+        private void TodoList_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (ViewModel.SelectedTodo is not { } todo) return;
+
+            var ctrl = Keyboard.Modifiers.HasFlag(ModifierKeys.Control);
+
+            switch (e.Key)
+            {
+                case Key.Space:
+                    todo.IsCompleted = !todo.IsCompleted;
+                    break;
+
+                case Key.Enter:
+                    Execute(ViewModel.EditTodoCommand, todo);
+                    break;
+
+                case Key.Delete:
+                    Execute(ViewModel.DeleteTodoCommand, todo);
+                    break;
+
+                // Ctrl+↑↓ は並べ替え。修飾なしの↑↓は ListBox の選択移動に任せる
+                case Key.Up when ctrl:
+                    Execute(ViewModel.MoveTodoUpCommand, todo);
+                    break;
+
+                case Key.Down when ctrl:
+                    Execute(ViewModel.MoveTodoDownCommand, todo);
+                    break;
+
+                default:
+                    return;
+            }
+
+            e.Handled = true;
+        }
+
+        // ===== ドラッグ並べ替え =====
+
+        /// <summary>
+        /// ドラッグの開始候補を控える。
+        /// チェックボックスや記録開始ボタンの上から始まった操作は、その操作のものとして扱う。
+        /// </summary>
+        private void TodoRow_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            _dragCandidate = null;
+
+            if (sender is not FrameworkElement element || element.DataContext is not TodoItem todo) return;
+            if (IsInteractiveChild(e.OriginalSource as DependencyObject)) return;
+
+            _dragStart = e.GetPosition(this);
+            _dragCandidate = todo;
+        }
+
+        /// <summary>しきい値を超えて動いたらドラッグを始める（軽いクリックで並びが変わらないように）</summary>
+        private void TodoRow_PreviewMouseMove(object sender, MouseEventArgs e)
+        {
+            if (_dragCandidate is not { } moved) return;
+            if (e.LeftButton != MouseButtonState.Pressed)
+            {
+                _dragCandidate = null;
+                return;
+            }
+
+            var diff = e.GetPosition(this) - _dragStart;
+            if (Math.Abs(diff.X) < SystemParameters.MinimumHorizontalDragDistance &&
+                Math.Abs(diff.Y) < SystemParameters.MinimumVerticalDragDistance) return;
+
+            _dragCandidate = null;
+            DragDrop.DoDragDrop((DependencyObject)sender, new DataObject(typeof(TodoItem), moved), DragDropEffects.Move);
+        }
+
+        private void TodoRow_DragOver(object sender, DragEventArgs e)
+        {
+            e.Effects = e.Data.GetDataPresent(typeof(TodoItem)) ? DragDropEffects.Move : DragDropEffects.None;
+            e.Handled = true;
+        }
+
+        private void TodoRow_Drop(object sender, DragEventArgs e)
+        {
+            _dragCandidate = null;
+
+            if (sender is not FrameworkElement element || element.DataContext is not TodoItem target) return;
+            if (e.Data.GetData(typeof(TodoItem)) is not TodoItem moved) return;
+
+            ViewModel.MoveTodoTo(moved, target);
+            e.Handled = true;
+        }
+
+        /// <summary>
+        /// 行の中のボタン類（チェックボックス・記録開始）から始まった操作か。
+        /// 行の枠（RowRoot）まで遡っても見つからなければ、行そのものを掴んだとみなす。
+        /// </summary>
+        private static bool IsInteractiveChild(DependencyObject? source)
+        {
+            for (var node = source; node is Visual; node = VisualTreeHelper.GetParent(node))
+            {
+                if (node is ButtonBase) return true;
+                if (node is System.Windows.Controls.Border { Name: "RowRoot" }) return false;
+            }
+            return false;
         }
 
         // ===== コンテキストメニュー =====
@@ -66,6 +224,12 @@ namespace TimeRenderer.Views
 
         private void ClearDueMenuItem_Click(object sender, RoutedEventArgs e) =>
             ExecuteOnMenuTarget(sender, ViewModel.ClearTodoDueCommand);
+
+        private void MoveUpMenuItem_Click(object sender, RoutedEventArgs e) =>
+            ExecuteOnMenuTarget(sender, ViewModel.MoveTodoUpCommand);
+
+        private void MoveDownMenuItem_Click(object sender, RoutedEventArgs e) =>
+            ExecuteOnMenuTarget(sender, ViewModel.MoveTodoDownCommand);
 
         private void DeleteTodoMenuItem_Click(object sender, RoutedEventArgs e) =>
             ExecuteOnMenuTarget(sender, ViewModel.DeleteTodoCommand);
