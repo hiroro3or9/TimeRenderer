@@ -427,11 +427,36 @@
                                     Command="{Binding DataContext.CompleteTodoReminderCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                     CommandParameter="{Binding}"
                                     Style="{StaticResource BaseButtonStyle}" Padding="10,4" FontSize="12" Margin="0,0,6,0" Cursor="Hand"/>
-                            <Button Grid.Column="4" Content="10分後"
-                                    Command="{Binding DataContext.SnoozeTodoReminderCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                    CommandParameter="{Binding}"
-                                    Style="{StaticResource BaseButtonStyle}" Padding="10,4" FontSize="12" Margin="0,0,8,0" Cursor="Hand"
-                                    ToolTip="10分後にもう一度通知します"/>
+                            <!--
+                                あとで。押しやすさを保つため既定の先送り（設定で変更可）はボタンのまま、
+                                それ以外は ▾ から選ぶ。コンテキストメニューは視覚ツリーの外にあり
+                                RelativeSource で VM へ辿れないため、コードビハインドで実行する。
+                            -->
+                            <StackPanel Grid.Column="4" Orientation="Horizontal" Margin="0,0,8,0">
+                                <Button Content="{Binding DataContext.TodoSnoozeLabel, RelativeSource={RelativeSource AncestorType=Window}}"
+                                        Command="{Binding DataContext.SnoozeTodoReminderCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                        CommandParameter="{Binding}"
+                                        Style="{StaticResource BaseButtonStyle}" Padding="10,4" FontSize="12" Cursor="Hand"
+                                        ToolTip="この時間だけ先送りして、もう一度通知します"/>
+                                <Button Content="&#xE70D;" FontFamily="Segoe MDL2 Assets" FontSize="8"
+                                        Width="22" Height="24" Padding="0" Margin="2,0,0,0" Cursor="Hand"
+                                        Style="{StaticResource IconButtonStyle}"
+                                        Foreground="{DynamicResource TextSecondaryBrush}"
+                                        ToolTip="先送りする時間を選ぶ"
+                                        Click="TodoSnoozeMenuButton_Click">
+                                    <Button.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem Header="5分後" Tag="5" Click="TodoSnoozeMenuItem_Click"/>
+                                            <MenuItem Header="15分後" Tag="15" Click="TodoSnoozeMenuItem_Click"/>
+                                            <MenuItem Header="30分後" Tag="30" Click="TodoSnoozeMenuItem_Click"/>
+                                            <MenuItem Header="1時間後" Tag="60" Click="TodoSnoozeMenuItem_Click"/>
+                                            <MenuItem Header="3時間後" Tag="180" Click="TodoSnoozeMenuItem_Click"/>
+                                            <Separator/>
+                                            <MenuItem Header="明日の朝" Tag="tomorrow" Click="TodoSnoozeMenuItem_Click"/>
+                                        </ContextMenu>
+                                    </Button.ContextMenu>
+                                </Button>
+                            </StackPanel>
                             <Button Grid.Column="5" Content="✕"
                                     Command="{Binding DataContext.DismissTodoReminderCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                     CommandParameter="{Binding}"
@@ -442,6 +467,35 @@
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
         </ItemsControl>
+
+        <!--
+            見逃した通知。
+            アプリを閉じている間に過ぎた通知を個別に出すと、起動直後に画面が埋まる。
+            かといって黙って消すと通知を付けた意味が無いので、まとめて1本だけ出す。
+        -->
+        <Border Background="{DynamicResource TodoReminderSubtleBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="12,8"
+                Visibility="{Binding HasTodoMissedNotice, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="&#xE7BA;" FontFamily="Segoe MDL2 Assets" FontSize="14"
+                           VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TodoOverdueBrush}"/>
+                <TextBlock Grid.Column="1" Text="{Binding TodoMissedNotice}" VerticalAlignment="Center"
+                           Foreground="{DynamicResource TextPrimaryBrush}" FontSize="13" TextTrimming="CharacterEllipsis"/>
+                <Button Grid.Column="2" Content="確認する"
+                        Command="{Binding ShowMissedTodosCommand}"
+                        Style="{StaticResource PrimaryButtonStyle}" Padding="10,4" FontSize="12" Margin="0,0,8,0" Cursor="Hand"
+                        ToolTip="ToDo パネルを開いて、見逃した1件目を選びます"/>
+                <Button Grid.Column="3" Content="✕"
+                        Command="{Binding DismissTodoMissedNoticeCommand}"
+                        Style="{StaticResource IconButtonStyle}" Foreground="{DynamicResource TextSecondaryBrush}"
+                        Width="24" Height="24" Cursor="Hand" ToolTip="この通知を閉じる（ToDo は残ります）"/>
+            </Grid>
+        </Border>
 
         <!--
             ToDo のまとめ通知（1日1回）。

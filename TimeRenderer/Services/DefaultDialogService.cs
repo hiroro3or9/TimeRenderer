@@ -124,6 +124,25 @@ public class DefaultDialogService(Window owner) : IDialogService
         MessageBox.Show(owner, message, title, MessageBoxButton.OK, MessageBoxImage.Warning);
     }
 
+    public IReadOnlyList<TodoItem> ShowWorkEndReviewDialog(
+        System.DateTime date,
+        System.DateTime start,
+        System.DateTime end,
+        System.TimeSpan recorded,
+        int completedCount,
+        IReadOnlyList<WorkEndCarryOver> candidates)
+    {
+        WorkEndReviewDialog dialog = new(date, start, end, recorded, completedCount, candidates)
+        {
+            Owner = owner
+        };
+
+        // トレイのメニューから退勤した場合はウィンドウが隠れているため、表示に戻す
+        if (!owner.IsVisible) owner.Show();
+
+        return dialog.ShowDialog() == true ? dialog.CarriedOver : [];
+    }
+
     public bool ShowAwayReviewDialog(
         string recordTitle,
         System.DateTime recordStart,

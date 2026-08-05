@@ -339,8 +339,13 @@ public partial class MainViewModel
     /// 2区間目以降を新しいアイテムとして足す（元の予定を残すため）。
     /// 1回の停止操作なので、取り消し履歴には1件としてまとめて積む。
     /// </summary>
+    /// <param name="todo">
+    /// ToDo から始めた記録ならその ToDo。作ったアイテムに紐付けを残すために受け取る
+    /// （予定から置いた記録は既に TodoId を持っているので、こちらは新規ぶんだけ）。
+    /// </param>
     private void SaveRecordingSegments(
-        string title, ScheduleItem? source, List<(DateTime Start, DateTime End)> segments)
+        string title, ScheduleItem? source, List<(DateTime Start, DateTime End)> segments,
+        TodoItem? todo = null)
     {
         var edits = new List<IUndoableEdit>();
         bool useSource = source != null && ScheduleItems.Contains(source);
@@ -394,6 +399,7 @@ public partial class MainViewModel
                 EndTime = end,
                 ColorCode = _recordingColorCode ?? RecordingCategory?.ColorCode ?? Models.CategoryInfo.CreateBrush("DarkOrange").ToString(),
                 CategoryId = _recordingCategoryId ?? RecordingCategory?.Id,
+                TodoId = todo?.Id,
                 ColumnIndex = 0
             };
 

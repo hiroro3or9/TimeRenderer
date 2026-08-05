@@ -98,6 +98,24 @@ public interface IDialogService
     WorkDayEditResult? ShowWorkDayEditDialog(DateTime date, DateTime? start, DateTime? end, bool canDelete);
 
     /// <summary>
+    /// 退勤時のふりかえりを表示し、明日へ送る ToDo を返します。
+    /// 「そのまま閉じる」を選んだ場合は空のリストを返します。
+    /// </summary>
+    /// <param name="date">対象の勤務日</param>
+    /// <param name="start">出勤時刻</param>
+    /// <param name="end">退勤時刻</param>
+    /// <param name="recorded">その日に記録した時間の合計</param>
+    /// <param name="completedCount">その日に完了した ToDo の件数</param>
+    /// <param name="candidates">明日へ送る候補（既に選択状態を持つ）</param>
+    IReadOnlyList<TodoItem> ShowWorkEndReviewDialog(
+        DateTime date,
+        DateTime start,
+        DateTime end,
+        TimeSpan recorded,
+        int completedCount,
+        IReadOnlyList<WorkEndCarryOver> candidates);
+
+    /// <summary>
     /// 記録中に検知した離席を提示し、記録から除外するかを確認します。
     /// </summary>
     /// <returns>離席時間を除外する場合は true</returns>

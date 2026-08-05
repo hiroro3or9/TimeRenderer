@@ -78,8 +78,12 @@
             <!--
                 即時追加。思いついた瞬間に置けることを優先し、期限やカテゴリは後から付ける。
                 Enter で追加して入力欄が空に戻るので、続けて何件でも打ち込める。
+
+                入力欄の下は、打っていない間は記法のヒント、打っている間は解釈結果に切り替える。
+                これが無いと「記号が効いたのか、ただの文字として残ったのか」が
+                Enter を押すまで分からない。
             -->
-            <Border Grid.Row="1" Padding="10,10,10,6">
+            <StackPanel Grid.Row="1" Margin="10,10,10,6">
                 <Border Height="34" CornerRadius="6"
                         Background="{DynamicResource BackgroundBrush}"
                         BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
@@ -112,7 +116,22 @@
                         </TextBlock>
                     </Grid>
                 </Border>
-            </Border>
+
+                <!-- 記法のヒント（解釈結果が出ているときは隠す） -->
+                <TextBlock Text="{Binding TodoQuickAddHint}" FontSize="10" Margin="4,4,0,0"
+                           TextTrimming="CharacterEllipsis"
+                           ToolTip="@ 期限／! 優先度／# カテゴリ／~ 見積もり／* 通知。解釈できない記号はそのまま本文に残ります"
+                           Foreground="{DynamicResource TextMutedBrush}"
+                           Visibility="{Binding HasTodoQuickAddPreview, Converter={StaticResource InvertedBooleanToVisibilityConverter}}"/>
+
+                <!-- 解釈結果（Enter を押すと何が付くか） -->
+                <Border CornerRadius="4" Padding="6,3" Margin="0,4,0,0"
+                        Background="{DynamicResource PrimarySubtleBrush}"
+                        Visibility="{Binding HasTodoQuickAddPreview, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <TextBlock Text="{Binding TodoQuickAddPreview}" FontSize="10" TextWrapping="Wrap"
+                               Foreground="{DynamicResource TextSecondaryBrush}"/>
+                </Border>
+            </StackPanel>
 
             <!-- 絞り込み・並べ替え -->
             <Grid Grid.Row="2" Margin="10,0,10,8">

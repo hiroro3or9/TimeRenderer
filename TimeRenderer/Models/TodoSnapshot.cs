@@ -19,6 +19,7 @@ public sealed class TodoSnapshot
     public required string Content { get; init; }
     public DateTime? DueDate { get; init; }
     public DateTime? RemindAt { get; init; }
+    public int? RemindOffsetDays { get; init; }
     public DateTime? PlannedOn { get; init; }
     public TodoPriority Priority { get; init; }
     public bool IsCompleted { get; init; }
@@ -43,6 +44,7 @@ public sealed class TodoSnapshot
         Content = todo.Content,
         DueDate = todo.DueDate,
         RemindAt = todo.RemindAt,
+        RemindOffsetDays = todo.RemindOffsetDays,
         PlannedOn = todo.PlannedOn,
         Priority = todo.Priority,
         IsCompleted = todo.IsCompleted,
@@ -62,8 +64,13 @@ public sealed class TodoSnapshot
     {
         todo.Title = Title;
         todo.Content = Content;
+        // 相対指定（RemindOffsetDays）は期限に連動して通知日時を書き換えるため、
+        // 先に解除してから 期限 → 通知日時 → 相対指定 の順で戻す。
+        // 古い相対指定が残ったまま期限を入れると、戻したい通知日時が計算し直されてしまう
+        todo.RemindOffsetDays = null;
         todo.DueDate = DueDate;
         todo.RemindAt = RemindAt;
+        todo.RemindOffsetDays = RemindOffsetDays;
         todo.PlannedOn = PlannedOn;
         todo.Priority = Priority;
         todo.IsCompleted = IsCompleted;
@@ -85,6 +92,7 @@ public sealed class TodoSnapshot
         Content == other.Content &&
         DueDate == other.DueDate &&
         RemindAt == other.RemindAt &&
+        RemindOffsetDays == other.RemindOffsetDays &&
         PlannedOn == other.PlannedOn &&
         Priority == other.Priority &&
         IsCompleted == other.IsCompleted &&

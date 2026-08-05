@@ -27,6 +27,8 @@ namespace TimeRenderer.ViewModels;
 /// - .AppUsage.cs                     : 記録中の使用アプリの自動記録と内訳表示
 /// - .Undo.cs                         : 取り消し・やり直し
 /// - .Todos.cs                        : ToDo（やることリスト）と終日行のチップ・記録との連動
+/// - .WorkDay.cs                      : 出勤・退勤の記録とマーカー
+/// - .WorkEndReview.cs                : 退勤時のふりかえりと ToDo の繰り越し
 /// - .Search.cs / .Selection.cs / .Categories.cs / .Titles.cs / .Routines.cs : 各機能
 ///
 /// 共有の enum / record（ViewMode, TimerOption, TimelineGroupMode, AwayHandlingMode など）は
