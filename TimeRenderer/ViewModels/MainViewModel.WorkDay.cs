@@ -237,7 +237,7 @@ public partial class MainViewModel
         RefreshActiveWorkLog();
         SaveWorkDays();
         NotifyWorkDayChanged();
-        UpdateStats(); // ふりかえり一覧からも消す
+        NotifyWorkDayNotesChanged(); // ふりかえり一覧からも消す
     }
 
     /// <summary>
@@ -274,7 +274,7 @@ public partial class MainViewModel
         RefreshActiveWorkLog();
         SaveWorkDays();
         NotifyWorkDayChanged();
-        UpdateStats(); // 統計のふりかえり一覧に反映する
+        NotifyWorkDayNotesChanged();
     }
 
     /// <summary>
@@ -307,6 +307,7 @@ public partial class MainViewModel
 
         CloseStaleWorkLog(DateTime.Now);
         NotifyWorkDayChanged();
+        RebuildNoteGroups(); // 統計側は初回レイアウトで作られるので、ここは一覧だけでよい
     }
 
     /// <summary>

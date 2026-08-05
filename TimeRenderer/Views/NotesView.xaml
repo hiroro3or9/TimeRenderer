@@ -1,0 +1,81 @@
+﻿<UserControl x:Class="TimeRenderer.Views.NotesView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:helpers="clr-namespace:TimeRenderer.Helpers">
+    <!--
+        ふりかえり一覧：全期間を新しい順に並べる。
+        日付で絞らないのが要点で、統計側（期間ごと）との違いはそこにある。
+        月の見出しを挟むことで、件数が増えてもスクロール位置で時期が掴める。
+    -->
+    <Grid Background="{DynamicResource SurfaceBrush}">
+
+        <!-- まだ1件も無いとき：どこで書くものなのかを案内する -->
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="420"
+                    Visibility="{Binding HasNotes, Converter={StaticResource InvertedBooleanToVisibilityConverter}}">
+            <TextBlock Text="&#xE70B;" FontFamily="Segoe MDL2 Assets" FontSize="28"
+                       HorizontalAlignment="Center" Margin="0,0,0,12"
+                       Foreground="{DynamicResource TextMutedBrush}"/>
+            <TextBlock Text="まだふりかえりがありません" FontSize="14" FontWeight="SemiBold"
+                       HorizontalAlignment="Center" Margin="0,0,0,8"
+                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+            <TextBlock TextWrapping="Wrap" TextAlignment="Center" FontSize="12"
+                       Foreground="{DynamicResource TextMutedBrush}"
+                       Text="退勤したときに出るふりかえりで書いた一言が、ここに全部並びます。過去の日のぶんは、日/週ビューの勤務ラインをクリックしても書けます。"/>
+        </StackPanel>
+
+        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                      helpers:ScrollViewerHelper.EnableMiddleButtonScroll="True"
+                      Visibility="{Binding HasNotes, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <StackPanel Margin="24" MaxWidth="960" HorizontalAlignment="Left">
+                <ItemsControl ItemsSource="{Binding NoteGroups}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Margin="0,0,0,20">
+
+                                <!-- 月の見出し -->
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="{Binding Header}" FontSize="14" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding CountText}" FontSize="11" Margin="10,0,12,0"
+                                               Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
+                                    <Border Grid.Column="2" Height="1" VerticalAlignment="Center"
+                                            Background="{DynamicResource BorderBrush}"/>
+                                </Grid>
+
+                                <!-- その月のふりかえり -->
+                                <ItemsControl ItemsSource="{Binding Entries}" Width="700" HorizontalAlignment="Left">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <!-- クリックでその日の勤務記録を開き、そのまま書き直せる -->
+                                            <Button Command="{Binding DataContext.EditWorkDayCommand,
+                                                                      RelativeSource={RelativeSource AncestorType=ScrollViewer}}"
+                                                    CommandParameter="{Binding Date}"
+                                                    Margin="0,0,0,8" ToolTip="クリックで書き直す"
+                                                    Style="{StaticResource NoteCardStyle}">
+                                                <StackPanel>
+                                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                                        <TextBlock Text="{Binding DateText}" FontSize="12" FontWeight="SemiBold"
+                                                                   Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,10,0"/>
+                                                        <TextBlock Text="{Binding WorkText}" FontSize="11"
+                                                                   Foreground="{DynamicResource TextMutedBrush}"/>
+                                                    </StackPanel>
+                                                    <TextBlock Text="{Binding Note}" FontSize="13" TextWrapping="Wrap"
+                                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                                </StackPanel>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

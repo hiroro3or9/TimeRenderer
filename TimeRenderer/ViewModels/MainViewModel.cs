@@ -61,6 +61,7 @@ public partial class MainViewModel : INotifyPropertyChanged
         new(ViewMode.Sprint, "スプリント"),
         new(ViewMode.SprintTimeline, "タイムライン"),
         new(ViewMode.Stats, "統計"),
+        new(ViewMode.Notes, "ふりかえり"),
     ];
 
     /// <summary>現在の表示モードに対応するドロップダウン選択項目</summary>
@@ -324,7 +325,9 @@ public partial class MainViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(IsSprintMode));
         OnPropertyChanged(nameof(IsSprintTimelineMode));
         OnPropertyChanged(nameof(IsStatsMode));
+        OnPropertyChanged(nameof(IsNotesMode));
         OnPropertyChanged(nameof(IsDayOrWeekMode));
+        OnPropertyChanged(nameof(IsDateNavigationVisible));
         OnPropertyChanged(nameof(IsTimeRangeSettingsVisible));
         OnPropertyChanged(nameof(IsSprintSettingsVisible));
         OnPropertyChanged(nameof(IsDayOfWeekSettingsVisible));
@@ -336,11 +339,22 @@ public partial class MainViewModel : INotifyPropertyChanged
     public bool IsSprintMode => CurrentViewMode == ViewMode.Sprint;
     public bool IsSprintTimelineMode => CurrentViewMode == ViewMode.SprintTimeline;
     public bool IsStatsMode => CurrentViewMode == ViewMode.Stats;
+    public bool IsNotesMode => CurrentViewMode == ViewMode.Notes;
     /// <summary>日/週ビュー（DayWeekView）を表示するモードか</summary>
     public bool IsDayOrWeekMode => CurrentViewMode == ViewMode.Day || CurrentViewMode == ViewMode.Week;
+
+    /// <summary>
+    /// 日付の前後送り（今日／前へ／次へ）に意味があるモードか。
+    /// ふりかえり一覧は全期間を1画面に並べるため、押しても何も起きないボタンを出さない。
+    /// </summary>
+    public bool IsDateNavigationVisible => CurrentViewMode != ViewMode.Notes;
+
     public bool IsTimeRangeSettingsVisible => CurrentViewMode == ViewMode.Day || CurrentViewMode == ViewMode.Week;
     public bool IsSprintSettingsVisible => CurrentViewMode == ViewMode.Sprint || CurrentViewMode == ViewMode.SprintTimeline;
-    public bool IsDayOfWeekSettingsVisible => CurrentViewMode != ViewMode.SprintTimeline && CurrentViewMode != ViewMode.Stats;
+    public bool IsDayOfWeekSettingsVisible =>
+        CurrentViewMode != ViewMode.SprintTimeline &&
+        CurrentViewMode != ViewMode.Stats &&
+        CurrentViewMode != ViewMode.Notes;
 
     public DateTime CurrentWeekStart => Converters.DateTimeHelper.GetStartOfWeek(CurrentDate);
 
@@ -373,6 +387,11 @@ public partial class MainViewModel : INotifyPropertyChanged
             else if (CurrentViewMode == ViewMode.Stats)
             {
                 return GetStatsRangeDisplay();
+            }
+            else if (CurrentViewMode == ViewMode.Notes)
+            {
+                // 全期間が対象なので日付ではなく件数を出す
+                return NotesSummaryText;
             }
             else // SprintTimeline
             {
