@@ -174,6 +174,7 @@
                                         <MenuItem Header="この ToDo で記録開始" Click="StartRecordingMenuItem_Click"/>
                                         <Separator/>
                                         <MenuItem Header="今日やる (T)" Click="PlanTodayMenuItem_Click"/>
+                                        <MenuItem Header="サブタスクを追加…" Click="AddSubtaskMenuItem_Click"/>
                                         <Separator/>
                                         <MenuItem Header="期限を今日にする" Click="DueTodayMenuItem_Click"/>
                                         <MenuItem Header="期限を明日にする" Click="DueTomorrowMenuItem_Click"/>
@@ -286,6 +287,74 @@
                                                      Style="{StaticResource StatsBarStyle}"
                                                      Foreground="{Binding Brush}"
                                                      Visibility="{Binding HasEstimate, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
+                                        <!-- サブタスクの進捗。三角を押すと下に子が出る -->
+                                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0"
+                                                    Visibility="{Binding HasSubtasks, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                            <Button x:Name="ExpandButton" Width="16" Height="16" Padding="0"
+                                                    Style="{StaticResource IconButtonStyle}" Cursor="Hand"
+                                                    Foreground="{DynamicResource TextSecondaryBrush}"
+                                                    ToolTip="サブタスクの表示を切り替える"
+                                                    Click="ExpandButton_Click">
+                                                <TextBlock x:Name="ExpandGlyph" Text="&#xE76C;" FontFamily="Segoe MDL2 Assets" FontSize="8"/>
+                                            </Button>
+                                            <TextBlock Text="{Binding SubtaskProgressText}" FontSize="10" VerticalAlignment="Center"
+                                                       Margin="4,0,6,0" Foreground="{DynamicResource TextMutedBrush}"/>
+                                            <ProgressBar Width="60" Height="4" VerticalAlignment="Center"
+                                                         Minimum="0" Maximum="100" Value="{Binding SubtaskProgressPercent, Mode=OneWay}"
+                                                         Style="{StaticResource StatsBarStyle}"
+                                                         Foreground="{DynamicResource TextMutedBrush}"/>
+                                        </StackPanel>
+
+                                        <!-- 展開したときのサブタスク一覧＋その場で追加 -->
+                                        <StackPanel x:Name="SubtaskPanel" Margin="0,4,0,0" Visibility="Collapsed">
+                                            <ItemsControl ItemsSource="{Binding Subtasks}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Grid Margin="0,1">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                            </Grid.ColumnDefinitions>
+
+                                                            <Button Grid.Column="0" Width="14" Height="14" Padding="0"
+                                                                    Margin="0,0,6,0" VerticalAlignment="Center" Cursor="Hand"
+                                                                    Style="{StaticResource TodoCheckButtonStyle}"
+                                                                    Click="SubtaskCheck_Click">
+                                                                <TextBlock x:Name="SubCheckGlyph" Text="&#xE73E;" FontFamily="Segoe MDL2 Assets"
+                                                                           FontSize="8" Opacity="0"
+                                                                           Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                                            </Button>
+
+                                                            <TextBlock x:Name="SubTitle" Grid.Column="1" Text="{Binding Title}" FontSize="12"
+                                                                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+
+                                                            <Button Grid.Column="2" Content="✕" Width="18" Height="18" Padding="0"
+                                                                    Style="{StaticResource IconButtonStyle}" Cursor="Hand"
+                                                                    Foreground="{DynamicResource TextMutedBrush}"
+                                                                    ToolTip="このサブタスクを削除"
+                                                                    Click="SubtaskDelete_Click"/>
+                                                        </Grid>
+
+                                                        <DataTemplate.Triggers>
+                                                            <DataTrigger Binding="{Binding IsCompleted}" Value="True">
+                                                                <Setter TargetName="SubCheckGlyph" Property="Opacity" Value="1"/>
+                                                                <Setter TargetName="SubTitle" Property="TextDecorations" Value="Strikethrough"/>
+                                                                <Setter TargetName="SubTitle" Property="Foreground" Value="{DynamicResource TextMutedBrush}"/>
+                                                            </DataTrigger>
+                                                        </DataTemplate.Triggers>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+
+                                            <TextBox x:Name="SubtaskAddBox" Margin="20,3,0,0" FontSize="12"
+                                                     Style="{StaticResource InputTextBoxStyle}"
+                                                     Text="{Binding NewSubtaskTitle, UpdateSourceTrigger=PropertyChanged}"
+                                                     ToolTip="サブタスクを入力して Enter"
+                                                     KeyDown="SubtaskAddBox_KeyDown"/>
+                                        </StackPanel>
                                     </StackPanel>
 
                                     <!-- 記録開始（この ToDo のタイトル・色で記録を始める） -->
@@ -339,6 +408,12 @@
                                 <DataTrigger Binding="{Binding IsOverEstimate}" Value="True">
                                     <Setter TargetName="ProgressBar" Property="Foreground" Value="{DynamicResource TodoOverdueBrush}"/>
                                     <Setter TargetName="ProgressText" Property="Foreground" Value="{DynamicResource TodoOverdueBrush}"/>
+                                </DataTrigger>
+
+                                <!-- 展開中：三角を下向きにしてサブタスクを出す -->
+                                <DataTrigger Binding="{Binding IsExpanded}" Value="True">
+                                    <Setter TargetName="ExpandGlyph" Property="Text" Value="&#xE70D;"/>
+                                    <Setter TargetName="SubtaskPanel" Property="Visibility" Value="Visible"/>
                                 </DataTrigger>
 
                                 <!-- 選択中：キーボード操作の現在位置。ホバーより後に置いて優先させる -->

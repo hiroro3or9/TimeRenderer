@@ -31,6 +31,12 @@ public sealed class TodoSnapshot
     public required IReadOnlyList<DayOfWeek> RecurrenceDaysOfWeek { get; init; }
     public bool RecurrenceFromCompletion { get; init; }
 
+    /// <summary>
+    /// サブタスクは複製で持つ。参照のまま持つと、中身を書き換えたときに
+    /// 「変更前の状態」まで一緒に変わってしまい、取り消しで戻せなくなる。
+    /// </summary>
+    public required IReadOnlyList<TodoSubtask> Subtasks { get; init; }
+
     public static TodoSnapshot Capture(TodoItem todo) => new()
     {
         Title = todo.Title,
@@ -48,6 +54,7 @@ public sealed class TodoSnapshot
         RecurrenceInterval = todo.RecurrenceInterval,
         RecurrenceDaysOfWeek = [.. todo.RecurrenceDaysOfWeek],
         RecurrenceFromCompletion = todo.RecurrenceFromCompletion,
+        Subtasks = [.. todo.Subtasks.Select(s => s.Clone())],
     };
 
     /// <summary>この状態を ToDo へ書き戻す</summary>
@@ -69,6 +76,7 @@ public sealed class TodoSnapshot
         todo.RecurrenceInterval = RecurrenceInterval;
         todo.RecurrenceDaysOfWeek = [.. RecurrenceDaysOfWeek];
         todo.RecurrenceFromCompletion = RecurrenceFromCompletion;
+        todo.Subtasks = [.. Subtasks.Select(s => s.Clone())];
     }
 
     /// <summary>2つの状態が同じか（変化のない編集を履歴に積まないための判定）</summary>
@@ -86,5 +94,7 @@ public sealed class TodoSnapshot
         Recurrence == other.Recurrence &&
         RecurrenceInterval == other.RecurrenceInterval &&
         RecurrenceDaysOfWeek.SequenceEqual(other.RecurrenceDaysOfWeek) &&
-        RecurrenceFromCompletion == other.RecurrenceFromCompletion;
+        RecurrenceFromCompletion == other.RecurrenceFromCompletion &&
+        Subtasks.Count == other.Subtasks.Count &&
+        Subtasks.Zip(other.Subtasks).All(pair => pair.First.IsSameAs(pair.Second));
 }

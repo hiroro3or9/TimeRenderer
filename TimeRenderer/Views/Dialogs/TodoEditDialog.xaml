@@ -1,13 +1,14 @@
 ﻿<Window x:Class="TimeRenderer.Views.Dialogs.TodoEditDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="ToDo の編集" Height="760" Width="460"
+        Title="ToDo の編集" Height="880" Width="460"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         Background="{DynamicResource BackgroundBrush}">
 
     <Grid Margin="20">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -134,15 +135,57 @@
             </StackPanel>
         </StackPanel>
 
+        <!-- サブタスク（手順の分解。期限や記録は持たず、タイトルと完了だけ） -->
+        <StackPanel Grid.Row="7" VerticalAlignment="Top" Margin="0,0,0,16">
+            <TextBlock Text="サブタスク" Style="{StaticResource FieldLabelStyle}"/>
+            <ItemsControl x:Name="SubtaskList" MaxHeight="120" Margin="0,0,0,6">
+                <ItemsControl.Template>
+                    <ControlTemplate TargetType="ItemsControl">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <ItemsPresenter/>
+                        </ScrollViewer>
+                    </ControlTemplate>
+                </ItemsControl.Template>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Margin="0,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <CheckBox Grid.Column="0" IsChecked="{Binding IsCompleted}" Margin="0,0,8,0"
+                                      VerticalAlignment="Center" Cursor="Hand"/>
+                            <TextBox Grid.Column="1" Text="{Binding Title, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource InputTextBoxStyle}" FontSize="13"/>
+                            <Button Grid.Column="2" Content="✕" Width="24" Height="24" Margin="4,0,0,0" Padding="0"
+                                    Style="{StaticResource IconButtonStyle}" Cursor="Hand"
+                                    Foreground="{DynamicResource TextSecondaryBrush}"
+                                    ToolTip="このサブタスクを削除"
+                                    Click="SubtaskDelete_Click"/>
+                        </Grid>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <StackPanel Orientation="Horizontal">
+                <TextBox x:Name="SubtaskAddBox" Width="300" FontSize="13"
+                         Style="{StaticResource InputTextBoxStyle}"
+                         ToolTip="サブタスクを入力して Enter"
+                         KeyDown="SubtaskAddBox_KeyDown"/>
+                <Button Content="追加" Width="60" Height="30" Margin="8,0,0,0"
+                        Click="SubtaskAddButton_Click" Style="{StaticResource BaseButtonStyle}"/>
+            </StackPanel>
+        </StackPanel>
+
         <!-- メモ -->
-        <StackPanel Grid.Row="7" VerticalAlignment="Top">
+        <StackPanel Grid.Row="8" VerticalAlignment="Top">
             <TextBlock Text="メモ" Style="{StaticResource FieldLabelStyle}"/>
             <TextBox x:Name="ContentTextBox" Style="{StaticResource InputTextBoxStyle}" Height="90"
                      TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto"/>
         </StackPanel>
 
         <!-- ボタン -->
-        <StackPanel Grid.Row="8" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+        <StackPanel Grid.Row="9" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
             <Button Content="キャンセル" Width="100" Height="36" Margin="0,0,12,0"
                     IsCancel="True" Click="CancelButton_Click" Style="{StaticResource BaseButtonStyle}"/>
             <Button Content="OK" Width="100" Height="36" IsDefault="True"

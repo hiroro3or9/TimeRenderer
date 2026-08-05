@@ -296,8 +296,45 @@ public class TodoItem : INotifyPropertyChanged
         }
     }
 
+    private List<TodoSubtask> _subtasks = [];
+    /// <summary>
+    /// この ToDo を分解した手順。空なら分解していない。
+    /// 進捗（何件中いくつ済んだか）はここから数える。
+    /// </summary>
+    public List<TodoSubtask> Subtasks
+    {
+        get => _subtasks;
+        set
+        {
+            _subtasks = value ?? [];
+            OnPropertyChanged();
+            NotifySubtasksChanged();
+        }
+    }
+
     /// <summary>作成日時。並べ替えの最終キーに使う（同着を安定させる）</summary>
     public DateTime CreatedAt { get; set; } = DateTime.Now;
+
+    private bool _isExpanded;
+    /// <summary>
+    /// 一覧でサブタスクを開いているか。
+    /// 見た目の状態でしかないので保存しない（起動のたびに畳んだ状態から始まる）。
+    /// </summary>
+    [JsonIgnore]
+    public bool IsExpanded
+    {
+        get => _isExpanded;
+        set => SetProperty(ref _isExpanded, value);
+    }
+
+    private string _newSubtaskTitle = string.Empty;
+    /// <summary>展開したときに出る、その場でサブタスクを足すための入力欄</summary>
+    [JsonIgnore]
+    public string NewSubtaskTitle
+    {
+        get => _newSubtaskTitle;
+        set => SetProperty(ref _newSubtaskTitle, value);
+    }
 
     // ===== 表示用の派生プロパティ =====
     //
@@ -315,6 +352,45 @@ public class TodoItem : INotifyPropertyChanged
 
     [JsonIgnore]
     public bool HasReminder => RemindAt.HasValue;
+
+    // ===== サブタスクの進捗 =====
+
+    [JsonIgnore]
+    public bool HasSubtasks => Subtasks.Count > 0;
+
+    [JsonIgnore]
+    public int SubtaskTotalCount => Subtasks.Count;
+
+    [JsonIgnore]
+    public int SubtaskDoneCount => Subtasks.Count(s => s.IsCompleted);
+
+    /// <summary>サブタスクがすべて済んでいるか（1つも無い場合は false）</summary>
+    [JsonIgnore]
+    public bool AreAllSubtasksDone => HasSubtasks && SubtaskDoneCount == SubtaskTotalCount;
+
+    /// <summary>一覧表示用：進捗（例: "2/5"）</summary>
+    [JsonIgnore]
+    public string SubtaskProgressText => HasSubtasks ? $"{SubtaskDoneCount}/{SubtaskTotalCount}" : string.Empty;
+
+    /// <summary>進捗バー用の割合（0〜100）</summary>
+    [JsonIgnore]
+    public double SubtaskProgressPercent =>
+        HasSubtasks ? (double)SubtaskDoneCount / SubtaskTotalCount * 100.0 : 0;
+
+    /// <summary>
+    /// サブタスクの増減・完了の切り替えを表示へ反映する。
+    /// 子は自分が変わったことしか知らないため、親側の集計はここでまとめて通知する。
+    /// </summary>
+    public void NotifySubtasksChanged()
+    {
+        OnPropertyChanged(nameof(HasSubtasks));
+        OnPropertyChanged(nameof(SubtaskTotalCount));
+        OnPropertyChanged(nameof(SubtaskDoneCount));
+        OnPropertyChanged(nameof(AreAllSubtasksDone));
+        OnPropertyChanged(nameof(SubtaskProgressText));
+        OnPropertyChanged(nameof(SubtaskProgressPercent));
+        OnPropertyChanged(nameof(ToolTipText));
+    }
 
     /// <summary>
     /// 一覧で記録時間だけを出すか。
@@ -515,6 +591,8 @@ public class TodoItem : INotifyPropertyChanged
             RecurrenceDaysOfWeek = [.. RecurrenceDaysOfWeek],
             RecurrenceFromCompletion = RecurrenceFromCompletion,
             SortOrder = SortOrder,
+            // 手順は引き継ぐが、完了はすべて外す（次回はまた最初からやるため）
+            Subtasks = [.. Subtasks.Select(s => new TodoSubtask { Title = s.Title })],
         };
     }
 
@@ -614,6 +692,8 @@ public class TodoItem : INotifyPropertyChanged
         {
             lines.Add(Priority == TodoPriority.High ? "優先度: 高" : "優先度: 低");
         }
+
+        if (HasSubtasks) lines.Add($"サブタスク {SubtaskProgressText}");
 
         if (HasRecurrence) lines.Add($"繰り返し: {RecurrenceDisplay}");
 
