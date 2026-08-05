@@ -16,6 +16,7 @@ public static class FilePersistenceService
     private const string WorkDaysFilePath = "workdays.json";
     private const string AppUsageFilePath = "appusage.json";
     private const string TodosFilePath = "todos.json";
+    private const string TodoArchiveFilePath = "todos-archive.json";
 
     /// <summary>アプリ使用記録の保持日数。裏付け用の補助データなので古いものは自動で捨てる</summary>
     private const int AppUsageRetentionDays = 60;
@@ -109,6 +110,23 @@ public static class FilePersistenceService
     public static List<TodoItem> LoadTodos()
     {
         var result = JsonFileRepository.LoadFromFileSync<List<TodoItem>>(TodosFilePath);
+        var todos = result.Value ?? [];
+
+        return [.. todos.Where(t => !string.IsNullOrWhiteSpace(t.Title))];
+    }
+
+    /// <summary>
+    /// 片付いた ToDo の保管庫を保存する。
+    /// 現役の一覧（todos.json）から切り離すことで、完了済みが延々と溜まって
+    /// 読み書きが重くなるのを防ぐ。見積もりの実績集計にはこちらも使う。
+    /// </summary>
+    public static void SaveTodoArchive(IEnumerable<TodoItem> todos) =>
+        JsonFileRepository.SaveToFileSync(TodoArchiveFilePath, todos);
+
+    /// <summary>保管庫を読み込む。読めなかった場合は空で始める（集計の材料でしかないため）</summary>
+    public static List<TodoItem> LoadTodoArchive()
+    {
+        var result = JsonFileRepository.LoadFromFileSync<List<TodoItem>>(TodoArchiveFilePath);
         var todos = result.Value ?? [];
 
         return [.. todos.Where(t => !string.IsNullOrWhiteSpace(t.Title))];

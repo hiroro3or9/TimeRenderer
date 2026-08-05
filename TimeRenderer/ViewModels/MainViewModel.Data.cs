@@ -228,6 +228,7 @@ public partial class MainViewModel
         IsTodoDigestEnabled = IsTodoDigestEnabled,
         TodoDigestHour = TodoDigestHour,
         LastTodoDigestDate = FormatTodoDigestDate(),
+        TodoArchiveRetentionDays = TodoArchiveRetentionDays,
         ViewMode = (int)CurrentViewMode,
         DisplayStartHour = DisplayStartHour,
         DisplayEndHour = DisplayEndHour,
@@ -288,8 +289,11 @@ public partial class MainViewModel
         _isTodoDigestEnabled = settings.IsTodoDigestEnabled;
         _todoDigestHour = Math.Clamp(settings.TodoDigestHour, 0, 23);
         ParseTodoDigestDate(settings.LastTodoDigestDate);
+        _todoArchiveRetentionDays = Math.Clamp(
+            settings.TodoArchiveRetentionDays <= 0 ? 90 : settings.TodoArchiveRetentionDays, 7, 3650);
         OnPropertyChanged(nameof(IsTodoDigestEnabled));
         OnPropertyChanged(nameof(TodoDigestHour));
+        OnPropertyChanged(nameof(TodoArchiveRetentionDays));
 
         // 設定ファイルが壊れていても不正な enum 値にならないよう検証する
         _currentViewMode = Enum.IsDefined(typeof(ViewMode), settings.ViewMode)

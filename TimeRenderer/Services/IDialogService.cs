@@ -41,8 +41,13 @@ public interface IDialogService
     /// <param name="initialTodo">編集対象の ToDo。新規作成時は null</param>
     /// <param name="categories">選択可能なカテゴリ一覧</param>
     /// <param name="titleSuggestions">タイトル入力欄のドロップダウン候補</param>
+    /// <param name="estimateStats">見積もり欄に添える、過去の実績の傾向</param>
     /// <returns>追加または更新された TodoItem。キャンセルされた場合は null</returns>
-    TodoItem? ShowTodoEditDialog(TodoItem? initialTodo = null, IReadOnlyList<CategoryInfo>? categories = null, IReadOnlyList<string>? titleSuggestions = null);
+    TodoItem? ShowTodoEditDialog(
+        TodoItem? initialTodo = null,
+        IReadOnlyList<CategoryInfo>? categories = null,
+        IReadOnlyList<string>? titleSuggestions = null,
+        TodoEstimateStats? estimateStats = null);
 
     /// <summary>
     /// 記録開始ダイアログを開き、入力されたタイトルと選択されたタイマーオプションを返します。

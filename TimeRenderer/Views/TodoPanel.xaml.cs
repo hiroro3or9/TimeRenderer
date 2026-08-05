@@ -115,7 +115,7 @@ namespace TimeRenderer.Views
             switch (e.Key)
             {
                 case Key.Space:
-                    todo.IsCompleted = !todo.IsCompleted;
+                    Execute(ViewModel.ToggleTodoCompletedCommand, todo);
                     break;
 
                 case Key.Enter:
@@ -124,6 +124,10 @@ namespace TimeRenderer.Views
 
                 case Key.Delete:
                     Execute(ViewModel.DeleteTodoCommand, todo);
+                    break;
+
+                case Key.T when !ctrl:
+                    Execute(ViewModel.TogglePlannedTodayCommand, todo);
                     break;
 
                 // Ctrl+↑↓ は並べ替え。修飾なしの↑↓は ListBox の選択移動に任せる
@@ -224,6 +228,9 @@ namespace TimeRenderer.Views
 
         private void ClearDueMenuItem_Click(object sender, RoutedEventArgs e) =>
             ExecuteOnMenuTarget(sender, ViewModel.ClearTodoDueCommand);
+
+        private void PlanTodayMenuItem_Click(object sender, RoutedEventArgs e) =>
+            ExecuteOnMenuTarget(sender, ViewModel.TogglePlannedTodayCommand);
 
         private void MoveUpMenuItem_Click(object sender, RoutedEventArgs e) =>
             ExecuteOnMenuTarget(sender, ViewModel.MoveTodoUpCommand);

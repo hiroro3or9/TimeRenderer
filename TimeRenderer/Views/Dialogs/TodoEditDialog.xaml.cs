@@ -5,6 +5,7 @@ using Brushes = System.Windows.Media.Brushes;
 using MessageBox = System.Windows.MessageBox;
 
 using TimeRenderer.Models;
+using TimeRenderer.ViewModels;
 
 namespace TimeRenderer.Views.Dialogs
 {
@@ -57,6 +58,7 @@ namespace TimeRenderer.Views.Dialogs
 
         private readonly List<ColorOption> _colorOptions;
         private readonly TodoItem? _existingTodo;
+        private readonly TodoEstimateStats _estimateStats;
 
         /// <summary>通知時刻の既定（この時刻に思い出したい、が最も多いため）</summary>
         private const int DefaultRemindHour = 9;
@@ -82,14 +84,17 @@ namespace TimeRenderer.Views.Dialogs
         /// <param name="existingTodo">編集対象。新規追加時は null</param>
         /// <param name="categories">カテゴリ一覧（null・空の場合は既定値を使用）</param>
         /// <param name="titleSuggestions">タイトル入力欄のドロップダウン候補</param>
+        /// <param name="estimateStats">見積もり欄に添える、過去の実績の傾向</param>
         public TodoEditDialog(
             TodoItem? existingTodo = null,
             IReadOnlyList<CategoryInfo>? categories = null,
-            IReadOnlyList<string>? titleSuggestions = null)
+            IReadOnlyList<string>? titleSuggestions = null,
+            TodoEstimateStats? estimateStats = null)
         {
             InitializeComponent();
 
             _existingTodo = existingTodo;
+            _estimateStats = estimateStats ?? TodoEstimateStats.Empty;
             Title = existingTodo == null ? "ToDo の追加" : "ToDo の編集";
 
             TitleCombo.ItemsSource = titleSuggestions ?? [];
@@ -124,7 +129,11 @@ namespace TimeRenderer.Views.Dialogs
                 SelectPriority(existingTodo.Priority);
                 ApplyReminder(existingTodo.RemindAt, existingTodo.DueDate);
                 ApplyEstimate(existingTodo.EstimatedMinutes);
-                ApplyRecurrence(existingTodo.Recurrence, existingTodo.RecurrenceInterval, existingTodo.RecurrenceFromCompletion);
+                ApplyRecurrence(
+                    existingTodo.Recurrence,
+                    existingTodo.RecurrenceInterval,
+                    existingTodo.RecurrenceDaysOfWeek,
+                    existingTodo.RecurrenceFromCompletion);
 
                 // 見積もりの横に、これまでこの ToDo で記録した時間を出す（見直しの手がかりになる）
                 if (existingTodo.HasRecorded) RecordedText.Text = $"記録済み {existingTodo.RecordedDisplay}";
@@ -144,12 +153,42 @@ namespace TimeRenderer.Views.Dialogs
                 SelectPriority(TodoPriority.Normal);
                 ApplyReminder(null, null);
                 ApplyEstimate(0);
-                ApplyRecurrence(TodoRecurrenceUnit.None, 1, false);
+                ApplyRecurrence(TodoRecurrenceUnit.None, 1, [], false);
                 ColorCombo.SelectedItem = _colorOptions[0];
             }
 
+            UpdateAccuracyHint();
             Loaded += (_, _) => TitleCombo.Focus();
         }
+
+        /// <summary>
+        /// 選んだカテゴリの「見積もりに対する実績」の傾向を出す。
+        /// 見積もっているその瞬間に目に入らないと、次の見積もりに反映されないため、
+        /// 統計ビューではなくここに置く。
+        /// </summary>
+        private void UpdateAccuracyHint()
+        {
+            // InitializeComponent 中の SelectionChanged では、まだ他の要素が作られていない
+            if (AccuracyText == null) return;
+
+            var categoryId = ((ColorOption?)ColorCombo.SelectedItem)?.CategoryId;
+            var accuracy = _estimateStats.For(categoryId);
+
+            if (accuracy == null)
+            {
+                AccuracyText.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            AccuracyText.Text = accuracy.Display;
+            AccuracyText.Visibility = Visibility.Visible;
+            AccuracyText.SetResourceReference(
+                System.Windows.Controls.TextBlock.ForegroundProperty,
+                accuracy.IsOverrunning ? "TodoHighPriorityBrush" : "TextSecondaryBrush");
+        }
+
+        private void ColorCombo_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e) =>
+            UpdateAccuracyHint();
 
         /// <summary>
         /// 見積もりの選択肢。既存の値が選択肢に無い場合（設定を刻み直した後など）はその値も残す。
@@ -171,29 +210,71 @@ namespace TimeRenderer.Views.Dialogs
             EstimateCombo.SelectedItem = options.FirstOrDefault(o => o.Minutes == minutes) ?? options[0];
         }
 
-        private void ApplyRecurrence(TodoRecurrenceUnit unit, int interval, bool fromCompletion)
+        private void ApplyRecurrence(
+            TodoRecurrenceUnit unit, int interval, IReadOnlyList<DayOfWeek> days, bool fromCompletion)
         {
             RecurrenceCombo.SelectedItem = RecurrenceOptions.FirstOrDefault(o => o.Unit == unit) ?? RecurrenceOptions[0];
             RecurrenceIntervalCombo.SelectedItem = Math.Clamp(interval, 1, 12);
             RecurrenceFromCompletionCheckBox.IsChecked = fromCompletion;
+
+            foreach (var (check, day) in DayChecks())
+            {
+                check.IsChecked = days.Contains(day);
+            }
+
             UpdateRecurrenceState();
+        }
+
+        /// <summary>曜日のチェックと DayOfWeek の対応（月曜始まり）</summary>
+        private IEnumerable<(System.Windows.Controls.CheckBox Check, DayOfWeek Day)> DayChecks()
+        {
+            yield return (DayMonCheck, DayOfWeek.Monday);
+            yield return (DayTueCheck, DayOfWeek.Tuesday);
+            yield return (DayWedCheck, DayOfWeek.Wednesday);
+            yield return (DayThuCheck, DayOfWeek.Thursday);
+            yield return (DayFriCheck, DayOfWeek.Friday);
+            yield return (DaySatCheck, DayOfWeek.Saturday);
+            yield return (DaySunCheck, DayOfWeek.Sunday);
+        }
+
+        private List<DayOfWeek> ReadRecurrenceDays()
+        {
+            // 曜日は週ごとのときだけ意味を持つ。他の単位では空にして持ち越さない
+            if (ReadRecurrenceUnit() != TodoRecurrenceUnit.Week) return [];
+
+            return [.. DayChecks().Where(x => x.Check.IsChecked == true).Select(x => x.Day)];
         }
 
         private void RecurrenceCombo_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e) =>
             UpdateRecurrenceState();
 
+        private void RecurrenceDay_Changed(object sender, RoutedEventArgs e) => UpdateRecurrenceState();
+
         /// <summary>繰り返さない場合は間隔などの入力を無効にし、説明文も切り替える</summary>
         private void UpdateRecurrenceState()
         {
             // InitializeComponent 中の SelectionChanged では、まだ他の要素が作られていない
-            if (RecurrenceIntervalCombo == null || RecurrenceFromCompletionCheckBox == null || RecurrenceHint == null) return;
+            if (RecurrenceIntervalCombo == null || RecurrenceFromCompletionCheckBox == null
+                || RecurrenceHint == null || RecurrenceDaysPanel == null) return;
 
             var unit = ((RecurrenceOption?)RecurrenceCombo.SelectedItem)?.Unit ?? TodoRecurrenceUnit.None;
             var enabled = unit != TodoRecurrenceUnit.None;
+            var isWeekly = unit == TodoRecurrenceUnit.Week;
 
             RecurrenceIntervalCombo.IsEnabled = enabled;
             RecurrenceFromCompletionCheckBox.IsEnabled = enabled;
             RecurrenceHint.Visibility = enabled ? Visibility.Visible : Visibility.Collapsed;
+
+            // 曜日を決められるのは週ごとのときだけ
+            RecurrenceDaysPanel.Visibility = isWeekly ? Visibility.Visible : Visibility.Collapsed;
+
+            // 曜日を決めた場合はその曜日に来ること自体が起点なので、完了日基準は使わない
+            var hasDays = isWeekly && DayChecks().Any(x => x.Check.IsChecked == true);
+            RecurrenceFromCompletionCheckBox.IsEnabled = enabled && !hasDays;
+
+            RecurrenceHint.Text = hasDays
+                ? "完了すると、指定した曜日のうち次に来る日を期限にした次回分が作られます。"
+                : "完了すると次回分が自動で作られます。期限日から数えるので、遅れて完了しても曜日や日付はずれません。";
         }
 
         private TodoRecurrenceUnit ReadRecurrenceUnit() =>
@@ -292,7 +373,9 @@ namespace TimeRenderer.Views.Dialogs
                 EstimatedMinutes = ((EstimateOption?)EstimateCombo.SelectedItem)?.Minutes ?? 0,
                 Recurrence = ReadRecurrenceUnit(),
                 RecurrenceInterval = RecurrenceIntervalCombo.SelectedItem is int interval ? interval : 1,
+                RecurrenceDaysOfWeek = ReadRecurrenceDays(),
                 RecurrenceFromCompletion = RecurrenceFromCompletionCheckBox.IsChecked ?? false,
+                PlannedOn = _existingTodo?.PlannedOn,
             };
 
             DialogResult = true;

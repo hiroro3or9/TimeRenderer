@@ -22,6 +22,8 @@ public class AppSettings
     /// 起動のたびに出さないよう、セッションをまたいで覚えておく。
     /// </summary>
     public string? LastTodoDigestDate { get; set; }
+    /// <summary>完了済みの ToDo を一覧に残す日数（過ぎたものはアーカイブへ移す）</summary>
+    public int TodoArchiveRetentionDays { get; set; } = 90;
     public int ViewMode { get; set; } = 0; // 0: Day, 1: Week
     public int DisplayStartHour { get; set; } = 0;  // 表示開始時刻（0～23）
     public int DisplayEndHour { get; set; } = 24;    // 表示終了時刻（1～24）

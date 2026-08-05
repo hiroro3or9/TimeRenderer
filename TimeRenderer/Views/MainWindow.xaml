@@ -178,12 +178,17 @@
                                                     <Grid>
                                                         <Grid.ColumnDefinitions>
                                                             <ColumnDefinition Width="Auto"/>
+                                                            <ColumnDefinition Width="Auto"/>
                                                             <ColumnDefinition Width="*"/>
                                                         </Grid.ColumnDefinitions>
                                                         <Border Grid.Column="0" Width="10" Height="10" CornerRadius="2" Background="{Binding Brush}"
                                                                 BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                                                                Margin="0,3,8,0" VerticalAlignment="Top"/>
-                                                        <StackPanel Grid.Column="1">
+                                                                Margin="0,3,6,0" VerticalAlignment="Top"/>
+                                                        <!-- 予定か ToDo かを記号で示す（同じ一覧に混ざっているため） -->
+                                                        <TextBlock Grid.Column="1" Text="{Binding Glyph}" FontFamily="Segoe MDL2 Assets" FontSize="11"
+                                                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                                                   Margin="0,2,6,0" VerticalAlignment="Top"/>
+                                                        <StackPanel Grid.Column="2">
                                                             <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="13"
                                                                        Foreground="{DynamicResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis"/>
                                                             <TextBlock Text="{Binding Content}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
@@ -523,6 +528,7 @@
                                 Visibility="{Binding IsMonthMode, Converter={StaticResource BooleanToVisibilityConverter}}"
                                 controls:CalendarMonthCellControl.ItemClicked="MonthCell_ItemClicked"
                                 controls:CalendarMonthCellControl.ItemRightClicked="MonthCell_ItemRightClicked"
+                                controls:CalendarMonthCellControl.TodoClicked="MonthCell_TodoClicked"
                                 controls:CalendarMonthCellControl.CellClicked="MonthCell_Clicked"/>
 
         <!-- スプリント表示用のカレンダー領域（週数に応じた可変グリッド） -->
@@ -531,6 +537,7 @@
                                 Visibility="{Binding IsSprintMode, Converter={StaticResource BooleanToVisibilityConverter}}"
                                 controls:CalendarMonthCellControl.ItemClicked="MonthCell_ItemClicked"
                                 controls:CalendarMonthCellControl.ItemRightClicked="MonthCell_ItemRightClicked"
+                                controls:CalendarMonthCellControl.TodoClicked="MonthCell_TodoClicked"
                                 controls:CalendarMonthCellControl.CellClicked="MonthCell_Clicked"/>
 
         <!-- スプリントタイムライン表示用の領域 -->

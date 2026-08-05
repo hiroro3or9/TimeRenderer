@@ -155,10 +155,12 @@ public partial class MainViewModel
     public ICommand AddTodoCommand { get; private set; } = null!;
     public ICommand EditTodoCommand { get; private set; } = null!;
     public ICommand DeleteTodoCommand { get; private set; } = null!;
+    public ICommand ToggleTodoCompletedCommand { get; private set; } = null!;
     public ICommand StartRecordingFromTodoCommand { get; private set; } = null!;
     public ICommand SetTodoDueTodayCommand { get; private set; } = null!;
     public ICommand SetTodoDueTomorrowCommand { get; private set; } = null!;
     public ICommand ClearTodoDueCommand { get; private set; } = null!;
+    public ICommand TogglePlannedTodayCommand { get; private set; } = null!;
     public ICommand ClearCompletedTodosCommand { get; private set; } = null!;
     public ICommand StartRecordingFromTodoReminderCommand { get; private set; } = null!;
     public ICommand CompleteTodoReminderCommand { get; private set; } = null!;
@@ -201,7 +203,7 @@ public partial class MainViewModel
 
         AddTodoCommand = new RelayCommand(_ =>
         {
-            var result = _dialogService.ShowTodoEditDialog(null, [.. Categories], GetTitleSuggestions());
+            var result = _dialogService.ShowTodoEditDialog(null, [.. Categories], GetTitleSuggestions(), EstimateStats);
             if (result != null) AddTodo(result);
         });
 
@@ -210,8 +212,10 @@ public partial class MainViewModel
             {
                 if (param is not TodoItem todo) return;
 
-                var edited = _dialogService.ShowTodoEditDialog(todo, [.. Categories], GetTitleSuggestions());
+                var edited = _dialogService.ShowTodoEditDialog(todo, [.. Categories], GetTitleSuggestions(), EstimateStats);
                 if (edited == null) return;
+
+                var before = TodoSnapshot.Capture(todo);
 
                 // ダイアログは新しいインスタンスを返すため、既存の実体へ値を移す
                 // （リストの並びと、記録中の紐付け先を保つ）
@@ -228,6 +232,7 @@ public partial class MainViewModel
                     todo.EstimatedMinutes = edited.EstimatedMinutes;
                     todo.Recurrence = edited.Recurrence;
                     todo.RecurrenceInterval = edited.RecurrenceInterval;
+                    todo.RecurrenceDaysOfWeek = edited.RecurrenceDaysOfWeek;
                     todo.RecurrenceFromCompletion = edited.RecurrenceFromCompletion;
                 }
                 finally
@@ -235,6 +240,7 @@ public partial class MainViewModel
                     _isUpdatingTodo = false;
                 }
 
+                RecordTodoModify(todo, before, "編集");
                 OnTodoChanged();
             },
             param => param is TodoItem
@@ -247,9 +253,19 @@ public partial class MainViewModel
 
                 if (_dialogService.ShowConfirmationDialog($"ToDo「{todo.Title}」を削除しますか？", "削除確認"))
                 {
+                    // 元の位置も履歴に残すため、取り除く前に記録する
+                    RecordTodoRemove(todo);
                     Todos.Remove(todo);
                     if (ReferenceEquals(_recordingTodo, todo)) _recordingTodo = null;
                 }
+            },
+            param => param is TodoItem
+        );
+
+        ToggleTodoCompletedCommand = new RelayCommand(
+            param =>
+            {
+                if (param is TodoItem todo) SetTodoCompleted(todo, !todo.IsCompleted);
             },
             param => param is TodoItem
         );
@@ -274,6 +290,17 @@ public partial class MainViewModel
             param => SetTodoDue(param as TodoItem, null),
             param => param is TodoItem);
 
+        TogglePlannedTodayCommand = new RelayCommand(
+            param =>
+            {
+                if (param is not TodoItem todo) return;
+
+                var before = TodoSnapshot.Capture(todo);
+                todo.PlannedOn = todo.IsPlannedToday ? null : DateTime.Today;
+                RecordTodoModify(todo, before, todo.IsPlannedToday ? "今日やる" : "今日やるの取り消し");
+            },
+            param => param is TodoItem);
+
         ClearCompletedTodosCommand = new RelayCommand(
             _ =>
             {
@@ -281,13 +308,22 @@ public partial class MainViewModel
                 if (completed.Count == 0) return;
 
                 if (!_dialogService.ShowConfirmationDialog(
-                    $"完了済みの ToDo {completed.Count} 件を削除しますか？", "完了済みの削除")) return;
+                    $"完了済みの ToDo {completed.Count} 件を削除しますか？\n（Ctrl+Z で元に戻せます）", "完了済みの削除")) return;
 
+                // 1回の操作なので、まとめて1件の履歴にする。
+                // 位置は取り除く直前に控える（先に全部数えると、削除で index がずれる）
+                var edits = new List<IUndoableEdit>();
                 foreach (var todo in completed)
                 {
+                    var index = Todos.IndexOf(todo);
+                    if (index < 0) continue;
+
+                    edits.Add(new RemoveTodoEdit(todo, index));
                     Todos.Remove(todo);
                     if (ReferenceEquals(_recordingTodo, todo)) _recordingTodo = null;
                 }
+
+                PushEdits(edits, $"完了済みの ToDo {edits.Count} 件の削除");
             },
             _ => HasCompletedTodos);
 
@@ -303,8 +339,7 @@ public partial class MainViewModel
         CompleteTodoReminderCommand = new RelayCommand(
             param =>
             {
-                if (param is not TodoItem todo) return;
-                todo.IsCompleted = true; // 完了にすると通知一覧からも取り除かれる
+                if (param is TodoItem todo) SetTodoCompleted(todo, true); // 完了にすると通知一覧からも外れる
             },
             param => param is TodoItem);
 
@@ -346,16 +381,37 @@ public partial class MainViewModel
     /// ToDo を一覧へ加える。手動並べ替え用の位置は末尾にする
     /// （追加したものが上に割り込むと、並べ直した意味が消える）。
     /// </summary>
-    private void AddTodo(TodoItem todo)
+    /// <param name="record">
+    /// 取り消し履歴へ積むか。他の操作とまとめて1件として積む場合は false にして、
+    /// 呼び出し側が組み立てる。
+    /// </param>
+    private void AddTodo(TodoItem todo, bool record = true)
     {
         todo.SortOrder = Todos.Count == 0 ? 0 : Todos.Max(t => t.SortOrder) + 1;
         Todos.Add(todo);
+        if (record) RecordTodoAdd(todo);
     }
 
-    private static void SetTodoDue(TodoItem? todo, DateTime? due)
+    /// <summary>現在の並び順を控える（並べ替えの取り消し用）</summary>
+    private List<(TodoItem Todo, int Order)> CaptureTodoOrder() =>
+        [.. Todos.Select(t => (Todo: t, Order: t.SortOrder))];
+
+    /// <summary>控えておいた並び順との差分を履歴へ積む。変化がなければ何もしない</summary>
+    private void RecordTodoReorder(IReadOnlyList<(TodoItem Todo, int Order)> before)
     {
-        if (todo == null) return;
+        var after = CaptureTodoOrder();
+        if (before.Count == after.Count && before.SequenceEqual(after)) return;
+
+        _undo.Push(new ReorderTodosEdit(before, after));
+    }
+
+    private void SetTodoDue(TodoItem? todo, DateTime? due)
+    {
+        if (todo == null || todo.DueDate == due) return;
+
+        var before = TodoSnapshot.Capture(todo);
         todo.DueDate = due;
+        RecordTodoModify(todo, before, "期限の変更");
     }
 
     // ===== 変更の監視 =====
@@ -385,6 +441,8 @@ public partial class MainViewModel
         }
 
         if (_isLoadingTodos) return;
+        if (IsApplyingUndo) return; // 取り消し・やり直しの適用中は AfterUndoRedo でまとめて実行
+
         OnTodoChanged();
     }
 
@@ -403,6 +461,8 @@ public partial class MainViewModel
                            or nameof(TodoItem.RemindDisplay)
                            or nameof(TodoItem.IsOverdue)
                            or nameof(TodoItem.IsDueToday)
+                           or nameof(TodoItem.IsPlannedToday)
+                           or nameof(TodoItem.HasRecurrenceDays)
                            or nameof(TodoItem.IsHighPriority)
                            or nameof(TodoItem.IsLowPriority)
                            or nameof(TodoItem.HasEstimate)
@@ -415,44 +475,77 @@ public partial class MainViewModel
                            or nameof(TodoItem.RecurrenceDisplay)
                            or nameof(TodoItem.ToolTipText)) return;
 
-        // 完了にしたものは、まだ出ているバナーを片付け、繰り返しなら次回分を用意する
+        // 完了になったものは、まだ出ているバナーを片付ける。
+        // 取り消し・やり直しで完了へ戻った場合もここを通す
         if (e.PropertyName == nameof(TodoItem.IsCompleted) &&
             sender is TodoItem { IsCompleted: true } completed)
         {
             PendingTodoReminders.Remove(completed);
-            SpawnNextOccurrence(completed);
         }
 
         if (_isUpdatingTodo || _isLoadingTodos) return;
+        if (IsApplyingUndo) return; // 取り消し・やり直しの適用中は AfterUndoRedo でまとめて実行
 
         OnTodoChanged();
     }
 
     /// <summary>
-    /// 繰り返す ToDo を完了したとき、次回分を作って一覧へ加える。
-    /// 完了した方は実績として残す（何をいつ済ませたかが消えないようにするため）。
+    /// 完了状態を切り替える。
+    ///
+    /// 繰り返す ToDo なら次回分の生成までを1回の取り消し単位にまとめる。
+    /// 別々に積むと、完了を戻したのに次回分だけ残る中途半端な状態を作れてしまう。
     /// </summary>
-    private void SpawnNextOccurrence(TodoItem completed)
+    private void SetTodoCompleted(TodoItem todo, bool completed)
     {
-        if (_isLoadingTodos) return;
+        if (todo.IsCompleted == completed) return;
 
-        var next = completed.CreateNextOccurrence(completed.CompletedAt ?? DateTime.Now);
-        if (next == null) return;
+        var before = TodoSnapshot.Capture(todo);
+        TodoItem? spawned;
 
-        // 次回分は繰り返しを引き継ぐので、完了した方の繰り返しは解除する。
-        // 残したままだと、完了を取り消して付け直すたびに次回分が増えていく
+        // 完了と次回分の生成で個別に再構築・保存が走らないよう、まとめて処理する
         _isUpdatingTodo = true;
         try
         {
-            completed.Recurrence = TodoRecurrenceUnit.None;
+            todo.IsCompleted = completed;
+            spawned = completed ? SpawnNextOccurrence(todo) : null;
         }
         finally
         {
             _isUpdatingTodo = false;
         }
 
-        AddTodo(next);
+        if (completed) PendingTodoReminders.Remove(todo);
+
+        var edits = new List<IUndoableEdit>();
+
+        var after = TodoSnapshot.Capture(todo);
+        if (!before.IsSameAs(after))
+        {
+            edits.Add(new ModifyTodoEdit(todo, before, after, completed ? "完了" : "完了の取り消し"));
+        }
+        if (spawned != null) edits.Add(new AddTodoEdit(spawned));
+
+        PushEdits(edits, $"ToDo「{todo.Title}」の完了");
+        OnTodoChanged();
+    }
+
+    /// <summary>
+    /// 繰り返す ToDo を完了したとき、次回分を作って一覧へ加える。
+    /// 完了した方は実績として残す（何をいつ済ませたかが消えないようにするため）。
+    /// 履歴へは呼び出し側が完了とまとめて積むので、ここでは積まない。
+    /// </summary>
+    private TodoItem? SpawnNextOccurrence(TodoItem completed)
+    {
+        var next = completed.CreateNextOccurrence(completed.CompletedAt ?? DateTime.Now);
+        if (next == null) return null;
+
+        // 次回分は繰り返しを引き継ぐので、完了した方の繰り返しは解除する。
+        // 残したままだと、完了を取り消して付け直すたびに次回分が増えていく
+        completed.Recurrence = TodoRecurrenceUnit.None;
+
+        AddTodo(next, record: false);
         ShowAutoStartNotice($"「{next.Title}」の次回分（期限 {next.DueDate:M/d}）を作成しました");
+        return next;
     }
 
     /// <summary>ToDo が増減・変化したときの共通処理（表示の作り直しと保存）</summary>
@@ -460,7 +553,8 @@ public partial class MainViewModel
     {
         RebuildVisibleTodos();
         NotifyTodoCountsChanged();
-        RecalculateLayout(); // 終日行のチップも作り直す
+        InvalidateEstimateStats(); // 完了・記録時間が動くと見積もりの傾向も変わる
+        RecalculateLayout();       // 終日行のチップも作り直す
         ScheduleTodoSave();
     }
 
@@ -472,11 +566,14 @@ public partial class MainViewModel
     {
         IEnumerable<TodoItem> source = ShowCompletedTodos ? Todos : Todos.Where(t => !t.IsCompleted);
 
+        // 「今日やる」は並び順に関わらず先頭へ寄せる。
+        // 今日ぶんを選び出したのに探し回るのでは、印を付けた意味が無い
         var ordered = CurrentTodoSortMode switch
         {
             // 期限なしを末尾に送るため、期限の有無を先に見る
             TodoSortMode.DueDate => source
                 .OrderBy(t => t.IsCompleted)
+                .ThenByDescending(t => t.IsPlannedToday)
                 .ThenBy(t => t.DueDate.HasValue ? 0 : 1)
                 .ThenBy(t => t.DueDate ?? DateTime.MaxValue)
                 .ThenByDescending(t => t.Priority)
@@ -484,17 +581,20 @@ public partial class MainViewModel
 
             TodoSortMode.Priority => source
                 .OrderBy(t => t.IsCompleted)
+                .ThenByDescending(t => t.IsPlannedToday)
                 .ThenByDescending(t => t.Priority)
                 .ThenBy(t => t.DueDate ?? DateTime.MaxValue)
                 .ThenBy(t => t.CreatedAt),
 
             TodoSortMode.Manual => source
                 .OrderBy(t => t.IsCompleted)
+                .ThenByDescending(t => t.IsPlannedToday)
                 .ThenBy(t => t.SortOrder)
                 .ThenBy(t => t.CreatedAt),
 
             _ => source
                 .OrderBy(t => t.IsCompleted)
+                .ThenByDescending(t => t.IsPlannedToday)
                 .ThenBy(t => t.CreatedAt),
         };
 
@@ -549,6 +649,8 @@ public partial class MainViewModel
     {
         if (ReferenceEquals(moved, target)) return;
 
+        // 手動モードへの切り替えで並び順が動くため、その前に控える
+        var before = CaptureTodoOrder();
         EnsureManualSort();
 
         var list = VisibleTodos.ToList();
@@ -560,6 +662,7 @@ public partial class MainViewModel
         list.Insert(to, moved);
 
         ApplyManualOrder(list);
+        RecordTodoReorder(before);
         OnTodoChanged();
     }
 
@@ -568,6 +671,7 @@ public partial class MainViewModel
     {
         if (todo == null) return;
 
+        var before = CaptureTodoOrder();
         EnsureManualSort();
 
         var list = VisibleTodos.ToList();
@@ -579,6 +683,7 @@ public partial class MainViewModel
         list.Insert(to, todo);
 
         ApplyManualOrder(list);
+        RecordTodoReorder(before);
         OnTodoChanged();
 
         SelectedTodo = todo; // 移動しても選択が外れないようにする
@@ -604,6 +709,7 @@ public partial class MainViewModel
 
         var targets = Todos
             .Where(t => !t.IsCompleted && t.DueDate is { } due && due >= rangeStart && due < rangeEnd)
+            .Where(IsTodoVisible) // 色フィルタはビュー上の表示にだけ効かせる（パネルは全件のまま）
             .GroupBy(t => t.DueDate!.Value.Date);
 
         var chips = new List<TodoChip>();
@@ -723,6 +829,38 @@ public partial class MainViewModel
     }
 
     private static string BuildTodoReminderKey(TodoItem todo) => $"{todo.Id}|{todo.RemindAt:O}";
+
+    /// <summary>
+    /// ビューに出す ToDo（未完了・期限あり・色フィルタを通過）を期限日ごとにまとめる。
+    /// 月・スプリントビューのセルが日付で引くために使う。
+    /// </summary>
+    private Dictionary<DateTime, List<TodoItem>> GetVisibleTodosByDueDate()
+    {
+        var result = new Dictionary<DateTime, List<TodoItem>>();
+        if (Todos.Count == 0) return result;
+
+        foreach (var todo in Todos)
+        {
+            if (todo.IsCompleted) continue;
+            if (todo.DueDate is not { } due) continue;
+            if (!IsTodoVisible(todo)) continue;
+
+            if (!result.TryGetValue(due.Date, out var list))
+            {
+                list = [];
+                result[due.Date] = list;
+            }
+            list.Add(todo);
+        }
+
+        foreach (var key in result.Keys.ToList())
+        {
+            // 終日行のチップと同じ並び（優先度が高い順、次に追加順）にそろえる
+            result[key] = [.. result[key].OrderByDescending(t => t.Priority).ThenBy(t => t.CreatedAt)];
+        }
+
+        return result;
+    }
 
     // ===== 朝のまとめ通知 =====
     //
@@ -850,6 +988,73 @@ public partial class MainViewModel
     private bool _hasPendingTodoSave;
     private bool _isLoadingTodos;
 
+    // ===== 完了済みのアーカイブ =====
+    //
+    // 完了済みを現役の一覧に残し続けると todos.json が延々と膨らむ。
+    // 保持日数を過ぎたものは別ファイルへ移し、見積もりの実績集計にだけ使う。
+
+    public static IReadOnlyList<int> TodoArchiveRetentionOptions { get; } = [30, 60, 90, 180, 365];
+
+    private int _todoArchiveRetentionDays = 90;
+    /// <summary>完了済みを一覧に残す日数。この日数を過ぎたものはアーカイブへ移す</summary>
+    public int TodoArchiveRetentionDays
+    {
+        get => _todoArchiveRetentionDays;
+        set
+        {
+            if (SetProperty(ref _todoArchiveRetentionDays, Math.Clamp(value, 7, 3650))) SaveSettings();
+        }
+    }
+
+    /// <summary>アーカイブ済みの ToDo。表示や編集はせず、実績の集計にだけ使う</summary>
+    private List<TodoItem> _archivedTodos = [];
+
+    private TodoEstimateStats? _estimateStats;
+
+    /// <summary>
+    /// 見積もりに対する実績の傾向（現役の完了済み＋アーカイブが材料）。
+    /// 編集ダイアログを開くときにしか使わないので、必要になってから作る。
+    /// </summary>
+    private TodoEstimateStats EstimateStats =>
+        _estimateStats ??= TodoEstimateStats.Build(Todos.Concat(_archivedTodos));
+
+    /// <summary>完了や記録時間が動いたら、次に開くときに作り直す</summary>
+    private void InvalidateEstimateStats() => _estimateStats = null;
+
+    /// <summary>
+    /// 保持日数を過ぎた完了済みをアーカイブへ移す。起動時に1回だけ行う。
+    /// 移す対象が無ければファイルには触らない。
+    /// </summary>
+    private void ArchiveOldTodos()
+    {
+        var cutoff = DateTime.Today.AddDays(-TodoArchiveRetentionDays);
+
+        var targets = Todos
+            .Where(t => t.IsCompleted && t.CompletedAt is { } done && done.Date < cutoff)
+            .ToList();
+
+        if (targets.Count == 0) return;
+
+        _isLoadingTodos = true;
+        try
+        {
+            foreach (var todo in targets)
+            {
+                todo.PropertyChanged -= OnTodoPropertyChanged;
+                Todos.Remove(todo);
+                _archivedTodos.Add(todo);
+            }
+        }
+        finally
+        {
+            _isLoadingTodos = false;
+        }
+
+        Services.FilePersistenceService.SaveTodoArchive(_archivedTodos);
+        Services.FilePersistenceService.SaveTodos(Todos);
+    }
+
+
     private void ScheduleTodoSave()
     {
         if (!_isInitialized || _isLoadingTodos) return;
@@ -901,6 +1106,10 @@ public partial class MainViewModel
         {
             _isLoadingTodos = false;
         }
+
+        _archivedTodos = Services.FilePersistenceService.LoadTodoArchive();
+        ArchiveOldTodos();
+        InvalidateEstimateStats();
 
         _lastTodoDueRefreshDate = DateTime.Today;
         RebuildVisibleTodos();

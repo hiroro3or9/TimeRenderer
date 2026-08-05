@@ -262,10 +262,10 @@
                         </StackPanel>
                     </Expander>
 
-                    <!-- ToDo の通知 -->
+                    <!-- ToDo -->
                     <Expander Style="{StaticResource SettingsExpanderStyle}" IsExpanded="True">
                         <Expander.Header>
-                            <TextBlock Text="ToDo の通知" Style="{StaticResource SettingsSectionHeaderStyle}"/>
+                            <TextBlock Text="ToDo" Style="{StaticResource SettingsSectionHeaderStyle}"/>
                         </Expander.Header>
                         <StackPanel>
                             <TextBlock TextWrapping="Wrap" FontSize="11" Margin="0,0,0,12"
@@ -300,10 +300,32 @@
                                 </StackPanel>
                             </Grid>
 
-                            <TextBlock TextWrapping="Wrap" FontSize="11" Margin="0,0,0,4"
+                            <TextBlock TextWrapping="Wrap" FontSize="11" Margin="0,0,0,16"
                                        Visibility="{Binding IsTodoDigestEnabled, Converter={StaticResource BooleanToVisibilityConverter}}"
                                        Foreground="{DynamicResource TextSecondaryBrush}"
                                        Text="この時刻より後にアプリを起動した日も、その日ぶんをまだ出していなければ1回だけ通知します。対象が0件の日は通知しません。"/>
+
+                            <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Margin="0,0,0,12"/>
+
+                            <Grid Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" SharedSizeGroup="LabelG"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="完了済みを残す期間" Style="{StaticResource FieldLabelStyle}"
+                                           VerticalAlignment="Center" Margin="0,0,16,0"/>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <ComboBox ItemsSource="{Binding TodoArchiveRetentionOptions}"
+                                              SelectedItem="{Binding TodoArchiveRetentionDays, UpdateSourceTrigger=PropertyChanged}"
+                                              Width="70" FontSize="13"/>
+                                    <TextBlock Text="日" VerticalAlignment="Center" Margin="8,0,0,0"
+                                               FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <TextBlock TextWrapping="Wrap" FontSize="11" Margin="0,0,0,4"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Text="この期間を過ぎた完了済みの ToDo は、起動時にアーカイブ（todos-archive.json）へ移します。一覧からは消えますが削除はされず、見積もりの傾向の集計には引き続き使われます。"/>
                         </StackPanel>
                     </Expander>
 

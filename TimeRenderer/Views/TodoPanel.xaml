@@ -173,6 +173,8 @@
                                         <MenuItem Header="編集" Click="EditTodoMenuItem_Click"/>
                                         <MenuItem Header="この ToDo で記録開始" Click="StartRecordingMenuItem_Click"/>
                                         <Separator/>
+                                        <MenuItem Header="今日やる (T)" Click="PlanTodayMenuItem_Click"/>
+                                        <Separator/>
                                         <MenuItem Header="期限を今日にする" Click="DueTodayMenuItem_Click"/>
                                         <MenuItem Header="期限を明日にする" Click="DueTomorrowMenuItem_Click"/>
                                         <MenuItem Header="期限を外す" Click="ClearDueMenuItem_Click"/>
@@ -196,14 +198,32 @@
                                     <Border Grid.Column="0" Width="3" CornerRadius="2" Margin="2,4"
                                             Background="{Binding Brush}"/>
 
-                                    <CheckBox Grid.Column="1" IsChecked="{Binding IsCompleted}" Cursor="Hand"
-                                              VerticalAlignment="Center" Margin="8,0,6,0"
-                                              ToolTip="完了にする"/>
+                                    <!--
+                                        完了の切り替え。CheckBox ではなくボタンにしているのは、
+                                        双方向バインドだと「変更前の状態」を掴めず取り消し履歴に積めないため。
+                                        見た目はチェックボックスに寄せる。
+                                    -->
+                                    <Button x:Name="CheckButton" Grid.Column="1" Width="18" Height="18" Padding="0"
+                                            Margin="8,0,6,0" VerticalAlignment="Center" Cursor="Hand"
+                                            Style="{StaticResource TodoCheckButtonStyle}"
+                                            ToolTip="完了にする (Space)"
+                                            Command="{Binding DataContext.ToggleTodoCompletedCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding}">
+                                        <TextBlock x:Name="CheckGlyph" Text="&#xE73E;" FontFamily="Segoe MDL2 Assets" FontSize="10"
+                                                   Opacity="0" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                    </Button>
 
                                     <StackPanel Grid.Column="2" Margin="0,6,4,6" VerticalAlignment="Center">
-                                        <TextBlock x:Name="TitleText" Text="{Binding Title}" FontSize="13"
-                                                   TextTrimming="CharacterEllipsis"
-                                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <StackPanel Orientation="Horizontal">
+                                            <!-- 「今日やる」の印。今日ぶんとして選んだものが一目で分かるようにする -->
+                                            <TextBlock x:Name="PlannedGlyph" Text="&#xE735;" FontFamily="Segoe MDL2 Assets"
+                                                       FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"
+                                                       Foreground="{DynamicResource TodoDueTodayBrush}"
+                                                       Visibility="{Binding IsPlannedToday, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                            <TextBlock x:Name="TitleText" Text="{Binding Title}" FontSize="13"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        </StackPanel>
 
                                         <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
                                             <!-- 期限（超過は赤、今日は橙。それ以外は控えめに） -->
@@ -288,12 +308,22 @@
                                     <Setter TargetName="RecordButton" Property="Opacity" Value="1"/>
                                 </Trigger>
 
-                                <!-- 完了：打ち消し線と灰色にして、残っている行と区別する -->
+                                <!-- 完了：チェックを出し、打ち消し線と灰色にして残っている行と区別する -->
                                 <DataTrigger Binding="{Binding IsCompleted}" Value="True">
+                                    <Setter TargetName="CheckGlyph" Property="Opacity" Value="1"/>
                                     <Setter TargetName="TitleText" Property="TextDecorations" Value="Strikethrough"/>
                                     <Setter TargetName="TitleText" Property="Foreground" Value="{DynamicResource TextMutedBrush}"/>
                                     <Setter TargetName="RowRoot" Property="Opacity" Value="0.7"/>
                                 </DataTrigger>
+
+                                <!-- 未完了でもホバー中はチェックを薄く出して、押せることを示す -->
+                                <MultiDataTrigger>
+                                    <MultiDataTrigger.Conditions>
+                                        <Condition Binding="{Binding IsCompleted}" Value="False"/>
+                                        <Condition Binding="{Binding IsMouseOver, ElementName=CheckButton}" Value="True"/>
+                                    </MultiDataTrigger.Conditions>
+                                    <Setter TargetName="CheckGlyph" Property="Opacity" Value="0.5"/>
+                                </MultiDataTrigger>
 
                                 <DataTrigger Binding="{Binding IsDueToday}" Value="True">
                                     <Setter TargetName="DueText" Property="Foreground" Value="{DynamicResource TodoDueTodayBrush}"/>

@@ -122,6 +122,16 @@ namespace TimeRenderer.Controls
             remove { RemoveHandler(ItemRightClickedEvent, value); }
         }
 
+        // ToDo がクリックされた時のイベント（編集を開く導線）
+        public static readonly RoutedEvent TodoClickedEvent = EventManager.RegisterRoutedEvent(
+            "TodoClicked", RoutingStrategy.Bubble, typeof(EventHandler<TodoClickedEventArgs>), typeof(CalendarMonthCellControl));
+
+        public event EventHandler<TodoClickedEventArgs> TodoClicked
+        {
+            add { AddHandler(TodoClickedEvent, value); }
+            remove { RemoveHandler(TodoClickedEvent, value); }
+        }
+
         // テキスト描画用のTypefaceキャッシュ
         private static readonly Typeface _dayTypeface = new(new System.Windows.Media.FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal);
         private static readonly Typeface _itemTypeface = new(new System.Windows.Media.FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
@@ -133,6 +143,7 @@ namespace TimeRenderer.Controls
         private static readonly System.Windows.Media.Brush _sundayForegroundBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(220, 38, 38));    // #DC2626
         private static readonly System.Windows.Media.Brush _saturdayForegroundBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(37, 99, 235));  // #2563EB
         private static readonly System.Windows.Media.Brush _weekdayForegroundBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(31, 41, 55));    // #1F2937
+        private static readonly System.Windows.Media.Brush _todoOverdueBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(220, 38, 38));        // #DC2626
 
         static CalendarMonthCellControl()
         {
@@ -143,6 +154,7 @@ namespace TimeRenderer.Controls
             _sundayForegroundBrush.Freeze();
             _saturdayForegroundBrush.Freeze();
             _weekdayForegroundBrush.Freeze();
+            _todoOverdueBrush.Freeze();
         }
 
         // アイテム描画のレイアウト定数（OnRender とヒットテストで共有）
@@ -153,13 +165,37 @@ namespace TimeRenderer.Controls
         private const double ItemPadding = 4;
 
         /// <summary>
-        /// アイテム描画領域のレイアウトを計算する。
-        /// OnRender と GetItemAtPosition で同一ロジック・同一DPIを使用する（高DPIでのクリック判定ずれ防止）。
+        /// セルに積む1行。予定か ToDo のどちらか一方を持つ。
+        /// 描画とヒットテストで同じ並びを使うため、行の組み立てを1か所にまとめている。
         /// </summary>
-        private (double StartY, int DisplayCount, bool HasMore) GetItemLayout(double height)
+        private readonly record struct CellRow(ScheduleItem? Item, TodoItem? Todo);
+
+        /// <summary>予定を先に、その下へ ToDo を続けた行の一覧</summary>
+        private List<CellRow> BuildRows()
+        {
+            var rows = new List<CellRow>();
+            var data = CellData;
+            if (data == null) return rows;
+
+            if (data.DailyItems != null)
+            {
+                foreach (var item in data.DailyItems) rows.Add(new CellRow(item, null));
+            }
+            if (data.DailyTodos != null)
+            {
+                foreach (var todo in data.DailyTodos) rows.Add(new CellRow(null, todo));
+            }
+            return rows;
+        }
+
+        /// <summary>
+        /// アイテム描画領域のレイアウトを計算する。
+        /// OnRender と GetRowAtPosition で同一ロジック・同一DPIを使用する（高DPIでのクリック判定ずれ防止）。
+        /// </summary>
+        private (double StartY, int DisplayCount, bool HasMore) GetItemLayout(double height, int rowCount)
         {
             var data = CellData;
-            if (data == null || data.DailyItems == null) return (0, 0, false);
+            if (data == null) return (0, 0, false);
 
             double pixelsPerDip = VisualTreeHelper.GetDpi(this).PixelsPerDip;
             var dayText = new FormattedText(
@@ -173,9 +209,8 @@ namespace TimeRenderer.Controls
 
             double startY = dayText.Height + 8;
             int maxItems = (int)((height - startY) / (ItemHeight + ItemMargin));
-            int count = data.DailyItems.Count;
-            int displayCount = Math.Clamp(count, 0, Math.Max(0, maxItems));
-            bool hasMore = count > maxItems;
+            int displayCount = Math.Clamp(rowCount, 0, Math.Max(0, maxItems));
+            bool hasMore = rowCount > maxItems;
             if (hasMore && maxItems > 0)
             {
                 displayCount = maxItems - 1; // 省略テキストの分1つ減らす
@@ -225,22 +260,27 @@ namespace TimeRenderer.Controls
 
             dc.DrawText(dayFormattedText, new System.Windows.Point(4, 4));
 
-            // 3. スケジュールアイテムの描画処理
-            if (data.DailyItems == null || data.DailyItems.Count == 0) return;
+            // 3. 予定と ToDo の描画処理（予定が先、その下に ToDo）
+            var rows = BuildRows();
+            if (rows.Count == 0) return;
 
-            var (currentY, displayCount, hasMoreItems) = GetItemLayout(height);
+            var (currentY, displayCount, hasMoreItems) = GetItemLayout(height, rows.Count);
 
             for (int i = 0; i < displayCount; i++)
             {
-                var item = data.DailyItems[i];
-                DrawScheduleItem(dc, item, new Rect(2, currentY, width - 4, ItemHeight), ItemPadding);
+                var rect = new Rect(2, currentY, width - 4, ItemHeight);
+                var row = rows[i];
+
+                if (row.Item is { } item) DrawScheduleItem(dc, item, rect, ItemPadding);
+                else if (row.Todo is { } todo) DrawTodo(dc, todo, rect, ItemPadding);
+
                 currentY += ItemHeight + ItemMargin;
             }
 
             // 省略テキストを描画
             if (hasMoreItems)
             {
-                var moreText = $"+{data.DailyItems.Count - displayCount} 件";
+                var moreText = $"+{rows.Count - displayCount} 件";
                 var moreFormattedText = new FormattedText(
                     moreText,
                     CultureInfo.CurrentUICulture,
@@ -282,41 +322,65 @@ namespace TimeRenderer.Controls
             dc.DrawText(itemText, new System.Windows.Point(rect.X + padding, textY));
         }
 
-        private ScheduleItem? GetItemAtPosition(System.Windows.Point pos)
+        /// <summary>
+        /// ToDo を描く。予定と同じ塗りつぶしの箱にすると作業記録と混ざるため、
+        /// 日/週ビューのチップと同じく枠線だけにして「まだやっていないこと」だと分かるようにする。
+        /// </summary>
+        private void DrawTodo(DrawingContext dc, TodoItem todo, Rect rect, double padding)
         {
-            var data = CellData;
-            if (data == null || data.DailyItems == null || data.DailyItems.Count == 0) return null;
+            var stroke = todo.IsOverdue ? _todoOverdueBrush : todo.Brush;
+            var pen = new System.Windows.Media.Pen(stroke, todo.IsHighPriority ? 2 : 1);
+            pen.Freeze();
+
+            dc.DrawRoundedRectangle(MutedBackgroundBrush ?? _mutedBackgroundBrush, pen, rect, ItemHeight / 2, ItemHeight / 2);
+
+            var todoText = new FormattedText(
+                todo.Title,
+                CultureInfo.CurrentUICulture,
+                System.Windows.FlowDirection.LeftToRight,
+                _itemTypeface,
+                ItemFontSize,
+                todo.IsOverdue ? _todoOverdueBrush : (TextPrimaryBrush ?? _textPrimaryBrush),
+                VisualTreeHelper.GetDpi(this).PixelsPerDip)
+            {
+                MaxTextWidth = Math.Max(0, rect.Width - (padding * 3)),
+                MaxTextHeight = rect.Height,
+                Trimming = TextTrimming.CharacterEllipsis
+            };
+
+            double textY = rect.Y + (rect.Height - todoText.Height) / 2;
+            dc.DrawText(todoText, new System.Windows.Point(rect.X + (padding * 1.5), textY));
+        }
+
+        /// <summary>指定位置にある行（予定または ToDo）を返す</summary>
+        private CellRow? GetRowAtPosition(System.Windows.Point pos)
+        {
+            var rows = BuildRows();
+            if (rows.Count == 0) return null;
 
             double width = ActualWidth;
-            var (currentY, displayCount, _) = GetItemLayout(ActualHeight);
+            var (currentY, displayCount, _) = GetItemLayout(ActualHeight, rows.Count);
 
             for (int i = 0; i < displayCount; i++)
             {
                 Rect itemRect = new(2, currentY, width - 4, ItemHeight);
-                if (itemRect.Contains(pos))
-                {
-                    return data.DailyItems[i];
-                }
+                if (itemRect.Contains(pos)) return rows[i];
                 currentY += ItemHeight + ItemMargin;
             }
 
             return null;
         }
 
+        private ScheduleItem? GetItemAtPosition(System.Windows.Point pos) => GetRowAtPosition(pos)?.Item;
+
         // マウスホバー時のカーソル変更
         protected override void OnMouseMove(System.Windows.Input.MouseEventArgs e)
         {
             base.OnMouseMove(e);
-            
-            var item = GetItemAtPosition(e.GetPosition(this));
-            if (item != null)
-            {
-                Cursor = System.Windows.Input.Cursors.Hand;
-            }
-            else
-            {
-                Cursor = System.Windows.Input.Cursors.Arrow;
-            }
+
+            Cursor = GetRowAtPosition(e.GetPosition(this)) != null
+                ? System.Windows.Input.Cursors.Hand
+                : System.Windows.Input.Cursors.Arrow;
         }
 
         // ヒットテストロジック（マウスクリック時の要素特定用）
@@ -328,21 +392,23 @@ namespace TimeRenderer.Controls
             if (data == null) return;
 
             // ダブルクリック時のみアクションを発火する
-            if (e.ClickCount == 2)
+            if (e.ClickCount != 2) return;
+
+            switch (GetRowAtPosition(e.GetPosition(this)))
             {
-                var item = GetItemAtPosition(e.GetPosition(this));
-                if (item != null)
-                {
-                    var args = new ScheduleItemClickedEventArgs(ItemClickedEvent, this, item);
-                    RaiseEvent(args);
-                    e.Handled = true;
-                }
-                else
-                {
+                case { Item: { } item }:
+                    RaiseEvent(new ScheduleItemClickedEventArgs(ItemClickedEvent, this, item));
+                    break;
+
+                case { Todo: { } todo }:
+                    RaiseEvent(new TodoClickedEventArgs(TodoClickedEvent, this, todo));
+                    break;
+
+                default:
                     RaiseEvent(new RoutedEventArgs(CellClickedEvent, this));
-                    e.Handled = true;
-                }
+                    break;
             }
+            e.Handled = true;
         }
 
         protected override void OnMouseRightButtonDown(MouseButtonEventArgs e)
@@ -362,5 +428,10 @@ namespace TimeRenderer.Controls
     public class ScheduleItemClickedEventArgs(RoutedEvent routedEvent, object source, ScheduleItem item) : RoutedEventArgs(routedEvent, source)
     {
         public ScheduleItem Item { get; } = item;
+    }
+
+    public class TodoClickedEventArgs(RoutedEvent routedEvent, object source, TodoItem todo) : RoutedEventArgs(routedEvent, source)
+    {
+        public TodoItem Todo { get; } = todo;
     }
 }

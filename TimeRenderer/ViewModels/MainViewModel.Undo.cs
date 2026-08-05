@@ -8,15 +8,22 @@ namespace TimeRenderer.ViewModels;
 /// <summary>
 /// 取り消し・やり直し。
 ///
-/// 対象は予定アイテムの追加・削除・内容変更（編集ダイアログ、ドラッグでの移動・伸縮）と、
-/// 記録停止による自動追加。設定・カテゴリ・スプリント・メモ・定期予定の自動生成は対象外。
+/// 対象は予定アイテムの追加・削除・内容変更（編集ダイアログ、ドラッグでの移動・伸縮）、
+/// 記録停止による自動追加、および ToDo の追加・削除・完了・内容変更・並べ替え。
+/// 設定・カテゴリ・スプリント・メモ・定期予定の自動生成は対象外。
 ///
-/// アイテムの復元は必ず「元のインスタンスへ書き戻す」形にしている。
+/// 予定と ToDo で履歴を分けると Ctrl+Z が2系統になり、
+/// 今どちらが戻るのか分からなくなるため、1本の履歴で両方を扱う。
+///
+/// 復元は必ず「元のインスタンスへ書き戻す」形にしている。
 /// 複製で置き換えると、選択状態や他の履歴エントリが指す参照が食い違うため。
 /// </summary>
 public partial class MainViewModel
 {
     private readonly UndoManager _undo = new();
+
+    /// <summary>取り消し・やり直しの適用先（予定と ToDo）</summary>
+    private UndoContext UndoTarget => new(ScheduleItems, Todos);
 
     /// <summary>取り消し・やり直しの適用中か（この間は履歴に積まない・保存もまとめる）</summary>
     public bool IsApplyingUndo => _undo.IsApplying;
@@ -54,13 +61,13 @@ public partial class MainViewModel
 
     private void PerformUndo()
     {
-        if (!_undo.Undo(ScheduleItems)) return;
+        if (!_undo.Undo(UndoTarget)) return;
         AfterUndoRedo();
     }
 
     private void PerformRedo()
     {
-        if (!_undo.Redo(ScheduleItems)) return;
+        if (!_undo.Redo(UndoTarget)) return;
         AfterUndoRedo();
     }
 
@@ -74,6 +81,11 @@ public partial class MainViewModel
     {
         RecalculateLayout();
         SaveData();
+
+        // ToDo 側は独立したファイル・一覧なので、こちらも作り直して保存する
+        RebuildVisibleTodos();
+        NotifyTodoCountsChanged();
+        ScheduleTodoSave();
     }
 
     // ===== 記録のためのヘルパー =====
@@ -95,6 +107,35 @@ public partial class MainViewModel
         var after = ItemSnapshot.Capture(item);
         if (before.IsSameAs(after)) return;
         _undo.Push(new ModifyItemEdit(item, before, after, label));
+    }
+
+    // ===== ToDo のためのヘルパー =====
+
+    /// <summary>ToDo の追加を履歴に積む</summary>
+    private void RecordTodoAdd(TodoItem todo) => _undo.Push(new AddTodoEdit(todo));
+
+    /// <summary>ToDo の削除を履歴に積む（削除する直前に呼ぶこと）</summary>
+    private void RecordTodoRemove(TodoItem todo)
+    {
+        int index = Todos.IndexOf(todo);
+        if (index < 0) return;
+        _undo.Push(new RemoveTodoEdit(todo, index));
+    }
+
+    /// <summary>ToDo の内容変更を履歴に積む。変化がなければ何もしない</summary>
+    private void RecordTodoModify(TodoItem todo, TodoSnapshot before, string label)
+    {
+        var after = TodoSnapshot.Capture(todo);
+        if (before.IsSameAs(after)) return;
+        _undo.Push(new ModifyTodoEdit(todo, before, after, label));
+    }
+
+    /// <summary>まとめて1件として積む（積むものが1件だけならそのまま積む）</summary>
+    private void PushEdits(IReadOnlyList<IUndoableEdit> edits, string description)
+    {
+        if (edits.Count == 0) return;
+
+        _undo.Push(edits.Count == 1 ? edits[0] : new CompositeEdit(edits, description));
     }
 
     // ===== ドラッグの前後状態 =====

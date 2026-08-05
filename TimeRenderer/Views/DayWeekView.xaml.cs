@@ -156,10 +156,8 @@ namespace TimeRenderer.Views
         }
 
         /// <summary>チップから直接完了にする（パネルを開かずに片付けられるようにする）</summary>
-        private void TodoChipCompleteMenuItem_Click(object sender, RoutedEventArgs e)
-        {
-            if (ResolveTodoFromMenu(sender) is { } todo) todo.IsCompleted = true;
-        }
+        private void TodoChipCompleteMenuItem_Click(object sender, RoutedEventArgs e) =>
+            ExecuteTodoMenuCommand(sender, ViewModel.ToggleTodoCompletedCommand);
 
         private void TodoChipRecordMenuItem_Click(object sender, RoutedEventArgs e) =>
             ExecuteTodoMenuCommand(sender, ViewModel.StartRecordingFromTodoCommand);
