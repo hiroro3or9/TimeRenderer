@@ -19,6 +19,9 @@ namespace TimeRenderer.Views.Dialogs
         public string StartText { get; set; } = string.Empty;
         public string EndText { get; set; } = string.Empty;
 
+        /// <summary>その日のふりかえり。退勤時に書き逃した日をここから埋められるようにしている</summary>
+        public string NoteText { get; set; } = string.Empty;
+
         /// <summary>確定した内容（キャンセル時は null）</summary>
         public WorkDayEditResult? Result { get; private set; }
 
@@ -26,13 +29,15 @@ namespace TimeRenderer.Views.Dialogs
         /// <param name="start">既存の出勤時刻（新規追加時は null）</param>
         /// <param name="end">既存の退勤時刻</param>
         /// <param name="canDelete">既存の記録を編集している場合は true（削除ボタンを出す）</param>
-        public WorkDayEditDialog(DateTime date, DateTime? start, DateTime? end, bool canDelete)
+        /// <param name="note">既存のふりかえり（無ければ空文字）</param>
+        public WorkDayEditDialog(DateTime date, DateTime? start, DateTime? end, bool canDelete, string note)
         {
             InitializeComponent();
 
             SelectedDate = date.Date;
             StartText = start?.ToString("H:mm", CultureInfo.InvariantCulture) ?? "9:00";
             EndText = end?.ToString("H:mm", CultureInfo.InvariantCulture) ?? string.Empty;
+            NoteText = note ?? string.Empty;
 
             DeleteButton.Visibility = canDelete ? Visibility.Visible : Visibility.Collapsed;
             Title = canDelete ? "勤務時間の編集" : "勤務時間の追加";
@@ -91,14 +96,14 @@ namespace TimeRenderer.Views.Dialogs
                 return;
             }
 
-            Result = new WorkDayEditResult(IsDeleted: false, date, start, end);
+            Result = new WorkDayEditResult(IsDeleted: false, date, start, end, (NoteText ?? string.Empty).Trim());
             DialogResult = true;
         }
 
         private void DeleteButton_Click(object sender, RoutedEventArgs e)
         {
             var date = (SelectedDate ?? DateTime.Today).Date;
-            Result = new WorkDayEditResult(IsDeleted: true, date, date, null);
+            Result = new WorkDayEditResult(IsDeleted: true, date, date, null, string.Empty);
             DialogResult = true;
         }
 

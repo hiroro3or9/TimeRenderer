@@ -301,7 +301,6 @@ namespace TimeRenderer.Views
                 // デバウンス中の未保存分をここで確定させておく
                 if (DataContext is MainViewModel hiding)
                 {
-                    hiding.FlushMemoSave();
                     hiding.FlushDataSave();
                     hiding.FlushTodoSave();
                 }
@@ -328,7 +327,6 @@ namespace TimeRenderer.Views
 
             if (DataContext is MainViewModel vm)
             {
-                 vm.FlushMemoSave(); // デバウンス中の未保存メモを書き込む
                  vm.FlushDataSave(); // デバウンス中の未保存の予定データを書き込む
                  vm.FlushTodoSave(); // デバウンス中の未保存の ToDo を書き込む
                  vm.PropertyChanged -= ViewModel_PropertyChanged;

@@ -18,6 +18,10 @@ namespace TimeRenderer.ViewModels;
 /// 今日の実績を出し、残ったものを明日へ送るかどうかを聞く。
 /// 送るのは <see cref="TodoItem.PlannedOn"/> だけで、期限には触らない
 /// （期限は約束、今日やるは計画で、動かしてよい方が違う）。
+///
+/// ふりかえりの一言（<see cref="WorkDayLog.Note"/>）もここで書く。
+/// 常設の入力欄を置いても書くきっかけが無く、書いたものを読み返す導線も生まれなかった。
+/// 1日の区切りに一度だけ聞き、統計から読み返せる形にしている。
 /// </summary>
 public partial class MainViewModel
 {
@@ -58,15 +62,32 @@ public partial class MainViewModel
         _isShowingWorkEndReview = true;
         try
         {
-            var carried = _dialogService.ShowWorkEndReviewDialog(
-                date, log.StartTime, end, recorded, completed, candidates);
+            var result = _dialogService.ShowWorkEndReviewDialog(
+                date, log.StartTime, end, recorded, completed, candidates, log.Note);
 
-            if (carried is { Count: > 0 }) CarryOverTodos(carried);
+            SetWorkDayNote(log, result.Note);
+
+            if (result.CarriedOver is { Count: > 0 }) CarryOverTodos(result.CarriedOver);
         }
         finally
         {
             _isShowingWorkEndReview = false;
         }
+    }
+
+    /// <summary>
+    /// 勤務記録にふりかえりの一言を書き込む。
+    /// 変わっていなければ何もしない（退勤のたびに同じ内容で保存し直さない）。
+    /// </summary>
+    private void SetWorkDayNote(WorkDayLog log, string? note)
+    {
+        var value = (note ?? string.Empty).Trim();
+        if (log.Note == value) return;
+
+        log.Note = value;
+        SaveWorkDays();
+        RebuildWorkDayMarkers(); // マーカーのツールチップに一言を出しているため
+        UpdateStats();           // 統計のふりかえり一覧にも反映する
     }
 
     /// <summary>その日に記録した時間の合計（終日アイテムは対象外）</summary>

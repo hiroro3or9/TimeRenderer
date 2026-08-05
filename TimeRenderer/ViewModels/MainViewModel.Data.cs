@@ -11,26 +11,6 @@ namespace TimeRenderer.ViewModels;
 
 public partial class MainViewModel
 {
-    private Dictionary<DateTime, string> _weeklyMemos = [];
-
-    // メモはキーストロークごとに保存せず、入力が止まってから書き込む（デバウンス）
-    private DispatcherTimer? _memoSaveTimer;
-    private bool _hasPendingMemoSave;
-
-    // メモパネル関連プロパティ
-    private bool _isMemoPanelVisible = true;
-    public bool IsMemoPanelVisible
-    {
-        get => _isMemoPanelVisible;
-        set
-        {
-            if (SetProperty(ref _isMemoPanelVisible, value))
-            {
-                SaveSettings();
-            }
-        }
-    }
-
     private bool _isSettingsPanelVisible = false;
     public bool IsSettingsPanelVisible
     {
@@ -58,69 +38,6 @@ public partial class MainViewModel
                 SaveSettings();
             }
         }
-    }
-
-    private bool _isMemoEditMode = true;
-    public bool IsMemoEditMode
-    {
-        get => _isMemoEditMode;
-        set
-        {
-            if (SetProperty(ref _isMemoEditMode, value))
-            {
-                SaveSettings();
-            }
-        }
-    }
-
-    private string _memoText = "";
-    public string MemoText
-    {
-        get => _memoText;
-        set
-        {
-            if (SetProperty(ref _memoText, value))
-            {
-                if (string.IsNullOrEmpty(value))
-                {
-                    _weeklyMemos.Remove(CurrentWeekStart);
-                }
-                else
-                {
-                    _weeklyMemos[CurrentWeekStart] = value;
-                }
-                ScheduleMemoSave();
-            }
-        }
-    }
-
-    private void ScheduleMemoSave()
-    {
-        _hasPendingMemoSave = true;
-        if (_memoSaveTimer == null)
-        {
-            _memoSaveTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-            _memoSaveTimer.Tick += (_, _) => FlushMemoSave();
-        }
-        _memoSaveTimer.Stop();
-        _memoSaveTimer.Start();
-    }
-
-    /// <summary>保留中のメモ保存を即時実行する（アプリ終了時などに呼ぶ）</summary>
-    public void FlushMemoSave()
-    {
-        _memoSaveTimer?.Stop();
-        if (_hasPendingMemoSave)
-        {
-            _hasPendingMemoSave = false;
-            SaveMemos();
-        }
-    }
-
-    private void UpdateMemoTextForCurrentWeek()
-    {
-        _memoText = _weeklyMemos.TryGetValue(CurrentWeekStart, out var memo) ? memo : "";
-        OnPropertyChanged(nameof(MemoText));
     }
 
     private List<DayOfWeek> _enabledDaysOfWeek =
@@ -219,9 +136,7 @@ public partial class MainViewModel
     /// <summary>現在のVM状態から設定スナップショットを作る（ApplySettings と対称）</summary>
     private AppSettings BuildSettings() => new()
     {
-        IsMemoPanelVisible = IsMemoPanelVisible,
         IsSettingsPanelVisible = IsSettingsPanelVisible,
-        IsMemoEditMode = IsMemoEditMode,
         IsTodoPanelVisible = IsTodoPanelVisible,
         ShowCompletedTodos = ShowCompletedTodos,
         TodoSortMode = (int)CurrentTodoSortMode,
@@ -269,14 +184,8 @@ public partial class MainViewModel
     /// <summary>設定スナップショットをVMへ反映する（BuildSettings と対称）</summary>
     private void ApplySettings(AppSettings settings)
     {
-        _isMemoPanelVisible = settings.IsMemoPanelVisible;
-        OnPropertyChanged(nameof(IsMemoPanelVisible));
-
         _isSettingsPanelVisible = settings.IsSettingsPanelVisible;
         OnPropertyChanged(nameof(IsSettingsPanelVisible));
-
-        _isMemoEditMode = settings.IsMemoEditMode;
-        OnPropertyChanged(nameof(IsMemoEditMode));
 
         _isTodoPanelVisible = settings.IsTodoPanelVisible;
         OnPropertyChanged(nameof(IsTodoPanelVisible));
@@ -578,13 +487,4 @@ public partial class MainViewModel
         }
     }
 
-    private void SaveMemos()
-    {
-        Services.FilePersistenceService.SaveMemos(_weeklyMemos);
-    }
-
-    private void LoadMemos()
-    {
-        _weeklyMemos = Services.FilePersistenceService.LoadMemos();
-    }
 }

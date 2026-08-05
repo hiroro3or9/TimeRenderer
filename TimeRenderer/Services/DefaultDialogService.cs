@@ -84,9 +84,9 @@ public class DefaultDialogService(Window owner) : IDialogService
     }
 
     public WorkDayEditResult? ShowWorkDayEditDialog(
-        System.DateTime date, System.DateTime? start, System.DateTime? end, bool canDelete)
+        System.DateTime date, System.DateTime? start, System.DateTime? end, bool canDelete, string note)
     {
-        WorkDayEditDialog dialog = new(date, start, end, canDelete)
+        WorkDayEditDialog dialog = new(date, start, end, canDelete, note)
         {
             Owner = owner
         };
@@ -124,15 +124,16 @@ public class DefaultDialogService(Window owner) : IDialogService
         MessageBox.Show(owner, message, title, MessageBoxButton.OK, MessageBoxImage.Warning);
     }
 
-    public IReadOnlyList<TodoItem> ShowWorkEndReviewDialog(
+    public WorkEndReviewResult ShowWorkEndReviewDialog(
         System.DateTime date,
         System.DateTime start,
         System.DateTime end,
         System.TimeSpan recorded,
         int completedCount,
-        IReadOnlyList<WorkEndCarryOver> candidates)
+        IReadOnlyList<WorkEndCarryOver> candidates,
+        string initialNote)
     {
-        WorkEndReviewDialog dialog = new(date, start, end, recorded, completedCount, candidates)
+        WorkEndReviewDialog dialog = new(date, start, end, recorded, completedCount, candidates, initialNote)
         {
             Owner = owner
         };
@@ -140,7 +141,9 @@ public class DefaultDialogService(Window owner) : IDialogService
         // トレイのメニューから退勤した場合はウィンドウが隠れているため、表示に戻す
         if (!owner.IsVisible) owner.Show();
 
-        return dialog.ShowDialog() == true ? dialog.CarriedOver : [];
+        // 一言は閉じ方に関わらず受け取る（「そのまま閉じる」で入力を捨てない）
+        var confirmed = dialog.ShowDialog() == true;
+        return new WorkEndReviewResult(confirmed ? dialog.CarriedOver : [], dialog.Note);
     }
 
     public bool ShowAwayReviewDialog(

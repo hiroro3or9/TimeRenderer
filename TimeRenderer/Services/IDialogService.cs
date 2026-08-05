@@ -95,11 +95,12 @@ public interface IDialogService
     /// <param name="start">既存の出勤時刻（新規追加の場合は null）</param>
     /// <param name="end">既存の退勤時刻（未退勤・新規追加の場合は null）</param>
     /// <param name="canDelete">既存の記録を編集する場合は true（削除ボタンを表示する）</param>
-    WorkDayEditResult? ShowWorkDayEditDialog(DateTime date, DateTime? start, DateTime? end, bool canDelete);
+    /// <param name="note">既に書かれているふりかえり（無ければ空文字）</param>
+    WorkDayEditResult? ShowWorkDayEditDialog(DateTime date, DateTime? start, DateTime? end, bool canDelete, string note);
 
     /// <summary>
-    /// 退勤時のふりかえりを表示し、明日へ送る ToDo を返します。
-    /// 「そのまま閉じる」を選んだ場合は空のリストを返します。
+    /// 退勤時のふりかえりを表示し、明日へ送る ToDo とふりかえりの一言を返します。
+    /// 「そのまま閉じる」を選んだ場合、繰り越しは空になりますが一言は返します。
     /// </summary>
     /// <param name="date">対象の勤務日</param>
     /// <param name="start">出勤時刻</param>
@@ -107,13 +108,15 @@ public interface IDialogService
     /// <param name="recorded">その日に記録した時間の合計</param>
     /// <param name="completedCount">その日に完了した ToDo の件数</param>
     /// <param name="candidates">明日へ送る候補（既に選択状態を持つ）</param>
-    IReadOnlyList<TodoItem> ShowWorkEndReviewDialog(
+    /// <param name="initialNote">既に書かれているふりかえり（無ければ空文字）</param>
+    WorkEndReviewResult ShowWorkEndReviewDialog(
         DateTime date,
         DateTime start,
         DateTime end,
         TimeSpan recorded,
         int completedCount,
-        IReadOnlyList<WorkEndCarryOver> candidates);
+        IReadOnlyList<WorkEndCarryOver> candidates,
+        string initialNote);
 
     /// <summary>
     /// 記録中に検知した離席を提示し、記録から除外するかを確認します。

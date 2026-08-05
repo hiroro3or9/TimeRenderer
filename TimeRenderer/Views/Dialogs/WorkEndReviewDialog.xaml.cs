@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Windows;
 
@@ -11,14 +12,22 @@ namespace TimeRenderer.Views.Dialogs
     /// <summary>
     /// 退勤時のふりかえりダイアログ。
     ///
-    /// 今日の実績を見せたうえで、片付かなかった ToDo を明日へ送るかどうかだけを聞く。
-    /// 既定は「全部送る」にしてある。退勤時に一件ずつ選ばせるのは重く、
+    /// 今日の実績を見せたうえで、ふりかえりの一言を書ける場を出し、
+    /// 片付かなかった ToDo を明日へ送るかどうかを聞く。
+    /// 繰り越しの既定は「全部送る」にしてある。退勤時に一件ずつ選ばせるのは重く、
     /// そのまま Enter で確定できるほうが、この場面では正しく働くことが多いため。
     /// </summary>
     public partial class WorkEndReviewDialog : Window
     {
         /// <summary>明日へ送ることになった ToDo（閉じただけなら空）</summary>
         public IReadOnlyList<TodoItem> CarriedOver { get; private set; } = [];
+
+        /// <summary>
+        /// 入力されたふりかえりの一言。
+        /// どの閉じ方でも拾えるよう <see cref="OnClosing"/> で確定する
+        /// （書いたのに残らない、が一番避けたい失敗のため）。
+        /// </summary>
+        public string Note { get; private set; } = string.Empty;
 
         private readonly List<WorkEndCarryOver> _candidates;
 
@@ -28,13 +37,16 @@ namespace TimeRenderer.Views.Dialogs
             DateTime end,
             TimeSpan recorded,
             int completedCount,
-            IReadOnlyList<WorkEndCarryOver> candidates)
+            IReadOnlyList<WorkEndCarryOver> candidates,
+            string initialNote)
         {
             InitializeComponent();
 
             _candidates = [.. candidates];
 
             HeadlineText.Text = $"{date:M月d日 (ddd)} おつかれさまでした";
+            NoteTextBox.Text = initialNote ?? string.Empty;
+            Note = NoteTextBox.Text;
 
             var worked = end - start;
             WorkText.Text = Format(worked);
@@ -62,7 +74,20 @@ namespace TimeRenderer.Views.Dialogs
             }
 
             UpdateButtons();
+
+            // フォーカスは既定ボタンに置く。一言は任意入力なので、
+            // 書かない日に Enter だけで抜けられる流れを優先する
             Loaded += (_, _) => CarryOverButton.Focus();
+        }
+
+        /// <summary>
+        /// ボタン・Esc・×のどれで閉じても一言を拾う。
+        /// 「そのまま閉じる」はキャンセル扱いだが、書いた文章まで捨てる意味ではない。
+        /// </summary>
+        protected override void OnClosing(CancelEventArgs e)
+        {
+            Note = NoteTextBox.Text?.Trim() ?? string.Empty;
+            base.OnClosing(e);
         }
 
         private void CarryOverCheck_Changed(object sender, RoutedEventArgs e) => UpdateButtons();

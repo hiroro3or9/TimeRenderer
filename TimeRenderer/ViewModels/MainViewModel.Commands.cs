@@ -13,7 +13,6 @@ public partial class MainViewModel
 {
     private readonly IDialogService _dialogService;
 
-    public ICommand ToggleMemoPanelCommand { get; private set; } = null!;
     public ICommand ToggleSettingsPanelCommand { get; private set; } = null!;
     public ICommand ToggleRecordingCommand { get; private set; } = null!;
     public ICommand StartRecordingFromItemCommand { get; private set; } = null!;
@@ -36,7 +35,6 @@ public partial class MainViewModel
 
     private void InitializeCommands()
     {
-        ToggleMemoPanelCommand = new RelayCommand(_ => IsMemoPanelVisible = !IsMemoPanelVisible);
         ToggleSettingsPanelCommand = new RelayCommand(_ => IsSettingsPanelVisible = !IsSettingsPanelVisible);
 
         DeleteCommand = new RelayCommand(

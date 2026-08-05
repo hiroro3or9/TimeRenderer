@@ -10,4 +10,10 @@ namespace TimeRenderer.Models;
 /// <param name="Date">勤務日</param>
 /// <param name="StartTime">出勤時刻</param>
 /// <param name="EndTime">退勤時刻。未退勤のままにする場合は null</param>
-public sealed record WorkDayEditResult(bool IsDeleted, DateTime Date, DateTime StartTime, DateTime? EndTime);
+/// <param name="Note">その日のふりかえり（書いていなければ空文字）</param>
+public sealed record WorkDayEditResult(
+    bool IsDeleted,
+    DateTime Date,
+    DateTime StartTime,
+    DateTime? EndTime,
+    string Note);

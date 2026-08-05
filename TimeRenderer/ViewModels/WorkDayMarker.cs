@@ -15,7 +15,17 @@ namespace TimeRenderer.ViewModels;
 /// <param name="IsAuto">自動で入った退勤か（ラベルに印を付ける）</param>
 /// <param name="Date">元になった勤務記録の日付。編集時にどの記録かを特定するために持つ
 /// （深夜勤務では退勤の <paramref name="Time"/> が翌日になるため、Time.Date とは一致しない）</param>
-public sealed record WorkDayMarker(DateTime Time, bool IsStart, string Label, bool IsAuto, DateTime Date)
+/// <param name="Note">その日のふりかえり。ラベルには載せずツールチップにだけ出す
+/// （線の横に長い文章が並ぶと、時刻が読めなくなるため）</param>
+public sealed record WorkDayMarker(
+    DateTime Time,
+    bool IsStart,
+    string Label,
+    bool IsAuto,
+    DateTime Date,
+    string Note = "")
 {
-    public string ToolTipText => $"{Date:M月d日}の勤務\nクリックで編集・右クリックでメニュー";
+    public string ToolTipText => string.IsNullOrWhiteSpace(Note)
+        ? $"{Date:M月d日}の勤務\nクリックで編集・右クリックでメニュー"
+        : $"{Date:M月d日}の勤務\n\n{Note}\n\nクリックで編集・右クリックでメニュー";
 }

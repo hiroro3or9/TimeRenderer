@@ -1,7 +1,7 @@
 ﻿<Window x:Class="TimeRenderer.Views.Dialogs.WorkDayEditDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="勤務時間の編集" Height="300" Width="360"
+        Title="勤務時間の編集" Height="420" Width="360"
         WindowStartupLocation="CenterOwner" ResizeMode="NoResize" WindowStyle="ToolWindow"
         Background="{DynamicResource BackgroundBrush}">
     <!--
@@ -42,9 +42,18 @@
             </StackPanel>
         </Grid>
 
-        <TextBlock Grid.Row="3" FontSize="11" TextWrapping="Wrap"
-                   Foreground="{DynamicResource TextSecondaryBrush}"
-                   Text="時刻は 9:05 のように入力します。退勤を空にすると「勤務中」として扱います（当日のみ）。退勤が出勤より前の場合は翌日として記録します。"/>
+        <StackPanel Grid.Row="3">
+            <TextBlock FontSize="11" TextWrapping="Wrap" Margin="0,0,0,16"
+                       Foreground="{DynamicResource TextSecondaryBrush}"
+                       Text="時刻は 9:05 のように入力します。退勤を空にすると「勤務中」として扱います（当日のみ）。退勤が出勤より前の場合は翌日として記録します。"/>
+
+            <!-- 退勤時に書き逃した日や、あとから思い出した日のための入り口 -->
+            <TextBlock Text="ふりかえり:" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,6"/>
+            <TextBox x:Name="NoteTextBox" Text="{Binding NoteText, UpdateSourceTrigger=PropertyChanged}"
+                     Height="66" Padding="6,6" FontSize="13"
+                     AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
+                     VerticalContentAlignment="Top"/>
+        </StackPanel>
 
         <!-- 入力エラー（保存を押したときだけ出す） -->
         <TextBlock x:Name="ErrorText" Grid.Row="4" FontSize="12" TextWrapping="Wrap" Margin="0,10,0,0"
