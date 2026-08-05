@@ -50,9 +50,11 @@
                                                  Margin="0,5,0,4" BorderThickness="0"
                                                  Background="{DynamicResource BorderBrush}"
                                                  Foreground="{DynamicResource PrimaryBrush}"/>
+                                    <!-- タイトルは記録中のぶんしか残らないので、あるときだけ出す -->
                                     <TextBlock Text="{Binding SampleTitle}" FontSize="11"
                                                Foreground="{DynamicResource TextSecondaryBrush}"
-                                               TextTrimming="CharacterEllipsis"/>
+                                               TextTrimming="CharacterEllipsis"
+                                               Visibility="{Binding HasSampleTitle, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                                 </StackPanel>
                             </Border>
                         </DataTemplate>
@@ -63,7 +65,7 @@
 
         <TextBlock Grid.Row="3" FontSize="11" TextWrapping="Wrap" Margin="0,12,0,0"
                    Foreground="{DynamicResource TextSecondaryBrush}"
-                   Text="使用アプリは「記録」の実行中にだけ収集されます。データはこの PC の中にのみ保存されます。"/>
+                   Text="使用アプリは出勤から退勤までの間だけ収集されます。ウィンドウタイトルが残るのは記録中のぶんだけです。データはこの PC の中にのみ保存されます。"/>
 
         <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
             <Button Content="閉じる" Click="CloseButton_Click" Padding="14,6" IsDefault="True" IsCancel="True"

@@ -471,6 +471,7 @@ public partial class MainViewModel : INotifyPropertyChanged
                 CheckReminders(CurrentTime);
                 UpdateWorkDayTick(CurrentTime); // 勤務時間の表示更新と、日付またぎの自動締め
                 UpdateUnrecordedGapTick(CurrentTime); // 当日の未記録は時間の経過だけでも伸びる
+                UpdateAppUsageTick(CurrentTime); // 収集済みのアプリ使用記録を定期的に書き出す
                 UpdateTodoTick(CurrentTime); // 日付またぎで ToDo の「今日」「超過」を作り直す
             }
             if (IsRecording && RecordingStartTime.HasValue)

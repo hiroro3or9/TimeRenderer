@@ -258,7 +258,11 @@
 
                             <TextBlock TextWrapping="Wrap" FontSize="11" Margin="0,0,0,4"
                                        Foreground="{DynamicResource TextSecondaryBrush}"
-                                       Text="収集するのは記録中だけです。データはこの PC の中（データフォルダ）にのみ保存され、60日を過ぎた分は自動で削除されます。"/>
+                                       Text="収集するのは出勤から退勤までの間です。未記録の帯を埋めるときの手がかりに使います。データはこの PC の中（データフォルダ）にのみ保存され、60日を過ぎた分は自動で削除されます。"/>
+
+                            <TextBlock TextWrapping="Wrap" FontSize="11" Margin="0,0,0,4"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Text="ウィンドウタイトル（ファイル名・URL など中身が出るもの）を残すのは記録中だけです。記録していない時間は、どのアプリを何分使ったかだけが残ります。"/>
                         </StackPanel>
                     </Expander>
 

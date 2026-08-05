@@ -20,11 +20,17 @@ public sealed record UnrecordedGap(DateTime StartTime, DateTime EndTime)
     public double DurationHours => Duration.TotalHours;
 
     /// <summary>重なりレイアウトは行わないが、位置計算のコンバーターが要求するため常に 0</summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822:Mark members as static",
+        Justification = "WPF bindings resolve this property on each data item.")]
     public int ColumnIndex => 0;
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822:Mark members as static",
+        Justification = "WPF bindings resolve this property on each data item.")]
     public int MaxColumnIndex => 0;
 
     /// <summary>終日ではない（位置計算のコンバーターへ渡す）</summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822:Mark members as static",
+        Justification = "WPF bindings resolve this property on each data item.")]
     public bool IsAllDay => false;
 
     public string RangeText => $"{StartTime:H:mm}-{EndTime:H:mm}";

@@ -215,6 +215,7 @@ public partial class MainViewModel
         OnPropertyChanged(nameof(HasCompletedTodos));
         OnPropertyChanged(nameof(TodoSummaryText));
         OnPropertyChanged(nameof(HasOverdueTodos));
+        RebuildTodayWorkload(); // 「今日やる」の増減で見込みが変わる
     }
 
     // ===== コマンド =====
@@ -482,6 +483,8 @@ public partial class MainViewModel
 
         var category = parsed.Category ?? Categories.FirstOrDefault();
 
+        // 期限 → 通知 → 相対指定 の順で入れる。
+        // 相対指定を先に入れると、期限を入れた時点で通知日時が計算し直されてしまう
         var todo = new TodoItem
         {
             Title = parsed.Title,
@@ -489,13 +492,10 @@ public partial class MainViewModel
             CategoryId = category?.Id,
             Priority = parsed.Priority ?? TodoPriority.Normal,
             EstimatedMinutes = parsed.EstimatedMinutes ?? 0,
+            DueDate = parsed.DueDate,
+            RemindAt = parsed.RemindAt,
+            RemindOffsetDays = parsed.RemindOffsetDays,
         };
-
-        // 期限 → 通知 → 相対指定 の順で入れる。
-        // 相対指定を先に入れると、期限を入れた時点で通知日時が計算し直されてしまう
-        todo.DueDate = parsed.DueDate;
-        todo.RemindAt = parsed.RemindAt;
-        todo.RemindOffsetDays = parsed.RemindOffsetDays;
 
         return todo;
     }
@@ -521,7 +521,7 @@ public partial class MainViewModel
     // 子を1つチェックするたびに履歴が積み上がると、Ctrl+Z が使いものにならない。
 
     /// <summary>サブタスクの一覧を開閉する</summary>
-    public void ToggleTodoExpanded(TodoItem todo) => todo.IsExpanded = !todo.IsExpanded;
+    public static void ToggleTodoExpanded(TodoItem todo) => todo.IsExpanded = !todo.IsExpanded;
 
     /// <summary>その場の入力欄からサブタスクを1件足す</summary>
     public void AddSubtask(TodoItem parent)
@@ -608,7 +608,7 @@ public partial class MainViewModel
         [.. Todos.Select(t => (Todo: t, Order: t.SortOrder))];
 
     /// <summary>控えておいた並び順との差分を履歴へ積む。変化がなければ何もしない</summary>
-    private void RecordTodoReorder(IReadOnlyList<(TodoItem Todo, int Order)> before)
+    private void RecordTodoReorder(List<(TodoItem Todo, int Order)> before)
     {
         var after = CaptureTodoOrder();
         if (before.Count == after.Count && before.SequenceEqual(after)) return;

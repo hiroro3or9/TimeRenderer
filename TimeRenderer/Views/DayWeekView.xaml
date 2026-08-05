@@ -446,6 +446,7 @@
                                                   ToolTip="{Binding ToolTipText}">
                                                 <Grid.ContextMenu>
                                                     <ContextMenu>
+                                                        <MenuItem Header="使用アプリから埋める…" Click="FillGapFromAppUsageMenuItem_Click"/>
                                                         <MenuItem Header="ToDo から埋める…" Click="FillGapMenuItem_Click"/>
                                                     </ContextMenu>
                                                 </Grid.ContextMenu>

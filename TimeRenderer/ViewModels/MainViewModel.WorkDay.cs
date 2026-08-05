@@ -429,13 +429,19 @@ public partial class MainViewModel
         OnPropertyChanged(nameof(WorkStatusText));
         RebuildWorkDayMarkers();
         RebuildUnrecordedGaps(); // 未記録の帯は勤務時間の内側にしか出ない
+        ApplyAppUsageTrackingState(); // アプリ使用記録の収集は勤務中だけ動かす
+        RebuildTodayWorkload(); // 出退勤で「退勤まであと何時間」が変わる
     }
 
     /// <summary>時計から定期的に呼ぶ：経過時間の表示更新と、日付またぎの自動締め</summary>
     private void UpdateWorkDayTick(DateTime now)
     {
         CloseStaleWorkLog(now);
-        if (IsWorking) OnPropertyChanged(nameof(WorkStatusText));
+        if (IsWorking)
+        {
+            OnPropertyChanged(nameof(WorkStatusText));
+            RebuildTodayWorkload(); // 時間が経つだけで「退勤まで」は減る
+        }
     }
 
     // ===== 表示用マーカー =====
