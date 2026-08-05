@@ -37,6 +37,20 @@ public class DefaultDialogService(Window owner) : IDialogService
         return null;
     }
 
+    public TodoItem? ShowTodoEditDialog(TodoItem? initialTodo = null, IReadOnlyList<CategoryInfo>? categories = null, IReadOnlyList<string>? titleSuggestions = null)
+    {
+        TodoEditDialog dialog = new(initialTodo, categories, titleSuggestions)
+        {
+            Owner = owner
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            return dialog.ResultTodo;
+        }
+        return null;
+    }
+
     public (string Title, TimerOption SelectedOption)? ShowRecordingStartDialog(
         string defaultTitle,
         List<TimerOption> timerOptions,

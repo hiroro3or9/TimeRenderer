@@ -7,6 +7,12 @@ public class AppSettings
     public bool IsMemoPanelVisible { get; set; } = true;
     public bool IsSettingsPanelVisible { get; set; } = false;
     public bool IsMemoEditMode { get; set; } = true;
+    /// <summary>ToDo パネルを開いているか</summary>
+    public bool IsTodoPanelVisible { get; set; } = false;
+    /// <summary>ToDo 一覧に完了済みも表示するか</summary>
+    public bool ShowCompletedTodos { get; set; } = false;
+    /// <summary>ToDo 一覧の並べ替え（0: 期限順, 1: 優先度順, 2: 追加順）</summary>
+    public int TodoSortMode { get; set; } = 0;
     public int ViewMode { get; set; } = 0; // 0: Day, 1: Week
     public int DisplayStartHour { get; set; } = 0;  // 表示開始時刻（0～23）
     public int DisplayEndHour { get; set; } = 24;    // 表示終了時刻（1～24）

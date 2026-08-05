@@ -142,17 +142,24 @@ public partial class MainViewModel
     /// アイテムの所属カテゴリを解決する。
     /// CategoryId（一意ID）を優先し、未設定の旧データは色コードでフォールバックする。
     /// </summary>
-    public CategoryInfo? ResolveCategory(ScheduleItem item)
+    public CategoryInfo? ResolveCategory(ScheduleItem item) =>
+        ResolveCategory(item.CategoryId, item.ColorCode);
+
+    /// <summary>
+    /// カテゴリID・色コードからカテゴリを解決する。
+    /// 予定アイテム以外（ToDo など）からも使えるよう、値だけを受け取る形にしている。
+    /// </summary>
+    public CategoryInfo? ResolveCategory(string? categoryId, string colorCode)
     {
         var (byId, byColor) = GetCategoryLookup();
 
-        if (!string.IsNullOrEmpty(item.CategoryId) &&
-            byId.TryGetValue(item.CategoryId, out var category))
+        if (!string.IsNullOrEmpty(categoryId) &&
+            byId.TryGetValue(categoryId, out var category))
         {
             return category;
         }
 
-        return byColor.TryGetValue(item.ColorCode, out var byColorMatch) ? byColorMatch : null;
+        return byColor.TryGetValue(colorCode, out var byColorMatch) ? byColorMatch : null;
     }
 
     // ===== カテゴリ解決の索引 =====

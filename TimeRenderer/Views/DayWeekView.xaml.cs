@@ -143,6 +143,62 @@ namespace TimeRenderer.Views
             if (command.CanExecute(marker)) command.Execute(marker);
         }
 
+        // ===== ToDo チップ（終日行） =====
+
+        /// <summary>チップのダブルクリックで ToDo の編集ダイアログを開く</summary>
+        private void TodoChip_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ClickCount != 2) return;
+            if (sender is not FrameworkElement element || element.DataContext is not TodoChip chip) return;
+
+            ExecuteTodoCommand(ViewModel.EditTodoCommand, chip.Todo);
+            e.Handled = true;
+        }
+
+        /// <summary>チップから直接完了にする（パネルを開かずに片付けられるようにする）</summary>
+        private void TodoChipCompleteMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (ResolveTodoFromMenu(sender) is { } todo) todo.IsCompleted = true;
+        }
+
+        private void TodoChipRecordMenuItem_Click(object sender, RoutedEventArgs e) =>
+            ExecuteTodoMenuCommand(sender, ViewModel.StartRecordingFromTodoCommand);
+
+        private void TodoChipEditMenuItem_Click(object sender, RoutedEventArgs e) =>
+            ExecuteTodoMenuCommand(sender, ViewModel.EditTodoCommand);
+
+        private void TodoChipDueTomorrowMenuItem_Click(object sender, RoutedEventArgs e) =>
+            ExecuteTodoMenuCommand(sender, ViewModel.SetTodoDueTomorrowCommand);
+
+        private void TodoChipClearDueMenuItem_Click(object sender, RoutedEventArgs e) =>
+            ExecuteTodoMenuCommand(sender, ViewModel.ClearTodoDueCommand);
+
+        private void TodoChipDeleteMenuItem_Click(object sender, RoutedEventArgs e) =>
+            ExecuteTodoMenuCommand(sender, ViewModel.DeleteTodoCommand);
+
+        /// <summary>メニューを開いたチップから対象の ToDo を取り出す</summary>
+        private static TodoItem? ResolveTodoFromMenu(object sender)
+        {
+            if (sender is System.Windows.Controls.MenuItem menuItem &&
+                menuItem.Parent is System.Windows.Controls.ContextMenu contextMenu &&
+                contextMenu.PlacementTarget is FrameworkElement element &&
+                element.DataContext is TodoChip chip)
+            {
+                return chip.Todo;
+            }
+            return null;
+        }
+
+        private static void ExecuteTodoMenuCommand(object sender, System.Windows.Input.ICommand command)
+        {
+            if (ResolveTodoFromMenu(sender) is { } todo) ExecuteTodoCommand(command, todo);
+        }
+
+        private static void ExecuteTodoCommand(System.Windows.Input.ICommand command, TodoItem todo)
+        {
+            if (command.CanExecute(todo)) command.Execute(todo);
+        }
+
         // ===== コンテキストメニュー =====
 
         private void EditMenuItem_Click(object sender, RoutedEventArgs e) =>

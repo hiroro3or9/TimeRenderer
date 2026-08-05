@@ -1,0 +1,268 @@
+﻿<UserControl x:Class="TimeRenderer.Views.TodoPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:helpers="clr-namespace:TimeRenderer.Helpers">
+    <!--
+        ToDo パネル。
+        メモパネルと同じく、IsTodoPanelVisible による幅アニメーションで開閉する。
+        DataContext は MainWindow から継承した MainViewModel。
+    -->
+    <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1,0,0,0"
+            ClipToBounds="True">
+        <Border.Style>
+            <!--
+                既定では閉じているため、幅 0 を基準にして「開く側」をトリガーにする。
+                メモパネルのように幅 340 を基準にすると、起動のたびに一瞬開いてから閉じてしまう。
+            -->
+            <Style TargetType="Border">
+                <Setter Property="Width" Value="0"/>
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding IsTodoPanelVisible}" Value="True">
+                        <DataTrigger.EnterActions>
+                            <BeginStoryboard>
+                                <Storyboard>
+                                    <DoubleAnimation Storyboard.TargetProperty="Width" To="340" Duration="0:0:0.1">
+                                        <DoubleAnimation.EasingFunction>
+                                            <QuadraticEase EasingMode="EaseOut"/>
+                                        </DoubleAnimation.EasingFunction>
+                                    </DoubleAnimation>
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </DataTrigger.EnterActions>
+                        <DataTrigger.ExitActions>
+                            <BeginStoryboard>
+                                <Storyboard>
+                                    <DoubleAnimation Storyboard.TargetProperty="Width" To="0" Duration="0:0:0.1">
+                                        <DoubleAnimation.EasingFunction>
+                                            <QuadraticEase EasingMode="EaseOut"/>
+                                        </DoubleAnimation.EasingFunction>
+                                    </DoubleAnimation>
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </DataTrigger.ExitActions>
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+        </Border.Style>
+
+        <Grid Width="340">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/> <!-- ヘッダー -->
+                <RowDefinition Height="Auto"/> <!-- 即時追加 -->
+                <RowDefinition Height="Auto"/> <!-- 絞り込み・並べ替え -->
+                <RowDefinition Height="*"/>    <!-- 一覧 -->
+                <RowDefinition Height="Auto"/> <!-- フッター -->
+            </Grid.RowDefinitions>
+
+            <!-- ヘッダー -->
+            <Border Grid.Row="0" Background="{DynamicResource BackgroundBrush}" Padding="10"
+                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="ToDo" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock Text="{Binding TodoSummaryText}" FontSize="11" Margin="0,2,0,0"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    </StackPanel>
+
+                    <Button Grid.Column="1" Content="×" Command="{Binding ToggleTodoPanelCommand}"
+                            Style="{StaticResource IconButtonStyle}" VerticalAlignment="Top"
+                            Background="Transparent" BorderThickness="0"
+                            Foreground="{DynamicResource TextSecondaryBrush}" Cursor="Hand" Width="24" Height="24"/>
+                </Grid>
+            </Border>
+
+            <!--
+                即時追加。思いついた瞬間に置けることを優先し、期限やカテゴリは後から付ける。
+                Enter で追加して入力欄が空に戻るので、続けて何件でも打ち込める。
+            -->
+            <Border Grid.Row="1" Padding="10,10,10,6">
+                <Border Height="34" CornerRadius="6"
+                        Background="{DynamicResource BackgroundBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="&#xE710;" FontFamily="Segoe MDL2 Assets" FontSize="12"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="8,0,4,0"/>
+                        <TextBox x:Name="QuickAddTextBox" Grid.Column="1"
+                                 Text="{Binding NewTodoTitle, UpdateSourceTrigger=PropertyChanged}"
+                                 BorderThickness="0" Background="Transparent" FontSize="13"
+                                 VerticalAlignment="Center" VerticalContentAlignment="Center"
+                                 Foreground="{DynamicResource TextPrimaryBrush}"
+                                 KeyDown="QuickAddTextBox_KeyDown"/>
+                        <TextBlock Grid.Column="1" Text="やることを入力して Enter" FontSize="13"
+                                   Foreground="{DynamicResource TextMutedBrush}"
+                                   IsHitTestVisible="False" VerticalAlignment="Center" Margin="2,0,0,0">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding NewTodoTitle}" Value="">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Grid>
+                </Border>
+            </Border>
+
+            <!-- 絞り込み・並べ替え -->
+            <Grid Grid.Row="2" Margin="10,0,10,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <CheckBox Grid.Column="0" Content="完了済みも表示" IsChecked="{Binding ShowCompletedTodos}"
+                          FontSize="12" VerticalAlignment="Center" VerticalContentAlignment="Center"
+                          Foreground="{DynamicResource TextSecondaryBrush}" Cursor="Hand"/>
+
+                <ComboBox Grid.Column="1" Width="110" FontSize="12"
+                          ItemsSource="{Binding TodoSortOptions}" SelectedItem="{Binding SelectedTodoSortOption}"
+                          DisplayMemberPath="Label" ToolTip="並べ替え"/>
+            </Grid>
+
+            <!-- 一覧 -->
+            <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto"
+                          helpers:ScrollViewerHelper.EnableMiddleButtonScroll="True">
+                <ItemsControl ItemsSource="{Binding VisibleTodos}" Margin="6,0,6,6">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border x:Name="RowRoot" CornerRadius="6" Margin="0,1" Padding="0"
+                                    Background="Transparent" Cursor="Hand"
+                                    ToolTip="{Binding ToolTipText}"
+                                    ToolTipService.InitialShowDelay="400"
+                                    MouseLeftButtonDown="TodoRow_MouseLeftButtonDown">
+                                <Border.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="編集" Click="EditTodoMenuItem_Click"/>
+                                        <MenuItem Header="この ToDo で記録開始" Click="StartRecordingMenuItem_Click"/>
+                                        <Separator/>
+                                        <MenuItem Header="期限を今日にする" Click="DueTodayMenuItem_Click"/>
+                                        <MenuItem Header="期限を明日にする" Click="DueTomorrowMenuItem_Click"/>
+                                        <MenuItem Header="期限を外す" Click="ClearDueMenuItem_Click"/>
+                                        <Separator/>
+                                        <MenuItem Header="削除" Click="DeleteTodoMenuItem_Click"/>
+                                    </ContextMenu>
+                                </Border.ContextMenu>
+
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/> <!-- カテゴリ色 -->
+                                        <ColumnDefinition Width="Auto"/> <!-- チェック -->
+                                        <ColumnDefinition Width="*"/>    <!-- 本文 -->
+                                        <ColumnDefinition Width="Auto"/> <!-- 記録開始 -->
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- カテゴリ色の縦帯（予定バーとの対応が一目で分かるように） -->
+                                    <Border Grid.Column="0" Width="3" CornerRadius="2" Margin="2,4"
+                                            Background="{Binding Brush}"/>
+
+                                    <CheckBox Grid.Column="1" IsChecked="{Binding IsCompleted}" Cursor="Hand"
+                                              VerticalAlignment="Center" Margin="8,0,6,0"
+                                              ToolTip="完了にする"/>
+
+                                    <StackPanel Grid.Column="2" Margin="0,6,4,6" VerticalAlignment="Center">
+                                        <TextBlock x:Name="TitleText" Text="{Binding Title}" FontSize="13"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+
+                                        <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                                            <!-- 期限（超過は赤、今日は橙。それ以外は控えめに） -->
+                                            <Border x:Name="DueChip" CornerRadius="3" Padding="5,1" Margin="0,0,6,0"
+                                                    Background="{DynamicResource MutedBackgroundBrush}"
+                                                    Visibility="{Binding HasDueDate, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                <TextBlock x:Name="DueText" Text="{Binding DueDisplay}" FontSize="10"
+                                                           Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                            </Border>
+
+                                            <!-- 優先度（標準のときは何も出さない） -->
+                                            <TextBlock x:Name="PriorityText" Text="優先度 高" FontSize="10" Margin="0,0,6,0"
+                                                       VerticalAlignment="Center"
+                                                       Foreground="{DynamicResource TodoHighPriorityBrush}"
+                                                       Visibility="{Binding IsHighPriority, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
+                                            <!-- この ToDo で記録した累計 -->
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
+                                                        Visibility="{Binding HasRecorded, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                <TextBlock Text="&#xE916;" FontFamily="Segoe MDL2 Assets" FontSize="9"
+                                                           VerticalAlignment="Center" Margin="0,0,3,0"
+                                                           Foreground="{DynamicResource TextMutedBrush}"/>
+                                                <TextBlock Text="{Binding RecordedDisplay}" FontSize="10"
+                                                           Foreground="{DynamicResource TextMutedBrush}"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </StackPanel>
+
+                                    <!-- 記録開始（この ToDo のタイトル・色で記録を始める） -->
+                                    <Button x:Name="RecordButton" Grid.Column="3" Content="&#xE768;"
+                                            FontFamily="Segoe MDL2 Assets" FontSize="10"
+                                            Width="26" Height="26" Margin="0,0,4,0" Padding="0"
+                                            VerticalAlignment="Center" Opacity="0" Cursor="Hand"
+                                            Style="{StaticResource IconButtonStyle}"
+                                            Foreground="{DynamicResource TextSecondaryBrush}"
+                                            ToolTip="この ToDo で記録を開始する"
+                                            Command="{Binding DataContext.StartRecordingFromTodoCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding}"/>
+                                </Grid>
+                            </Border>
+
+                            <DataTemplate.Triggers>
+                                <!-- ホバー：行を持ち上げ、記録開始ボタンを出す -->
+                                <Trigger SourceName="RowRoot" Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="RowRoot" Property="Background" Value="{DynamicResource HoverBackgroundBrush}"/>
+                                    <Setter TargetName="RecordButton" Property="Opacity" Value="1"/>
+                                </Trigger>
+
+                                <!-- 完了：打ち消し線と灰色にして、残っている行と区別する -->
+                                <DataTrigger Binding="{Binding IsCompleted}" Value="True">
+                                    <Setter TargetName="TitleText" Property="TextDecorations" Value="Strikethrough"/>
+                                    <Setter TargetName="TitleText" Property="Foreground" Value="{DynamicResource TextMutedBrush}"/>
+                                    <Setter TargetName="RowRoot" Property="Opacity" Value="0.7"/>
+                                </DataTrigger>
+
+                                <DataTrigger Binding="{Binding IsDueToday}" Value="True">
+                                    <Setter TargetName="DueText" Property="Foreground" Value="{DynamicResource TodoDueTodayBrush}"/>
+                                    <Setter TargetName="DueText" Property="FontWeight" Value="SemiBold"/>
+                                </DataTrigger>
+
+                                <DataTrigger Binding="{Binding IsOverdue}" Value="True">
+                                    <Setter TargetName="DueText" Property="Foreground" Value="{DynamicResource TodoOverdueBrush}"/>
+                                    <Setter TargetName="DueText" Property="FontWeight" Value="SemiBold"/>
+                                </DataTrigger>
+                            </DataTemplate.Triggers>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+
+            <!-- フッター -->
+            <Border Grid.Row="4" Padding="10" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Button Grid.Column="0" Content="＋ 詳細を指定して追加" Command="{Binding AddTodoCommand}"
+                            Style="{StaticResource BaseButtonStyle}" HorizontalAlignment="Left" FontSize="12"
+                            ToolTip="期限・優先度・カテゴリを指定して追加します"/>
+
+                    <Button Grid.Column="1" Content="完了済みを削除" Command="{Binding ClearCompletedTodosCommand}"
+                            Style="{StaticResource GhostButtonStyle}" FontSize="12"
+                            Foreground="{DynamicResource TextSecondaryBrush}"
+                            Visibility="{Binding HasCompletedTodos, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                </Grid>
+            </Border>
+        </Grid>
+    </Border>
+</UserControl>
