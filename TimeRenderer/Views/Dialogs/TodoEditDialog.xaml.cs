@@ -1,4 +1,5 @@
-﻿using System.Windows;
+﻿using System.Collections.ObjectModel;
+using System.Windows;
 using System.Windows.Media;
 using Brush = System.Windows.Media.Brush;
 using Brushes = System.Windows.Media.Brushes;
@@ -60,6 +61,12 @@ namespace TimeRenderer.Views.Dialogs
         private readonly TodoItem? _existingTodo;
         private readonly TodoEstimateStats _estimateStats;
 
+        /// <summary>
+        /// 編集中のサブタスク。元のインスタンスを直接いじると、
+        /// キャンセルしても変更が残ってしまうため複製を編集して OK 時に返す。
+        /// </summary>
+        private readonly ObservableCollection<TodoSubtask> _subtasks = [];
+
         /// <summary>通知時刻の既定（この時刻に思い出したい、が最も多いため）</summary>
         private const int DefaultRemindHour = 9;
 
@@ -119,6 +126,12 @@ namespace TimeRenderer.Views.Dialogs
             EstimateCombo.ItemsSource = BuildEstimateOptions(existingTodo?.EstimatedMinutes);
             RecurrenceCombo.ItemsSource = RecurrenceOptions;
             RecurrenceIntervalCombo.ItemsSource = Enumerable.Range(1, 12).ToList();
+
+            foreach (var subtask in existingTodo?.Subtasks ?? [])
+            {
+                _subtasks.Add(subtask.Clone());
+            }
+            SubtaskList.ItemsSource = _subtasks;
 
             if (existingTodo != null)
             {
@@ -250,6 +263,35 @@ namespace TimeRenderer.Views.Dialogs
 
         private void RecurrenceDay_Changed(object sender, RoutedEventArgs e) => UpdateRecurrenceState();
 
+        // ===== サブタスク =====
+
+        private void SubtaskAddBox_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (e.Key != System.Windows.Input.Key.Enter) return;
+
+            AddSubtaskFromBox();
+            e.Handled = true;
+        }
+
+        private void SubtaskAddButton_Click(object sender, RoutedEventArgs e) => AddSubtaskFromBox();
+
+        private void AddSubtaskFromBox()
+        {
+            var title = SubtaskAddBox.Text.Trim();
+            if (title.Length == 0) return;
+
+            _subtasks.Add(new TodoSubtask { Title = title });
+
+            // 続けて何件でも打ち込めるように空へ戻す
+            SubtaskAddBox.Clear();
+            SubtaskAddBox.Focus();
+        }
+
+        private void SubtaskDelete_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is FrameworkElement { DataContext: TodoSubtask subtask }) _subtasks.Remove(subtask);
+        }
+
         /// <summary>繰り返さない場合は間隔などの入力を無効にし、説明文も切り替える</summary>
         private void UpdateRecurrenceState()
         {
@@ -376,6 +418,8 @@ namespace TimeRenderer.Views.Dialogs
                 RecurrenceDaysOfWeek = ReadRecurrenceDays(),
                 RecurrenceFromCompletion = RecurrenceFromCompletionCheckBox.IsChecked ?? false,
                 PlannedOn = _existingTodo?.PlannedOn,
+                // 空のまま追加された行は捨てる（入力途中で OK を押した場合）
+                Subtasks = [.. _subtasks.Where(s => !string.IsNullOrWhiteSpace(s.Title))],
             };
 
             DialogResult = true;

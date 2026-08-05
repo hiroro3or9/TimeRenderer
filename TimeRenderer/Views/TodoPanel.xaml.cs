@@ -108,6 +108,10 @@ namespace TimeRenderer.Views
         /// </summary>
         private void TodoList_PreviewKeyDown(object sender, KeyEventArgs e)
         {
+            // 入力欄（サブタスクの追加）で打っている最中は、一覧の操作として横取りしない。
+            // Space が完了の切り替えになると、サブタスク名に空白が打てなくなる
+            if (e.OriginalSource is System.Windows.Controls.TextBox) return;
+
             if (ViewModel.SelectedTodo is not { } todo) return;
 
             var ctrl = Keyboard.Modifiers.HasFlag(ModifierKeys.Control);
@@ -144,6 +148,87 @@ namespace TimeRenderer.Views
             }
 
             e.Handled = true;
+        }
+
+        // ===== サブタスク =====
+
+        /// <summary>三角を押してサブタスクの一覧を開閉する</summary>
+        private void ExpandButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is FrameworkElement { DataContext: TodoItem todo }) ViewModel.ToggleTodoExpanded(todo);
+        }
+
+        /// <summary>メニューからの追加：一覧を開いて入力欄へフォーカスを移す</summary>
+        private void AddSubtaskMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (ResolveMenuTodo(sender) is not { } todo) return;
+
+            todo.IsExpanded = true;
+            ViewModel.SelectedTodo = todo;
+
+            // 入力欄は展開して初めて作られるため、レイアウトの確定を待つ
+            Dispatcher.BeginInvoke(
+                new Action(() => FindSubtaskAddBox(todo)?.Focus()),
+                System.Windows.Threading.DispatcherPriority.Loaded);
+        }
+
+        private void SubtaskCheck_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not FrameworkElement { DataContext: TodoSubtask subtask } element) return;
+            if (FindParentTodo(element) is not { } parent) return;
+
+            ViewModel.ToggleSubtask(parent, subtask);
+        }
+
+        private void SubtaskDelete_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not FrameworkElement { DataContext: TodoSubtask subtask } element) return;
+            if (FindParentTodo(element) is not { } parent) return;
+
+            ViewModel.RemoveSubtask(parent, subtask);
+        }
+
+        /// <summary>サブタスクの追加欄：Enter で1件足して、続けて打てるように空に戻す</summary>
+        private void SubtaskAddBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key != Key.Enter) return;
+            if (sender is not FrameworkElement { DataContext: TodoItem todo }) return;
+
+            ViewModel.AddSubtask(todo);
+            e.Handled = true;
+        }
+
+        /// <summary>
+        /// サブタスクの行から、それが属する ToDo を探す。
+        /// 行自身の DataContext は TodoSubtask なので、TodoItem を持つ親まで遡る。
+        /// </summary>
+        private static TodoItem? FindParentTodo(DependencyObject node)
+        {
+            for (var n = node; n is Visual; n = VisualTreeHelper.GetParent(n))
+            {
+                if (n is FrameworkElement { DataContext: TodoItem todo }) return todo;
+            }
+            return null;
+        }
+
+        /// <summary>展開中の行から、その ToDo のサブタスク追加欄を探す</summary>
+        private System.Windows.Controls.TextBox? FindSubtaskAddBox(TodoItem todo)
+        {
+            if (TodoList.ItemContainerGenerator.ContainerFromItem(todo) is not DependencyObject container) return null;
+
+            return FindDescendant<System.Windows.Controls.TextBox>(container, "SubtaskAddBox");
+        }
+
+        private static T? FindDescendant<T>(DependencyObject root, string name) where T : FrameworkElement
+        {
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+            {
+                var child = VisualTreeHelper.GetChild(root, i);
+                if (child is T { } typed && typed.Name == name) return typed;
+
+                if (FindDescendant<T>(child, name) is { } found) return found;
+            }
+            return null;
         }
 
         // ===== ドラッグ並べ替え =====
@@ -241,16 +326,22 @@ namespace TimeRenderer.Views
         private void DeleteTodoMenuItem_Click(object sender, RoutedEventArgs e) =>
             ExecuteOnMenuTarget(sender, ViewModel.DeleteTodoCommand);
 
-        /// <summary>メニューを開いた要素から対象の ToDo を解決してコマンドを実行する</summary>
-        private static void ExecuteOnMenuTarget(object sender, ICommand command)
+        /// <summary>メニューを開いた要素から対象の ToDo を取り出す</summary>
+        private static TodoItem? ResolveMenuTodo(object sender)
         {
             if (sender is MenuItem menuItem &&
                 menuItem.Parent is ContextMenu contextMenu &&
-                contextMenu.PlacementTarget is FrameworkElement element &&
-                element.DataContext is TodoItem todo)
+                contextMenu.PlacementTarget is FrameworkElement { DataContext: TodoItem todo })
             {
-                Execute(command, todo);
+                return todo;
             }
+            return null;
+        }
+
+        /// <summary>メニューを開いた要素から対象の ToDo を解決してコマンドを実行する</summary>
+        private static void ExecuteOnMenuTarget(object sender, ICommand command)
+        {
+            if (ResolveMenuTodo(sender) is { } todo) Execute(command, todo);
         }
 
         private static void Execute(ICommand command, TodoItem todo)
