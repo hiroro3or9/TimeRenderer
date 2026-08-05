@@ -1,7 +1,7 @@
 ﻿<Window x:Class="TimeRenderer.Views.Dialogs.AppUsageDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="使用アプリ" Height="480" Width="480"
+        Title="使用アプリ" Height="600" Width="620"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         Background="{DynamicResource BackgroundBrush}">
@@ -50,11 +50,47 @@
                                                  Margin="0,5,0,4" BorderThickness="0"
                                                  Background="{DynamicResource BorderBrush}"
                                                  Foreground="{DynamicResource PrimaryBrush}"/>
-                                    <!-- タイトルは記録中のぶんしか残らないので、あるときだけ出す -->
-                                    <TextBlock Text="{Binding SampleTitle}" FontSize="11"
+                                    <!-- タイトル別時間は、タイトル変更で区間を分けた新形式だけを出す -->
+                                    <StackPanel Margin="0,5,0,0"
+                                                Visibility="{Binding HasTitleStats, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                        <Grid Margin="0,0,0,3">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="記録中のウィンドウタイトル" FontSize="11"
+                                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding TitleTrackedDurationText}" FontSize="11"
+                                                       Foreground="{DynamicResource TextSecondaryBrush}" Margin="8,0,0,0"/>
+                                        </Grid>
+                                        <ItemsControl ItemsSource="{Binding TitleStats}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Grid Margin="8,2,0,0">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Grid.Column="0" Text="{Binding Title}" FontSize="11"
+                                                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   ToolTip="{Binding Title}"/>
+                                                        <TextBlock Grid.Column="1" Text="{Binding DurationText}" FontSize="11"
+                                                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                                                   Margin="12,0,0,0"/>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+
+                                    <!-- 旧形式は時間をタイトルへ帰属できないため、参考値としてだけ残す -->
+                                    <TextBlock FontSize="11" Margin="0,4,0,0"
                                                Foreground="{DynamicResource TextSecondaryBrush}"
                                                TextTrimming="CharacterEllipsis"
-                                               Visibility="{Binding HasSampleTitle, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                               Visibility="{Binding HasLegacySampleTitle, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                        <Run Text="参考タイトル（旧形式）: "/><Run Text="{Binding SampleTitle}"/>
+                                    </TextBlock>
                                 </StackPanel>
                             </Border>
                         </DataTemplate>
@@ -65,7 +101,7 @@
 
         <TextBlock Grid.Row="3" FontSize="11" TextWrapping="Wrap" Margin="0,12,0,0"
                    Foreground="{DynamicResource TextSecondaryBrush}"
-                   Text="使用アプリは出勤から退勤までの間だけ収集されます。ウィンドウタイトルが残るのは記録中のぶんだけです。データはこの PC の中にのみ保存されます。"/>
+                   Text="使用アプリは出勤から退勤まで収集されます。タイトル別時間が残るのは記録中だけです。データはこの PC の中にのみ保存されます。"/>
 
         <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
             <Button Content="閉じる" Click="CloseButton_Click" Padding="14,6" IsDefault="True" IsCancel="True"

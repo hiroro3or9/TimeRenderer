@@ -19,13 +19,12 @@ namespace TimeRenderer.Services;
 ///   ポーリングだけだと間隔より短い使用（数秒だけ触ったアプリ）が丸ごと消えるため。
 ///   5秒のポーリングは、フックが届かない場合の保険と、使用中の期間の
 ///   終端を伸ばす（＝滞在時間を更新する）ために併用する
-/// - 集めるのは <see cref="Start"/>〜<see cref="Stop"/> の間（＝記録中）だけ。
-///   記録していない時間に何を使っていたかは関心の対象外で、収集もしない
+/// - アプリ名と使用時間は <see cref="Start"/>〜<see cref="Stop"/> の間（＝勤務中）に集める
+/// - ウィンドウタイトルは記録中だけ集め、タイトルが変わったら期間を分ける
 /// - データはこの PC のローカルにしか置かない
 ///
-/// 期間の区切りはプロセス単位。ウィンドウタイトルの変化（ブラウザのタブ切替など）では
-/// 区切らず、最後に見えていたタイトルだけを持つ。タイトル単位で区切ると
-/// データ量が膨らみ、保存ファイルが肥大化するため。
+/// 記録中はプロセスまたはウィンドウタイトルが変わったところで期間を区切る。
+/// 記録していない間はプロセス単位のままにし、タイトルを保存しない。
 ///
 /// スレッド: フックのコールバックも DispatcherTimer も UI スレッドに届くため、
 /// このクラスは UI スレッド専用として扱う（ロックは持たない）。
@@ -36,6 +35,9 @@ public sealed partial class ActiveWindowTracker : IDisposable
 
     [LibraryImport("user32.dll")]
     private static partial IntPtr GetForegroundWindow();
+
+    [LibraryImport("user32.dll")]
+    private static partial IntPtr GetAncestor(IntPtr hWnd, uint gaFlags);
 
     [LibraryImport("user32.dll", EntryPoint = "GetWindowTextW", StringMarshalling = StringMarshalling.Utf16)]
     private static partial int GetWindowText(IntPtr hWnd, Span<char> lpString, int nMaxCount);
@@ -85,8 +87,12 @@ public sealed partial class ActiveWindowTracker : IDisposable
         IntPtr lParam);
 
     private const uint EVENT_SYSTEM_FOREGROUND = 0x0003;
+    private const uint EVENT_OBJECT_NAMECHANGE = 0x800C;
     private const uint WINEVENT_OUTOFCONTEXT = 0x0000;
     private const uint PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
+    private const uint GA_ROOT = 2;
+    private const int OBJID_WINDOW = 0;
+    private const int CHILDID_SELF = 0;
 
     // ===== 定数 =====
 
@@ -147,8 +153,11 @@ public sealed partial class ActiveWindowTracker : IDisposable
     /// <summary>進行中の使用期間（前面アプリが変わったら確定して入れ替える）</summary>
     private AppUsageInterval? _current;
 
-    /// <summary>フックのハンドル。未設定なら <see cref="IntPtr.Zero"/></summary>
-    private IntPtr _winEventHook = IntPtr.Zero;
+    /// <summary>前面ウィンドウ変更フックのハンドル。未設定なら <see cref="IntPtr.Zero"/></summary>
+    private IntPtr _foregroundHook = IntPtr.Zero;
+
+    /// <summary>ウィンドウタイトル変更フックのハンドル。未設定なら <see cref="IntPtr.Zero"/></summary>
+    private IntPtr _titleChangeHook = IntPtr.Zero;
 
     /// <summary>
     /// フックのコールバックは static でなければならない（関数ポインタのため）。
@@ -200,7 +209,7 @@ public sealed partial class ActiveWindowTracker : IDisposable
         _current = null;
         _isCollecting = true;
 
-        HookForegroundChanges();
+        HookWindowEvents();
         _timer.Start();
 
         // 開始直後の1回をすぐ取る（最初のポーリングまでを取りこぼさないため）
@@ -215,7 +224,7 @@ public sealed partial class ActiveWindowTracker : IDisposable
     {
         _isCollecting = false;
         _timer.Stop();
-        UnhookForegroundChanges();
+        UnhookWindowEvents();
 
         CloseCurrent(DateTime.Now);
 
@@ -245,51 +254,99 @@ public sealed partial class ActiveWindowTracker : IDisposable
 
     // ===== フック =====
 
-    private unsafe void HookForegroundChanges()
+    private unsafe void HookWindowEvents()
     {
-        if (_winEventHook != IntPtr.Zero) return;
+        if (_foregroundHook != IntPtr.Zero || _titleChangeHook != IntPtr.Zero) return;
 
         _hookOwner = this;
 
         // OUTOFCONTEXT: 自プロセスにフック DLL を注入せず、メッセージとして受け取る。
         // コールバックはこのメソッドを呼んだスレッド（＝UI スレッド）に届く。
         // SKIPOWNTHREAD は付けない。付けると自分自身（このアプリ）へ切り替えた瞬間を拾えなくなる
-        _winEventHook = SetWinEventHook(
+        _foregroundHook = SetWinEventHook(
             EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND,
-            IntPtr.Zero, &OnForegroundChangedNative, 0, 0,
+            IntPtr.Zero, &OnWindowEventNative, 0, 0,
             WINEVENT_OUTOFCONTEXT);
 
-        if (_winEventHook == IntPtr.Zero)
+        // ブラウザのタブ切り替えなど、前面 HWND が同じままタイトルだけ変わる場合を拾う。
+        // 取れない環境でも5秒ポーリングが保険として残る。
+        _titleChangeHook = SetWinEventHook(
+            EVENT_OBJECT_NAMECHANGE, EVENT_OBJECT_NAMECHANGE,
+            IntPtr.Zero, &OnWindowEventNative, 0, 0,
+            WINEVENT_OUTOFCONTEXT);
+
+        if (_foregroundHook == IntPtr.Zero && _titleChangeHook == IntPtr.Zero)
         {
             // フックを張れなくてもポーリングだけで動作は続く（精度は落ちる）
             _hookOwner = null;
-            Debug.WriteLine("ActiveWindowTracker: SetWinEventHook failed. Falling back to polling only.");
+            Debug.WriteLine("ActiveWindowTracker: window event hooks failed. Falling back to polling only.");
+        }
+        else
+        {
+            if (_foregroundHook == IntPtr.Zero)
+            {
+                Debug.WriteLine("ActiveWindowTracker: foreground hook failed. Polling remains enabled.");
+            }
+            if (_titleChangeHook == IntPtr.Zero)
+            {
+                Debug.WriteLine("ActiveWindowTracker: title-change hook failed. Polling remains enabled.");
+            }
         }
     }
 
-    private void UnhookForegroundChanges()
+    private void UnhookWindowEvents()
     {
         if (_hookOwner == this) _hookOwner = null;
 
-        if (_winEventHook == IntPtr.Zero) return;
+        if (_foregroundHook != IntPtr.Zero)
+        {
+            UnhookWinEvent(_foregroundHook);
+            _foregroundHook = IntPtr.Zero;
+        }
 
-        UnhookWinEvent(_winEventHook);
-        _winEventHook = IntPtr.Zero;
+        if (_titleChangeHook != IntPtr.Zero)
+        {
+            UnhookWinEvent(_titleChangeHook);
+            _titleChangeHook = IntPtr.Zero;
+        }
     }
 
     /// <summary>
-    /// 前面ウィンドウが変わったときに Windows から直接呼ばれる。
+    /// 前面ウィンドウまたはそのタイトルが変わったときに Windows から直接呼ばれる。
     /// ネイティブへ例外を投げ返すとプロセスごと落ちるため、ここで必ず食い止める。
     /// </summary>
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvStdcall) })]
-    private static void OnForegroundChangedNative(
+    private static void OnWindowEventNative(
         IntPtr hWinEventHook, uint eventType, IntPtr hwnd,
         int idObject, int idChild, uint dwEventThread, uint dwmsEventTime)
     {
         try
         {
-            // 切り替わった瞬間に取る。ポーリング間隔より短い使用もこれで残る
-            _hookOwner?.Sample();
+            var owner = _hookOwner;
+            if (owner == null) return;
+
+            if (eventType == EVENT_SYSTEM_FOREGROUND)
+            {
+                // 切り替わった瞬間に取る。ポーリング間隔より短い使用もこれで残る
+                owner.Sample();
+                return;
+            }
+
+            if (eventType != EVENT_OBJECT_NAMECHANGE || !owner._captureWindowTitles ||
+                hwnd == IntPtr.Zero ||
+                idObject != OBJID_WINDOW || idChild != CHILDID_SELF)
+            {
+                return;
+            }
+
+            // システム全体から名前変更通知が届くため、前面ウィンドウ自身かその子だけに絞る。
+            var foreground = GetForegroundWindow();
+            if (foreground == IntPtr.Zero) return;
+
+            if (hwnd == foreground || GetAncestor(hwnd, GA_ROOT) == foreground)
+            {
+                owner.Sample();
+            }
         }
         catch (Exception ex)
         {
@@ -347,17 +404,17 @@ public sealed partial class ActiveWindowTracker : IDisposable
             }
 
             // 記録していない時間はアプリ名と滞在時間だけを残す
-            var title = _captureWindowTitles ? GetWindowTitle(hwnd) : string.Empty;
+            var title = _captureWindowTitles ? GetWindowTitle(hwnd).Trim() : string.Empty;
 
             if (_current != null && _current.ProcessName == processName)
             {
-                // 同じアプリを使い続けている → 期間を伸ばす
-                if (now > _current.End) _current.End = now;
-                if (!string.IsNullOrEmpty(title))
+                // 記録中は同じアプリでもタイトルが変わったところで区切る。
+                // 記録していない時間は title が空なので、従来どおりプロセス単位で伸ばす。
+                if (!_captureWindowTitles || string.Equals(_current.WindowTitle, title, StringComparison.Ordinal))
                 {
-                    _current.WindowTitle = title;
+                    if (now > _current.End) _current.End = now;
+                    return;
                 }
-                return;
             }
 
             // アプリが切り替わった → 進行中を確定して新しい期間を始める
@@ -372,7 +429,8 @@ public sealed partial class ActiveWindowTracker : IDisposable
                 End = now,
                 ProcessName = processName,
                 AppName = appName,
-                WindowTitle = title
+                WindowTitle = title,
+                IsWindowTitleSpecific = _captureWindowTitles
             };
         }
         catch (Exception ex)
@@ -392,6 +450,13 @@ public sealed partial class ActiveWindowTracker : IDisposable
 
         var last = _completed[^1];
         if (last.ProcessName != processName || now - last.End > MergeGap) return false;
+
+        // 記録中はタイトルの異なる区間を繋げない。
+        if (_captureWindowTitles &&
+            !string.Equals(last.WindowTitle, title, StringComparison.Ordinal))
+        {
+            return false;
+        }
 
         // タイトルを控えるかどうかが切り替わった直後は繋がない。
         // 繋ぐと、記録中に付いたタイトルが記録していない時間まで伸びてしまう
@@ -573,7 +638,7 @@ public sealed partial class ActiveWindowTracker : IDisposable
         _disposed = true;
 
         _timer.Stop();
-        UnhookForegroundChanges();
+        UnhookWindowEvents();
         _isCollecting = false;
     }
 }

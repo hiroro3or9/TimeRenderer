@@ -4,7 +4,8 @@ namespace TimeRenderer.Models;
 
 /// <summary>
 /// 前面（フォアグラウンド）にあったアプリの使用期間。
-/// 記録中に収集し、「この時間、実際に何を使っていたか」の裏付けに使う。
+/// 勤務中に収集し、「この時間、実際に何を使っていたか」の裏付けに使う。
+/// ウィンドウタイトルは記録中の期間だけ保存する。
 /// JSON で保存するため、プロパティは get/set のプレーンなクラスにしている。
 /// </summary>
 public class AppUsageInterval
@@ -18,8 +19,15 @@ public class AppUsageInterval
     /// <summary>表示用のアプリ名（FileDescription。取れない場合はプロセス名）</summary>
     public string AppName { get; set; } = string.Empty;
 
-    /// <summary>期間中に最後に見えていたウィンドウタイトル</summary>
+    /// <summary>この期間に見えていたウィンドウタイトル</summary>
     public string WindowTitle { get; set; } = string.Empty;
+
+    /// <summary>
+    /// タイトル変更時に区間を分けて記録したデータなら true。
+    /// 旧形式のデータは最後に見えたタイトルしか持たないため、
+    /// タイトル別の正確な使用時間には含めない。
+    /// </summary>
+    public bool IsWindowTitleSpecific { get; set; }
 
     public TimeSpan Duration => End > Start ? End - Start : TimeSpan.Zero;
 
@@ -36,7 +44,8 @@ public class AppUsageInterval
             End = end,
             ProcessName = ProcessName,
             AppName = AppName,
-            WindowTitle = WindowTitle
+            WindowTitle = WindowTitle,
+            IsWindowTitleSpecific = IsWindowTitleSpecific
         };
     }
 }

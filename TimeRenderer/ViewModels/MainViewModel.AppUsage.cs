@@ -10,6 +10,21 @@ using TimeRenderer.Services;
 namespace TimeRenderer.ViewModels;
 
 /// <summary>
+/// 1つのアプリ内で、同じウィンドウタイトルが前面にあった時間の合計。
+/// タイトルを保存する記録中の区間だけを集計する。
+/// </summary>
+/// <param name="Title">ウィンドウタイトル</param>
+/// <param name="Duration">合計使用時間</param>
+public sealed record AppUsageTitleStat(string Title, TimeSpan Duration)
+{
+    public string DurationText => Duration.TotalHours >= 1
+        ? $"{(int)Duration.TotalHours}時間{Duration.Minutes}分"
+        : Duration.TotalMinutes >= 1
+            ? $"{(int)Duration.TotalMinutes}分"
+            : $"{Math.Max(1, (int)Duration.TotalSeconds)}秒";
+}
+
+/// <summary>
 /// アプリ使用状況の統計1行分（プロセス単位に集計したもの）
 /// </summary>
 /// <param name="ProcessName">プロセス名。過去の記録との突き合わせに使う（表示はしない）</param>
@@ -24,8 +39,30 @@ public sealed record AppUsageStat(
     double Percent,
     string SampleTitle)
 {
+    /// <summary>記録中の区間をタイトル別に集計した内訳</summary>
+    public IReadOnlyList<AppUsageTitleStat> TitleStats { get; init; } = [];
+
     /// <summary>タイトルを残していない時間帯もあるため、表示の出し分けに使う</summary>
     public bool HasSampleTitle => !string.IsNullOrWhiteSpace(SampleTitle);
+
+    /// <summary>正確なタイトル別時間を表示できるか</summary>
+    public bool HasTitleStats => TitleStats.Count > 0;
+
+    /// <summary>旧形式の代表タイトルだけがあり、正確なタイトル別時間が無いか</summary>
+    public bool HasLegacySampleTitle => HasSampleTitle && !HasTitleStats;
+
+    public string TitleTrackedDurationText
+    {
+        get
+        {
+            var duration = TimeSpan.FromTicks(TitleStats.Sum(s => s.Duration.Ticks));
+            return duration.TotalHours >= 1
+                ? $"{(int)duration.TotalHours}時間{duration.Minutes}分"
+                : duration.TotalMinutes >= 1
+                    ? $"{(int)duration.TotalMinutes}分"
+                    : $"{(int)duration.TotalSeconds}秒";
+        }
+    }
 
     public string DurationText => Duration.TotalHours >= 1
         ? $"{(int)Duration.TotalHours}時間{Duration.Minutes}分"
@@ -140,6 +177,10 @@ public partial class MainViewModel
     {
         _ = isRecording; // 判定は ApplyAppUsageTrackingState 側で IsRecording を見る
         ApplyAppUsageTrackingState();
+
+        // モード切替で確定した区間をすぐ保存する。
+        // 記録停止直後に使用アプリを開いても、直前のタイトル内訳を見られるようにする。
+        DrainAndSaveAppUsage();
     }
 
     /// <summary>
@@ -152,6 +193,14 @@ public partial class MainViewModel
         if (now - _lastAppUsageFlush < AppUsageFlushInterval) return;
 
         _lastAppUsageFlush = now;
+
+        DrainAndSaveAppUsage();
+    }
+
+    /// <summary>収集を続けたまま、確定済みの使用期間を履歴へ足して保存する</summary>
+    private void DrainAndSaveAppUsage()
+    {
+        if (_appUsageTracker == null || !_appUsageTracker.IsCollecting) return;
 
         var intervals = _appUsageTracker.Drain();
         if (intervals.Count == 0) return;
@@ -229,12 +278,26 @@ public partial class MainViewModel
                     .OrderByDescending(i => i.Duration)
                     .FirstOrDefault()?.WindowTitle ?? string.Empty;
 
+                // 旧データは「期間中の最後のタイトル」しか持たず、期間全体をそのタイトルへ
+                // 計上すると誤った内訳になる。タイトル変更で区切った新形式だけを集計する。
+                var titleStats = g
+                    .Where(i => i.IsWindowTitleSpecific && !string.IsNullOrWhiteSpace(i.WindowTitle))
+                    .GroupBy(i => i.WindowTitle.Trim(), StringComparer.Ordinal)
+                    .Select(titleGroup => new AppUsageTitleStat(
+                        titleGroup.Key,
+                        TimeSpan.FromTicks(titleGroup.Sum(i => i.Duration.Ticks))))
+                    .OrderByDescending(s => s.Duration)
+                    .ToList();
+
                 return new AppUsageStat(
                     g.Key,
                     appName,
                     duration,
                     duration.Ticks * 100.0 / totalTicks,
-                    sampleTitle);
+                    sampleTitle)
+                {
+                    TitleStats = titleStats
+                };
             })
             .OrderByDescending(s => s.Duration)];
     }
