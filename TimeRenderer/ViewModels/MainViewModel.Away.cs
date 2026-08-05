@@ -362,6 +362,7 @@ public partial class MainViewModel
                 EndTime = end,
                 ColorCode = _recordingColorCode ?? RecordingCategory?.ColorCode ?? Models.CategoryInfo.CreateBrush("DarkOrange").ToString(),
                 CategoryId = _recordingCategoryId ?? RecordingCategory?.Id,
+                ProjectCodeId = _recordingProjectCodeId ?? source?.ProjectCodeId ?? DefaultProjectCode?.Id,
                 TodoId = todo?.Id ?? source?.TodoId,
                 RoutineId = source?.RoutineId,
                 SourcePlanId = source?.Id,

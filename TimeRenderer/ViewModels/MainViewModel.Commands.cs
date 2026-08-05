@@ -78,7 +78,8 @@ public partial class MainViewModel
                     EndTime = date.Date.AddHours(10),
                     Title = "新しい予定",
                     ColorCode = Categories.FirstOrDefault()?.ColorCode ?? Brushes.LightBlue.ToString(),
-                    CategoryId = Categories.FirstOrDefault()?.Id
+                    CategoryId = Categories.FirstOrDefault()?.Id,
+                    ProjectCodeId = DefaultProjectCode?.Id
                 });
             }
         });
@@ -95,7 +96,8 @@ public partial class MainViewModel
                     EndTime = start.AddHours(1),
                     Title = "新しい予定",
                     ColorCode = Categories.FirstOrDefault()?.ColorCode ?? Brushes.LightBlue.ToString(),
-                    CategoryId = Categories.FirstOrDefault()?.Id
+                    CategoryId = Categories.FirstOrDefault()?.Id,
+                    ProjectCodeId = DefaultProjectCode?.Id
                 });
             }
         });
@@ -115,7 +117,8 @@ public partial class MainViewModel
                 EndTime = end,
                 Title = "新しい予定",
                 ColorCode = Categories.FirstOrDefault()?.ColorCode ?? Brushes.LightBlue.ToString(),
-                CategoryId = Categories.FirstOrDefault()?.Id
+                CategoryId = Categories.FirstOrDefault()?.Id,
+                ProjectCodeId = DefaultProjectCode?.Id
             });
         });
 
@@ -131,7 +134,8 @@ public partial class MainViewModel
                         return;
                     }
 
-                    var editedItem = _dialogService.ShowScheduleEditDialog(item, [.. Categories], GetTitleSuggestions());
+                    var editedItem = _dialogService.ShowScheduleEditDialog(
+                        item, [.. Categories], GetTitleSuggestions(), [.. ProjectCodes], DefaultProjectCode);
                     if (editedItem != null)
                     {
                         // 取り消し用に、変更前の状態を控えておく
@@ -149,6 +153,7 @@ public partial class MainViewModel
                             item.IsAllDay = editedItem.IsAllDay;
                             item.BackgroundColor = editedItem.BackgroundColor;
                             item.CategoryId = editedItem.CategoryId;
+                            item.ProjectCodeId = editedItem.ProjectCodeId;
                             item.RemindAtStart = editedItem.RemindAtStart;
                             item.AutoStartRecording = editedItem.AutoStartRecording;
                             item.ForceStartRecording = editedItem.ForceStartRecording;
@@ -408,6 +413,9 @@ public partial class MainViewModel
     /// <summary>「この内容で記録開始」用：記録アイテムに引き継ぐカテゴリID</summary>
     private string? _recordingCategoryId;
 
+    /// <summary>現在の記録を停止したときに実績へ付けるプロジェクトコードID</summary>
+    private string? _recordingProjectCodeId;
+
     /// <summary>
     /// 予定から記録を開始した場合の元予定。
     /// 停止時に予定は残し、別に作る実績の SourcePlanId へこのIDを入れる。
@@ -431,6 +439,7 @@ public partial class MainViewModel
         RecordingTitle = item.Title;
         _recordingColorCode = item.ColorCode;
         _recordingCategoryId = item.CategoryId ?? ResolveCategory(item)?.Id;
+        _recordingProjectCodeId = item.ProjectCodeId ?? DefaultProjectCode?.Id;
         _recordingSourceItem = item.IsPlanned ? item : null;
         // ToDo から作られた予定なら、この記録の実績を ToDo へも積む
         _recordingTodo = FindTodoById(item.TodoId);
@@ -456,6 +465,7 @@ public partial class MainViewModel
 
         _recordingColorCode = null;
         _recordingCategoryId = null;
+        _recordingProjectCodeId = DefaultProjectCode?.Id;
         _recordingSourceItem = null;
         _recordingTodo = null;
         RecordingTitle = $"作業ログ {DateTime.Now:HH:mm}";
@@ -508,6 +518,7 @@ public partial class MainViewModel
             RecordingTitle = "";
             _recordingColorCode = null;
             _recordingCategoryId = null;
+            _recordingProjectCodeId = null;
             _recordingSourceItem = null;
             _recordingTodo = null;
             IsCountdownMode = false;
@@ -517,14 +528,22 @@ public partial class MainViewModel
         {
             _recordingColorCode = null;
             _recordingCategoryId = null;
+            _recordingProjectCodeId = null;
             _recordingSourceItem = null;
             _recordingTodo = null;
             string defaultTitle = $"作業ログ {DateTime.Now:HH:mm}";
-            var result = _dialogService.ShowRecordingStartDialog(defaultTitle, TimerOptions, SelectedTimerOption, GetTitleSuggestions());
+            var result = _dialogService.ShowRecordingStartDialog(
+                defaultTitle,
+                TimerOptions,
+                SelectedTimerOption,
+                GetTitleSuggestions(),
+                [.. ProjectCodes],
+                DefaultProjectCode);
             if (result != null) // Cancel以外（OK押下時）は開始
             {
                 RecordingTitle = string.IsNullOrWhiteSpace(result.Value.Title) ? defaultTitle : result.Value.Title;
                 SelectedTimerOption = result.Value.SelectedOption;
+                _recordingProjectCodeId = result.Value.ProjectCodeId ?? DefaultProjectCode?.Id;
                 IsRecording = true;
                 RecordingStartTime = DateTime.Now;
                 RecordingDuration = TimeSpan.Zero;
@@ -546,7 +565,8 @@ public partial class MainViewModel
     /// <summary>編集ダイアログを表示し、確定されたアイテムを追加する</summary>
     private void AddViaDialog(ScheduleItem? template)
     {
-        var result = _dialogService.ShowScheduleEditDialog(template, [.. Categories], GetTitleSuggestions());
+        var result = _dialogService.ShowScheduleEditDialog(
+            template, [.. Categories], GetTitleSuggestions(), [.. ProjectCodes], DefaultProjectCode);
         if (result != null)
         {
             ScheduleItems.Add(result);

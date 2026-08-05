@@ -130,6 +130,17 @@ public class ScheduleItem : INotifyPropertyChanged
         set => SetProperty(ref _categoryId, value);
     }
 
+    private string? _projectCodeId;
+    /// <summary>
+    /// この予定・実績に紐づくプロジェクトコードのID（ProjectCodeInfo.Id）。
+    /// null はプロジェクト未設定の旧データまたは明示的な未設定を表す。
+    /// </summary>
+    public string? ProjectCodeId
+    {
+        get => _projectCodeId;
+        set => SetProperty(ref _projectCodeId, value);
+    }
+
     private string? _routineId;
     /// <summary>
     /// このアイテムの生成元となった定期予定（RoutineScheduleItem.Id）。

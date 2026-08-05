@@ -69,6 +69,36 @@
 
                     <!-- カテゴリ別作業時間 -->
                     <StackPanel Visibility="{Binding HasStatsData, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <TextBlock Text="プロジェクトコード別作業時間" FontWeight="SemiBold" FontSize="14"
+                                   Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,12"/>
+                        <ItemsControl ItemsSource="{Binding StatsProjectCodeItems}" Margin="0,0,0,28">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="220"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="64"/>
+                                            <ColumnDefinition Width="56"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{Binding DisplayName}" FontSize="13"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                        <ProgressBar Grid.Column="1" Value="{Binding Hours, Mode=OneWay}"
+                                                     Maximum="{Binding MaxHours, Mode=OneWay}"
+                                                     Height="18" Foreground="{DynamicResource PrimaryBrush}"
+                                                     Style="{StaticResource StatsBarStyle}"/>
+                                        <TextBlock Grid.Column="2" Text="{Binding HoursText}" FontSize="13" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                                   HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="3" Text="{Binding PercentText}" FontSize="12"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                                   HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
                         <TextBlock Text="カテゴリ別作業時間" FontWeight="SemiBold" FontSize="14"
                                    Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,12"/>
                         <ItemsControl ItemsSource="{Binding StatsCategoryItems}" Margin="0,0,0,28">

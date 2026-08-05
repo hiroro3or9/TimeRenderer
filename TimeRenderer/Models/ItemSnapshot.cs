@@ -23,6 +23,7 @@ public sealed class ItemSnapshot
     public bool IsAllDay { get; init; }
     public required Brush BackgroundColor { get; init; }
     public string? CategoryId { get; init; }
+    public string? ProjectCodeId { get; init; }
     public string? RoutineId { get; init; }
     public string? TodoId { get; init; }
     public bool RemindAtStart { get; init; }
@@ -40,6 +41,7 @@ public sealed class ItemSnapshot
         IsAllDay = item.IsAllDay,
         BackgroundColor = item.BackgroundColor,
         CategoryId = item.CategoryId,
+        ProjectCodeId = item.ProjectCodeId,
         RoutineId = item.RoutineId,
         TodoId = item.TodoId,
         RemindAtStart = item.RemindAtStart,
@@ -59,6 +61,7 @@ public sealed class ItemSnapshot
         item.IsAllDay = IsAllDay;
         item.BackgroundColor = BackgroundColor;
         item.CategoryId = CategoryId;
+        item.ProjectCodeId = ProjectCodeId;
         item.RoutineId = RoutineId;
         item.TodoId = TodoId;
         item.RemindAtStart = RemindAtStart;
@@ -77,6 +80,7 @@ public sealed class ItemSnapshot
         IsAllDay == other.IsAllDay &&
         Equals(BackgroundColor?.ToString(), other.BackgroundColor?.ToString()) &&
         CategoryId == other.CategoryId &&
+        ProjectCodeId == other.ProjectCodeId &&
         RoutineId == other.RoutineId &&
         TodoId == other.TodoId &&
         RemindAtStart == other.RemindAtStart &&

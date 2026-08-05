@@ -187,6 +187,7 @@ public partial class MainViewModel
                     EndTime = date.Add(routine.EndTime),
                     ColorCode = categoryColor ?? routine.ColorCode,
                     CategoryId = routine.CategoryId,
+                    ProjectCodeId = DefaultProjectCode?.Id,
                     RoutineId = routine.Id,
                     IsVirtual = true
                 });
@@ -413,7 +414,8 @@ public partial class MainViewModel
         {
             case Services.RoutineScope.ThisDay:
             {
-                var edited = _dialogService.ShowScheduleEditDialog(item, [.. Categories], GetTitleSuggestions());
+                var edited = _dialogService.ShowScheduleEditDialog(
+                    item, [.. Categories], GetTitleSuggestions(), [.. ProjectCodes], DefaultProjectCode);
                 if (edited == null) return;
 
                 var originalDate = item.StartTime.Date;
@@ -429,6 +431,7 @@ public partial class MainViewModel
                     item.IsAllDay = edited.IsAllDay;
                     item.BackgroundColor = edited.BackgroundColor;
                     item.CategoryId = edited.CategoryId;
+                    item.ProjectCodeId = edited.ProjectCodeId;
                     item.RemindAtStart = edited.RemindAtStart;
                     item.AutoStartRecording = edited.AutoStartRecording;
                     item.ForceStartRecording = edited.ForceStartRecording;

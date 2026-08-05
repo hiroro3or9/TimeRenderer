@@ -61,7 +61,7 @@
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel Margin="24,4,24,24" Background="{DynamicResource SurfaceBrush}">
                     <!-- 外観設定 -->
-                    <Expander Style="{StaticResource SettingsExpanderStyle}" IsExpanded="True">
+                    <Expander Style="{StaticResource SettingsExpanderStyle}">
                         <Expander.Header>
                             <TextBlock Text="外観" Style="{StaticResource SettingsSectionHeaderStyle}"/>
                         </Expander.Header>
@@ -112,7 +112,7 @@
                     </Expander>
 
                     <!-- 表示設定 -->
-                    <Expander Style="{StaticResource SettingsExpanderStyle}" IsExpanded="True">
+                    <Expander Style="{StaticResource SettingsExpanderStyle}">
                         <Expander.Header>
                             <TextBlock Text="表示設定" Style="{StaticResource SettingsSectionHeaderStyle}"/>
                         </Expander.Header>
@@ -177,7 +177,7 @@
                     </Expander>
 
                     <!-- 離席・中断の検知 -->
-                    <Expander Style="{StaticResource SettingsExpanderStyle}" IsExpanded="True">
+                    <Expander Style="{StaticResource SettingsExpanderStyle}">
                         <Expander.Header>
                             <TextBlock Text="離席・中断の検知" Style="{StaticResource SettingsSectionHeaderStyle}"/>
                         </Expander.Header>
@@ -236,7 +236,7 @@
                     </Expander>
 
                     <!-- 使用アプリの記録 -->
-                    <Expander Style="{StaticResource SettingsExpanderStyle}" IsExpanded="True">
+                    <Expander Style="{StaticResource SettingsExpanderStyle}">
                         <Expander.Header>
                             <TextBlock Text="使用アプリの記録" Style="{StaticResource SettingsSectionHeaderStyle}"/>
                         </Expander.Header>
@@ -267,7 +267,7 @@
                     </Expander>
 
                     <!-- ToDo -->
-                    <Expander Style="{StaticResource SettingsExpanderStyle}" IsExpanded="True">
+                    <Expander Style="{StaticResource SettingsExpanderStyle}">
                         <Expander.Header>
                             <TextBlock Text="ToDo" Style="{StaticResource SettingsSectionHeaderStyle}"/>
                         </Expander.Header>
@@ -406,7 +406,7 @@
                     </Expander>
 
                     <!-- 勤務（出勤・退勤）の記録 -->
-                    <Expander Style="{StaticResource SettingsExpanderStyle}" IsExpanded="True">
+                    <Expander Style="{StaticResource SettingsExpanderStyle}">
                         <Expander.Header>
                             <TextBlock Text="勤務の記録（出勤・退勤）" Style="{StaticResource SettingsSectionHeaderStyle}"/>
                         </Expander.Header>
@@ -490,7 +490,7 @@
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel Margin="24,4,24,24" Background="{DynamicResource SurfaceBrush}">
                     <!-- カテゴリ設定 -->
-                    <Expander Style="{StaticResource SettingsExpanderStyle}" IsExpanded="True">
+                    <Expander Style="{StaticResource SettingsExpanderStyle}">
                         <Expander.Header>
                             <TextBlock Text="カテゴリ" Style="{StaticResource SettingsSectionHeaderStyle}"/>
                         </Expander.Header>
@@ -556,8 +556,66 @@
                     </StackPanel>
                     </Expander>
 
+                    <!-- プロジェクトコード設定 -->
+                    <Expander Style="{StaticResource SettingsExpanderStyle}">
+                        <Expander.Header>
+                            <TextBlock Text="プロジェクトコード" Style="{StaticResource SettingsSectionHeaderStyle}"/>
+                        </Expander.Header>
+                    <StackPanel>
+                    <TextBlock Text="記録を案件・プロジェクト単位で集計するためのコードです"
+                               FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
+                               TextWrapping="Wrap" Margin="0,0,0,10"/>
+
+                    <Grid Margin="0,0,28,4">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="92"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="コード" Style="{StaticResource FieldLabelStyle}"/>
+                        <TextBlock Grid.Column="1" Text="名称" Style="{StaticResource FieldLabelStyle}" Margin="8,0,0,0"/>
+                    </Grid>
+
+                    <ItemsControl ItemsSource="{Binding ProjectCodes}" Margin="0,0,0,8">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,0,0,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="92"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0" Text="{Binding Code, UpdateSourceTrigger=LostFocus}"
+                                             Style="{StaticResource InputTextBoxStyle}" FontSize="12"
+                                             VerticalAlignment="Center"/>
+                                    <TextBox Grid.Column="1" Text="{Binding Name, UpdateSourceTrigger=LostFocus}"
+                                             Style="{StaticResource InputTextBoxStyle}" FontSize="12"
+                                             VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                    <Button Grid.Column="2" Content="✕" Margin="4,0,0,0"
+                                            Command="{Binding DataContext.DeleteProjectCodeCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding}"
+                                            Style="{StaticResource IconButtonStyle}" Foreground="{DynamicResource TextSecondaryBrush}"
+                                            Width="24" Height="24" Cursor="Hand"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <Button Content="＋ プロジェクトコードを追加" Command="{Binding AddProjectCodeCommand}"
+                            Style="{StaticResource BaseButtonStyle}" HorizontalAlignment="Stretch" Margin="0,0,0,4"/>
+
+                    <Separator Margin="0,12,0,10" Background="{DynamicResource BorderBrush}"/>
+                    <TextBlock Text="既定のプロジェクトコード" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,4"/>
+                    <TextBlock Text="新しい予定・実績と「記録開始」で作る記録に自動設定されます。アイテム編集や記録開始時に変更できます。"
+                               FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
+                               TextWrapping="Wrap" Margin="0,0,0,8"/>
+                    <ComboBox ItemsSource="{Binding ProjectCodes}"
+                              SelectedItem="{Binding SelectedDefaultProjectCode}"
+                              DisplayMemberPath="DisplayName" Height="32" Margin="0,0,0,4"/>
+                    </StackPanel>
+                    </Expander>
+
                     <!-- 定型タイトル設定 -->
-                    <Expander Style="{StaticResource SettingsExpanderStyle}" IsExpanded="True">
+                    <Expander Style="{StaticResource SettingsExpanderStyle}">
                         <Expander.Header>
                             <TextBlock Text="定型タイトル" Style="{StaticResource SettingsSectionHeaderStyle}"/>
                         </Expander.Header>
@@ -595,7 +653,7 @@
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel Margin="24,4,24,24" Background="{DynamicResource SurfaceBrush}">
                     <!-- 定期予定（ルーティン）設定 -->
-                    <Expander Style="{StaticResource SettingsExpanderStyle}" IsExpanded="True">
+                    <Expander Style="{StaticResource SettingsExpanderStyle}">
                         <Expander.Header>
                             <TextBlock Text="定期予定（ルーティン）" Style="{StaticResource SettingsSectionHeaderStyle}"/>
                         </Expander.Header>
@@ -655,7 +713,7 @@
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel Margin="24,4,24,24" Background="{DynamicResource SurfaceBrush}">
                     <!-- スプリント設定 -->
-                    <Expander Style="{StaticResource SettingsExpanderStyle}" IsExpanded="True">
+                    <Expander Style="{StaticResource SettingsExpanderStyle}">
                         <Expander.Header>
                             <TextBlock Text="スプリント設定 (手動)" Style="{StaticResource SettingsSectionHeaderStyle}"/>
                         </Expander.Header>

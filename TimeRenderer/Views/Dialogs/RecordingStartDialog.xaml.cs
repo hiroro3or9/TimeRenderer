@@ -2,6 +2,7 @@
 using System.Windows;
 using TextBox = System.Windows.Controls.TextBox;
 
+using TimeRenderer.Models;
 using TimeRenderer.ViewModels;
 
 namespace TimeRenderer.Views.Dialogs
@@ -23,11 +24,16 @@ namespace TimeRenderer.Views.Dialogs
         // タイトル入力欄のドロップダウン候補（定型タイトル＋直近1か月のタイトル）
         public IReadOnlyList<string> TitleSuggestions { get; } = [];
 
+        public IReadOnlyList<ProjectCodeInfo> ProjectCodes { get; } = [];
+        public ProjectCodeInfo? SelectedProjectCode { get; set; }
+
         public RecordingStartDialog(
             string defaultTitle,
             List<TimerOption> timerOptions,
             TimerOption defaultOption,
-            IReadOnlyList<string>? titleSuggestions = null)
+            IReadOnlyList<string>? titleSuggestions = null,
+            IReadOnlyList<ProjectCodeInfo>? projectCodes = null,
+            ProjectCodeInfo? defaultProjectCode = null)
         {
             InitializeComponent();
 
@@ -35,6 +41,8 @@ namespace TimeRenderer.Views.Dialogs
             TimerOptions = timerOptions;
             SelectedTimerOption = defaultOption;
             TitleSuggestions = titleSuggestions ?? [];
+            ProjectCodes = projectCodes ?? [];
+            SelectedProjectCode = defaultProjectCode ?? ProjectCodes.FirstOrDefault();
 
             DataContext = this;
 

@@ -9,9 +9,14 @@ namespace TimeRenderer.Services;
 
 public class DefaultDialogService(Window owner) : IDialogService
 {
-    public ScheduleItem? ShowScheduleEditDialog(ScheduleItem? initialItem = null, IReadOnlyList<CategoryInfo>? categories = null, IReadOnlyList<string>? titleSuggestions = null)
+    public ScheduleItem? ShowScheduleEditDialog(
+        ScheduleItem? initialItem = null,
+        IReadOnlyList<CategoryInfo>? categories = null,
+        IReadOnlyList<string>? titleSuggestions = null,
+        IReadOnlyList<ProjectCodeInfo>? projectCodes = null,
+        ProjectCodeInfo? defaultProjectCode = null)
     {
-        ScheduleEditDialog dialog = new(initialItem, categories, titleSuggestions)
+        ScheduleEditDialog dialog = new(initialItem, categories, titleSuggestions, projectCodes, defaultProjectCode)
         {
             Owner = owner
         };
@@ -65,20 +70,26 @@ public class DefaultDialogService(Window owner) : IDialogService
         return dialog.ShowDialog() == true ? dialog.SelectedTodo : null;
     }
 
-    public (string Title, TimerOption SelectedOption)? ShowRecordingStartDialog(
+    public (string Title, TimerOption SelectedOption, string? ProjectCodeId)? ShowRecordingStartDialog(
         string defaultTitle,
         List<TimerOption> timerOptions,
         TimerOption defaultOption,
-        IReadOnlyList<string>? titleSuggestions = null)
+        IReadOnlyList<string>? titleSuggestions = null,
+        IReadOnlyList<ProjectCodeInfo>? projectCodes = null,
+        ProjectCodeInfo? defaultProjectCode = null)
     {
-        RecordingStartDialog dialog = new(defaultTitle, timerOptions, defaultOption, titleSuggestions)
+        RecordingStartDialog dialog = new(
+            defaultTitle, timerOptions, defaultOption, titleSuggestions, projectCodes, defaultProjectCode)
         {
             Owner = owner
         };
 
         if (dialog.ShowDialog() == true)
         {
-            return (dialog.InputText, dialog.SelectedTimerOption ?? defaultOption);
+            return (
+                dialog.InputText,
+                dialog.SelectedTimerOption ?? defaultOption,
+                dialog.SelectedProjectCode?.Id);
         }
         return null;
     }
@@ -183,9 +194,10 @@ public class DefaultDialogService(Window owner) : IDialogService
         System.DateTime start,
         System.DateTime end,
         GapFillSuggestion suggestion,
-        IReadOnlyList<CategoryInfo> categories)
+        IReadOnlyList<CategoryInfo> categories,
+        IReadOnlyList<ProjectCodeInfo> projectCodes)
     {
-        GapFillDialog dialog = new(start, end, suggestion, categories)
+        GapFillDialog dialog = new(start, end, suggestion, categories, projectCodes)
         {
             Owner = owner
         };
