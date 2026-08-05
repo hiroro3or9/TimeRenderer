@@ -353,7 +353,7 @@ public partial class MainViewModel
         var perDay = new Dictionary<DateTime, double>();
         foreach (var item in items)
         {
-            if (item.IsAllDay) continue;
+            if (!item.IsRecorded || item.IsAllDay) continue;
 
             var start = item.StartTime < scale.Origin ? scale.Origin : item.StartTime;
             var stop = item.EndTime > scale.End ? scale.End : item.EndTime;
@@ -413,7 +413,7 @@ public partial class MainViewModel
 
         foreach (var item in items)
         {
-            if (item.IsAllDay) continue;
+            if (!item.IsRecorded || item.IsAllDay) continue;
 
             var start = item.StartTime < rangeStart ? rangeStart : item.StartTime;
             var stop = item.EndTime > rangeEnd ? rangeEnd : item.EndTime;

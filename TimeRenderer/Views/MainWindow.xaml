@@ -568,6 +568,10 @@
         </Border>
         </StackPanel>
 
+        <!-- 今日ホーム（予定・ToDo・実績の要約） -->
+        <views:TodayView Grid.Row="1" Grid.RowSpan="2"
+                         Visibility="{Binding IsTodayMode, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
         <!-- 日/週ビュー（曜日ヘッダー・終日イベント・時間グリッド） -->
         <!-- 日/週のときだけ表示する。以前は「月以外」だったため、スプリント・タイムライン・統計の
              各モードでも裏で生き続け、見えないアイテムのレイアウトと描画にコストを払っていた -->

@@ -414,7 +414,7 @@
                                                     BorderBrush="{DynamicResource BorderBrush}"
                                                     Background="{Binding Background}">
                                                 <!-- 収まるときだけバー内にタイトルを描く -->
-                                                <TextBlock Text="{Binding Title}" FontWeight="Bold" FontSize="12"
+                                                <TextBlock x:Name="BarTitleText" Text="{Binding Title}" FontWeight="Bold" FontSize="12"
                                                            Margin="6,0" VerticalAlignment="Center"
                                                            TextTrimming="CharacterEllipsis"
                                                            Visibility="{Binding IsLabelInside, Converter={StaticResource BooleanToVisibilityConverter}}"
@@ -435,7 +435,13 @@
                                                 <Setter TargetName="BarBody" Property="BorderBrush"
                                                         Value="{DynamicResource TextSecondaryBrush}"/>
                                             </Trigger>
-                                            <!-- 選択中は太い外枠で示す（キーボード操作の現在位置） -->
+                                            <DataTrigger Binding="{Binding Item.IsPlanned}" Value="True">
+                                                <Setter TargetName="BarBody" Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+                                                <Setter TargetName="BarBody" Property="BorderBrush" Value="{Binding Background}"/>
+                                                <Setter TargetName="BarBody" Property="BorderThickness" Value="2"/>
+                                                <Setter TargetName="BarTitleText" Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+                                            </DataTrigger>
+                                            <!-- 選択中は予定/実績どちらでも最優先の太い外枠にする -->
                                             <DataTrigger Binding="{Binding Item.IsSelected}" Value="True">
                                                 <Setter TargetName="BarBody" Property="BorderBrush"
                                                         Value="{DynamicResource TextPrimaryBrush}"/>

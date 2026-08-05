@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -142,6 +142,7 @@ public static class FilePersistenceService
         [
             new()
             {
+                Kind = ScheduleItemKind.Planned,
                 Title = "朝会",
                 StartTime = baseTime,
                 EndTime = baseTime.AddMinutes(30),
@@ -150,6 +151,7 @@ public static class FilePersistenceService
             },
             new()
             {
+                Kind = ScheduleItemKind.Planned,
                 Title = "週次レビュー",
                 StartTime = tomorrowBase,
                 EndTime = tomorrowBase.AddHours(1.5),
@@ -158,6 +160,7 @@ public static class FilePersistenceService
             },
             new()
             {
+                Kind = ScheduleItemKind.Recorded,
                 Title = "顧客訪問",
                 StartTime = yesterdayBase,
                 EndTime = yesterdayBase.AddHours(2),
@@ -166,6 +169,7 @@ public static class FilePersistenceService
             },
             new()
             {
+                Kind = ScheduleItemKind.Planned,
                 Title = "重複会議A",
                 StartTime = baseTime.AddHours(1),
                 EndTime = baseTime.AddHours(2),
@@ -174,6 +178,7 @@ public static class FilePersistenceService
             },
             new()
             {
+                Kind = ScheduleItemKind.Planned,
                 Title = "重複会議B",
                 StartTime = baseTime.AddHours(1.5),
                 EndTime = baseTime.AddHours(2.5),

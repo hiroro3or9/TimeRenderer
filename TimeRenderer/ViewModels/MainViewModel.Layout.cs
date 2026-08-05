@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 
 using TimeRenderer.Models;
@@ -335,6 +335,7 @@ public partial class MainViewModel
             UpdateTimelineItems();
             UpdateStats();
             RebuildUnrecordedGaps();
+            RebuildTodayOverview();
             return;
         }
 
@@ -453,6 +454,7 @@ public partial class MainViewModel
         UpdateTimelineItems();
         UpdateStats();
         RebuildUnrecordedGaps(); // 記録が変われば未記録の帯も変わる
+        RebuildTodayOverview();
     }
 
     // UpdateTimelineItems は MainViewModel.Timeline.cs に移動した

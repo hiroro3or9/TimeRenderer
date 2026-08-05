@@ -55,6 +55,7 @@ public partial class MainViewModel : INotifyPropertyChanged
 
     public IReadOnlyList<ViewModeOption> ViewModeOptions { get; } =
     [
+        new(ViewMode.Today, "今日"),
         new(ViewMode.Day, "日"),
         new(ViewMode.Week, "週"),
         new(ViewMode.Month, "月"),
@@ -196,6 +197,7 @@ public partial class MainViewModel : INotifyPropertyChanged
                 OnPropertyChanged(nameof(ShowAwayBanner));
                 OnRecordingChangedForAppUsage(value);
                 RebuildUnrecordedGaps(); // 記録中の区間は「記録済み」として扱う
+                RebuildTodayOverview();
             }
         }
     }
@@ -326,6 +328,7 @@ public partial class MainViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(IsSprintTimelineMode));
         OnPropertyChanged(nameof(IsStatsMode));
         OnPropertyChanged(nameof(IsNotesMode));
+        OnPropertyChanged(nameof(IsTodayMode));
         OnPropertyChanged(nameof(IsDayOrWeekMode));
         OnPropertyChanged(nameof(IsDateNavigationVisible));
         OnPropertyChanged(nameof(IsTimeRangeSettingsVisible));
@@ -340,6 +343,7 @@ public partial class MainViewModel : INotifyPropertyChanged
     public bool IsSprintTimelineMode => CurrentViewMode == ViewMode.SprintTimeline;
     public bool IsStatsMode => CurrentViewMode == ViewMode.Stats;
     public bool IsNotesMode => CurrentViewMode == ViewMode.Notes;
+    public bool IsTodayMode => CurrentViewMode == ViewMode.Today;
     /// <summary>日/週ビュー（DayWeekView）を表示するモードか</summary>
     public bool IsDayOrWeekMode => CurrentViewMode == ViewMode.Day || CurrentViewMode == ViewMode.Week;
 
@@ -347,14 +351,15 @@ public partial class MainViewModel : INotifyPropertyChanged
     /// 日付の前後送り（今日／前へ／次へ）に意味があるモードか。
     /// ふりかえり一覧は全期間を1画面に並べるため、押しても何も起きないボタンを出さない。
     /// </summary>
-    public bool IsDateNavigationVisible => CurrentViewMode != ViewMode.Notes;
+    public bool IsDateNavigationVisible => CurrentViewMode != ViewMode.Notes && CurrentViewMode != ViewMode.Today;
 
     public bool IsTimeRangeSettingsVisible => CurrentViewMode == ViewMode.Day || CurrentViewMode == ViewMode.Week;
     public bool IsSprintSettingsVisible => CurrentViewMode == ViewMode.Sprint || CurrentViewMode == ViewMode.SprintTimeline;
     public bool IsDayOfWeekSettingsVisible =>
         CurrentViewMode != ViewMode.SprintTimeline &&
         CurrentViewMode != ViewMode.Stats &&
-        CurrentViewMode != ViewMode.Notes;
+        CurrentViewMode != ViewMode.Notes &&
+        CurrentViewMode != ViewMode.Today;
 
     public DateTime CurrentWeekStart => Converters.DateTimeHelper.GetStartOfWeek(CurrentDate);
 
@@ -362,7 +367,11 @@ public partial class MainViewModel : INotifyPropertyChanged
     {
         get
         {
-            if (CurrentViewMode == ViewMode.Day)
+            if (CurrentViewMode == ViewMode.Today)
+            {
+                return $"今日  {DateTime.Today:yyyy年M月d日 (ddd)}";
+            }
+            else if (CurrentViewMode == ViewMode.Day)
             {
                 return CurrentDate.ToString("yyyy年M月d日 (ddd)");
             }
@@ -440,9 +449,16 @@ public partial class MainViewModel : INotifyPropertyChanged
         LoadWorkDays(); // 予定データの読み込み後（未退勤の自動締めが作業記録を参照するため）
         LoadAppUsage();
         LoadTodos(); // 設定の読み込み後（並べ替え・絞り込みの設定を反映して一覧を組むため）
+        RebuildTodayOverview();
         StartClock();
 
         _isInitialized = true;
+        if (_scheduleKindMigrationPending)
+        {
+            // SaveData は初期化中の書き込みを抑止するため、最後に移行結果を予約する。
+            SaveData();
+            _scheduleKindMigrationPending = false;
+        }
     }
 
 
@@ -473,6 +489,7 @@ public partial class MainViewModel : INotifyPropertyChanged
                 UpdateUnrecordedGapTick(CurrentTime); // 当日の未記録は時間の経過だけでも伸びる
                 UpdateAppUsageTick(CurrentTime); // 収集済みのアプリ使用記録を定期的に書き出す
                 UpdateTodoTick(CurrentTime); // 日付またぎで ToDo の「今日」「超過」を作り直す
+                RebuildTodayOverview(); // 次の予定と今日の要約を時刻の経過にも追随させる
             }
             if (IsRecording && RecordingStartTime.HasValue)
             {

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 
 namespace TimeRenderer.Models;
 
@@ -30,7 +30,7 @@ public class AppSettings
     public bool IsTodoReminderSoundEnabled { get; set; } = true;
     /// <summary>通知バナーの「あとで」で先送りする分数</summary>
     public int TodoSnoozeMinutes { get; set; } = 10;
-    public int ViewMode { get; set; } = 0; // 0: Day, 1: Week
+    public int ViewMode { get; set; } = 7; // Today（既存の列挙値を保つため末尾の値）
     public int DisplayStartHour { get; set; } = 0;  // 表示開始時刻（0～23）
     public int DisplayEndHour { get; set; } = 24;    // 表示終了時刻（1～24）
     public bool IsDarkMode { get; set; } = false;    // ダークモード

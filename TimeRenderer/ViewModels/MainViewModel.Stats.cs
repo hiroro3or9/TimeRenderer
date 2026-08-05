@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows.Input;
@@ -177,7 +177,7 @@ public partial class MainViewModel
 
         foreach (var item in ScheduleItems)
         {
-            if (item.IsAllDay) continue;
+            if (!item.IsRecorded || item.IsAllDay) continue;
 
             // 期間でクリップ
             var start = item.StartTime < rangeStart ? rangeStart : item.StartTime;

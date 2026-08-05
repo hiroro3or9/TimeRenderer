@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -155,7 +155,7 @@ public partial class MainViewModel
         var rangeEnd = aroundDate.Date.AddDays(60);
 
         var existingKeys = ScheduleItems
-            .Where(i => i.RoutineId != null)
+            .Where(i => i.IsPlanned && i.RoutineId != null)
             .Select(i => (i.RoutineId, i.StartTime.Date))
             .ToHashSet();
 
@@ -180,6 +180,8 @@ public partial class MainViewModel
 
                 toAdd.Add(new ScheduleItem
                 {
+                    Id = $"routine:{routine.Id}:{date:yyyyMMdd}",
+                    Kind = ScheduleItemKind.Planned,
                     Title = routine.Title,
                     StartTime = date.Add(routine.StartTime),
                     EndTime = date.Add(routine.EndTime),
@@ -273,6 +275,7 @@ public partial class MainViewModel
 
         var toRemove = ScheduleItems.Where(i =>
             !i.IsVirtual &&
+            i.IsPlanned &&
             i.RoutineId != null &&
             i.StartTime > now &&
             routinesById.TryGetValue(i.RoutineId, out var r) &&
@@ -420,6 +423,7 @@ public partial class MainViewModel
                 {
                     item.Title = edited.Title;
                     item.Content = edited.Content;
+                    item.Kind = edited.Kind;
                     item.StartTime = edited.StartTime;
                     item.EndTime = edited.EndTime;
                     item.IsAllDay = edited.IsAllDay;
@@ -529,7 +533,7 @@ public partial class MainViewModel
 
         foreach (var item in ScheduleItems)
         {
-            if (item.IsAllDay) continue;
+            if (!item.IsPlanned || item.IsAllDay) continue;
             if (_remindedRoutineItems.Contains(item)) continue;
             if (item.StartTime.Date != now.Date) continue;
             if (now < item.StartTime) continue;

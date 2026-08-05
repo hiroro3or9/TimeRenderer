@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Input;
@@ -296,10 +296,17 @@ namespace TimeRenderer.Controls
 
         private void DrawScheduleItem(DrawingContext dc, ScheduleItem item, Rect rect, double padding)
         {
-            // アイテムの背景を描画（角丸）
-            System.Windows.Media.Brush itemBg = item.BackgroundColor;
-            // 枠線はとりあえず無し
-            dc.DrawRoundedRectangle(itemBg, null, rect, 4, 4);
+            // 予定は枠線、実績はカテゴリ色の塗りで描き分ける。
+            var itemBg = item.IsPlanned
+                ? MutedBackgroundBrush ?? _mutedBackgroundBrush
+                : item.BackgroundColor;
+            System.Windows.Media.Pen? itemPen = null;
+            if (item.IsPlanned)
+            {
+                itemPen = new System.Windows.Media.Pen(item.BackgroundColor, 1.5);
+                itemPen.Freeze();
+            }
+            dc.DrawRoundedRectangle(itemBg, itemPen, rect, 4, 4);
 
             // アイテムのテキストを描画
             var itemText = new FormattedText(
