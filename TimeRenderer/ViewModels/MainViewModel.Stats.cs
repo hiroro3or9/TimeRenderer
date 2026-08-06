@@ -73,10 +73,10 @@ public partial class MainViewModel
         CopyTimesheetProjectCodeCommand = new RelayCommand(
             param =>
             {
-                if (param is TimesheetMatrixColumn { CopyValue.Length: > 0 } column)
-                    CopyTimesheetValue(column.CopyValue);
+                if (param is TimesheetMatrixRow { CopyValue.Length: > 0 } row)
+                    CopyTimesheetValue(row.CopyValue);
             },
-            param => param is TimesheetMatrixColumn { CopyValue.Length: > 0 });
+            param => param is TimesheetMatrixRow { CopyValue.Length: > 0 });
     }
 
     private void CopyTimesheetValue(string value)
@@ -110,14 +110,14 @@ public partial class MainViewModel
         public string PercentText { get; init; } = "";
     }
 
-    /// <summary>タイムシート用マトリクスのプロジェクトコード列。</summary>
-    public record TimesheetMatrixColumn(
-        string ProjectKey,
-        string HeaderText,
-        string DetailText,
-        string CopyValue,
-        bool IsInactive,
-        bool IsWarning);
+    /// <summary>タイムシート用マトリクスの日付列。</summary>
+    public record TimesheetMatrixDateColumn(DateTime Date)
+    {
+        public string DateText => Date.Day.ToString(CultureInfo.InvariantCulture);
+        public string DayText => Date.ToString("ddd");
+        public bool IsToday => Date.Date == DateTime.Today;
+        public bool IsWeekend => Date.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday;
+    }
 
     /// <summary>タイムシート用マトリクスの時間セル。</summary>
     public record TimesheetMatrixCell(bool HasValue, double ActualHours, double RoundedHours)
@@ -130,11 +130,16 @@ public partial class MainViewModel
             : "記録なし";
     }
 
-    /// <summary>タイムシート用マトリクスの1日分。</summary>
-    public record TimesheetMatrixRow(DateTime Date, IReadOnlyList<TimesheetMatrixCell> Cells)
+    /// <summary>タイムシート用マトリクスのプロジェクトコード1行分。</summary>
+    public record TimesheetMatrixRow(
+        string ProjectKey,
+        string HeaderText,
+        string DetailText,
+        string CopyValue,
+        bool IsInactive,
+        bool IsWarning,
+        IReadOnlyList<TimesheetMatrixCell> Cells)
     {
-        public string DateText => Date.ToString("M/d(ddd)");
-        public bool IsToday => Date.Date == DateTime.Today;
         public string RoundedTotalText => FormatDecimalHours(Cells.Sum(cell => cell.RoundedHours));
     }
 
@@ -161,8 +166,8 @@ public partial class MainViewModel
         private set => SetProperty(ref _statsProjectCodeItems, value);
     }
 
-    private IReadOnlyList<TimesheetMatrixColumn> _statsTimesheetMatrixColumns = [];
-    public IReadOnlyList<TimesheetMatrixColumn> StatsTimesheetMatrixColumns
+    private IReadOnlyList<TimesheetMatrixDateColumn> _statsTimesheetMatrixColumns = [];
+    public IReadOnlyList<TimesheetMatrixDateColumn> StatsTimesheetMatrixColumns
     {
         get => _statsTimesheetMatrixColumns;
         private set => SetProperty(ref _statsTimesheetMatrixColumns, value);
@@ -396,38 +401,63 @@ public partial class MainViewModel
         // 個々の記録を先に丸めると、細切れの記録が多い日に誤差が積み上がるため合算後に行う。
         if (StatsPeriod == StatsPeriodMode.Month)
         {
-            var matrixColumns = orderedProjectKeys.Select(key =>
+            // 横軸は記録の有無に関係なく月初から月末までを並べる。
+            var matrixColumns = Enumerable.Range(0, (rangeEnd - rangeStart).Days)
+                .Select(offset => new TimesheetMatrixDateColumn(rangeStart.AddDays(offset)))
+                .ToList();
+
+            // 縦軸はその月に実績があるプロジェクトコード。無効・未設定・不明も落とさない。
+            var matrixRows = orderedProjectKeys.Select(key =>
             {
                 var projectCode = ResolveProjectCode(key);
+                string header;
+                string detail;
+                string copyValue;
+                bool isInactive;
+                bool isWarning;
+
                 if (projectCode != null)
                 {
-                    var header = projectCode.Code.Length > 0
+                    header = projectCode.Code.Length > 0
                         ? projectCode.Code
                         : projectCode.Name.Length > 0 ? projectCode.Name : "コード未入力";
-                    var detail = projectCode.Name;
+                    detail = projectCode.Name;
                     if (!projectCode.IsActive)
                         detail = detail.Length > 0 ? $"{detail}（無効）" : "無効";
-                    return new TimesheetMatrixColumn(
-                        key, header, detail, projectCode.Code,
-                        !projectCode.IsActive, projectCode.Code.Length == 0);
+                    copyValue = projectCode.Code;
+                    isInactive = !projectCode.IsActive;
+                    isWarning = projectCode.Code.Length == 0;
+                }
+                else if (key == unassignedProjectKey)
+                {
+                    header = "未設定";
+                    detail = "コードなし";
+                    copyValue = "";
+                    isInactive = false;
+                    isWarning = true;
+                }
+                else
+                {
+                    header = "不明";
+                    detail = "マスターに存在しません";
+                    copyValue = "";
+                    isInactive = false;
+                    isWarning = true;
                 }
 
-                return key == unassignedProjectKey
-                    ? new TimesheetMatrixColumn(key, "未設定", "コードなし", "", false, true)
-                    : new TimesheetMatrixColumn(key, "不明", "マスターに存在しません", "", false, true);
-            }).ToList();
-
-            var matrixRows = new List<TimesheetMatrixRow>();
-            foreach (var (date, projectCodesPerDay) in dailyProjectCodeTotals.OrderBy(pair => pair.Key))
-            {
                 var cells = matrixColumns.Select(column =>
                 {
-                    if (!projectCodesPerDay.TryGetValue(column.ProjectKey, out var hours))
+                    if (!dailyProjectCodeTotals.TryGetValue(column.Date, out var projectCodesPerDay) ||
+                        !projectCodesPerDay.TryGetValue(key, out var hours))
+                    {
                         return new TimesheetMatrixCell(false, 0, 0);
+                    }
                     return new TimesheetMatrixCell(true, hours, RoundHoursToQuarter(hours));
                 }).ToList();
-                matrixRows.Add(new TimesheetMatrixRow(date, cells));
-            }
+
+                return new TimesheetMatrixRow(
+                    key, header, detail, copyValue, isInactive, isWarning, cells);
+            }).ToList();
 
             var totalCells = Enumerable.Range(0, matrixColumns.Count)
                 .Select(index =>

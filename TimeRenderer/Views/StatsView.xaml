@@ -109,7 +109,7 @@
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Text="列見出しでコード、時間セルで数字部分をコピーできます。実時間はセルにマウスを重ねると確認できます"
+                                <TextBlock Text="プロジェクトコードが縦、1日から月末が横です。左のコードと時間セルをクリックしてコピーできます"
                                            FontSize="12" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"/>
                                 <TextBlock Grid.Column="1" Text="{Binding TimesheetCopyStatusText}" FontSize="12" Margin="12,0,0,0"
                                            Foreground="{DynamicResource PrimaryBrush}" VerticalAlignment="Top"/>
@@ -118,12 +118,12 @@
                             <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
                                 <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6">
                                     <StackPanel>
-                                        <!-- 列見出し -->
+                                        <!-- 日付列見出し（月初から月末） -->
                                         <Border Background="{DynamicResource HoverBackgroundBrush}"
                                                 BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
                                             <StackPanel Orientation="Horizontal">
-                                                <Border Width="110" Padding="10,8">
-                                                    <TextBlock Text="日付" FontSize="11" FontWeight="SemiBold"
+                                                <Border Width="160" Padding="10,8">
+                                                    <TextBlock Text="プロジェクトコード" FontSize="11" FontWeight="SemiBold"
                                                                Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
                                                 </Border>
                                                 <ItemsControl ItemsSource="{Binding StatsTimesheetMatrixColumns}">
@@ -134,15 +134,57 @@
                                                     </ItemsControl.ItemsPanel>
                                                     <ItemsControl.ItemTemplate>
                                                         <DataTemplate>
-                                                            <Border Width="116" BorderBrush="{DynamicResource BorderBrush}"
-                                                                    BorderThickness="1,0,0,0" Padding="2">
+                                                            <Border Width="64" BorderBrush="{DynamicResource BorderBrush}"
+                                                                    BorderThickness="1,0,0,0" Padding="4,5">
+                                                                <StackPanel HorizontalAlignment="Center">
+                                                                    <TextBlock Text="{Binding DateText}" FontSize="11" FontWeight="SemiBold"
+                                                                               HorizontalAlignment="Center">
+                                                                        <TextBlock.Style>
+                                                                            <Style TargetType="TextBlock">
+                                                                                <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+                                                                                <Style.Triggers>
+                                                                                    <DataTrigger Binding="{Binding IsWeekend}" Value="True">
+                                                                                        <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}"/>
+                                                                                    </DataTrigger>
+                                                                                    <DataTrigger Binding="{Binding IsToday}" Value="True">
+                                                                                        <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
+                                                                                    </DataTrigger>
+                                                                                </Style.Triggers>
+                                                                            </Style>
+                                                                        </TextBlock.Style>
+                                                                    </TextBlock>
+                                                                    <TextBlock Text="{Binding DayText}" FontSize="9" Margin="0,1,0,0"
+                                                                               Foreground="{DynamicResource TextMutedBrush}"
+                                                                               HorizontalAlignment="Center"/>
+                                                                </StackPanel>
+                                                            </Border>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                                <Border Width="90" BorderBrush="{DynamicResource BorderBrush}"
+                                                        BorderThickness="1,0,0,0" Padding="10,8">
+                                                    <TextBlock Text="月合計" FontSize="11" FontWeight="SemiBold"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                </Border>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- プロジェクトコード別の値 -->
+                                        <ItemsControl ItemsSource="{Binding StatsTimesheetMatrixRows}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <Border Width="160" Padding="2">
                                                                 <Button Command="{Binding DataContext.CopyTimesheetProjectCodeCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                                         CommandParameter="{Binding}" Style="{StaticResource GhostButtonStyle}"
-                                                                        Padding="4,3" ToolTip="プロジェクトコードをコピー">
+                                                                        Padding="6,4" HorizontalContentAlignment="Left"
+                                                                        ToolTip="プロジェクトコードをコピー">
                                                                     <StackPanel>
-                                                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                                                        <StackPanel Orientation="Horizontal">
                                                                             <TextBlock Text="{Binding HeaderText}" FontSize="12" FontWeight="SemiBold"
-                                                                                       MaxWidth="88" TextTrimming="CharacterEllipsis">
+                                                                                       MaxWidth="116" TextTrimming="CharacterEllipsis">
                                                                                 <TextBlock.Style>
                                                                                     <Style TargetType="TextBlock">
                                                                                         <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
@@ -162,43 +204,9 @@
                                                                         </StackPanel>
                                                                         <TextBlock Text="{Binding DetailText}" FontSize="9" Margin="0,2,0,0"
                                                                                    Foreground="{DynamicResource TextMutedBrush}"
-                                                                                   HorizontalAlignment="Center" MaxWidth="104"
-                                                                                   TextTrimming="CharacterEllipsis"/>
+                                                                                   MaxWidth="142" TextTrimming="CharacterEllipsis"/>
                                                                     </StackPanel>
                                                                 </Button>
-                                                            </Border>
-                                                        </DataTemplate>
-                                                    </ItemsControl.ItemTemplate>
-                                                </ItemsControl>
-                                                <Border Width="90" BorderBrush="{DynamicResource BorderBrush}"
-                                                        BorderThickness="1,0,0,0" Padding="10,8">
-                                                    <TextBlock Text="日合計" FontSize="11" FontWeight="SemiBold"
-                                                               Foreground="{DynamicResource TextSecondaryBrush}"
-                                                               HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                                </Border>
-                                            </StackPanel>
-                                        </Border>
-
-                                        <!-- 日別の値 -->
-                                        <ItemsControl ItemsSource="{Binding StatsTimesheetMatrixRows}">
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate>
-                                                    <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
-                                                        <StackPanel Orientation="Horizontal">
-                                                            <Border Width="110" Padding="10,7">
-                                                                <TextBlock Text="{Binding DateText}" FontSize="12" VerticalAlignment="Center">
-                                                                    <TextBlock.Style>
-                                                                        <Style TargetType="TextBlock">
-                                                                            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
-                                                                            <Style.Triggers>
-                                                                                <DataTrigger Binding="{Binding IsToday}" Value="True">
-                                                                                    <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
-                                                                                    <Setter Property="FontWeight" Value="SemiBold"/>
-                                                                                </DataTrigger>
-                                                                            </Style.Triggers>
-                                                                        </Style>
-                                                                    </TextBlock.Style>
-                                                                </TextBlock>
                                                             </Border>
                                                             <ItemsControl ItemsSource="{Binding Cells}">
                                                                 <ItemsControl.ItemsPanel>
@@ -208,13 +216,13 @@
                                                                 </ItemsControl.ItemsPanel>
                                                                 <ItemsControl.ItemTemplate>
                                                                     <DataTemplate>
-                                                                        <Border Width="116" BorderBrush="{DynamicResource BorderBrush}"
+                                                                        <Border Width="64" BorderBrush="{DynamicResource BorderBrush}"
                                                                                 BorderThickness="1,0,0,0" Padding="2">
                                                                             <Button Content="{Binding RoundedHoursText}"
                                                                                     Command="{Binding DataContext.CopyTimesheetHoursCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                                                     CommandParameter="{Binding}" IsEnabled="{Binding HasValue}"
-                                                                                    Style="{StaticResource GhostButtonStyle}" Padding="6,3"
-                                                                                    FontSize="12" FontWeight="SemiBold"
+                                                                                    Style="{StaticResource GhostButtonStyle}" Padding="3"
+                                                                                    FontSize="11" FontWeight="SemiBold"
                                                                                     Foreground="{DynamicResource PrimaryBrush}"
                                                                                     ToolTip="{Binding ToolTipText}"/>
                                                                         </Border>
@@ -233,11 +241,11 @@
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
 
-                                        <!-- 月合計 -->
+                                        <!-- 日別合計 -->
                                         <Border Background="{DynamicResource PrimarySubtleBrush}">
                                             <StackPanel Orientation="Horizontal">
-                                                <Border Width="110" Padding="10,8">
-                                                    <TextBlock Text="月合計" FontSize="12" FontWeight="SemiBold"
+                                                <Border Width="160" Padding="10,8">
+                                                    <TextBlock Text="日合計" FontSize="12" FontWeight="SemiBold"
                                                                Foreground="{DynamicResource TextPrimaryBrush}"/>
                                                 </Border>
                                                 <ItemsControl ItemsSource="{Binding StatsTimesheetMatrixTotalCells}">
@@ -248,9 +256,9 @@
                                                     </ItemsControl.ItemsPanel>
                                                     <ItemsControl.ItemTemplate>
                                                         <DataTemplate>
-                                                            <Border Width="116" BorderBrush="{DynamicResource BorderBrush}"
-                                                                    BorderThickness="1,0,0,0" Padding="10,8">
-                                                                <TextBlock Text="{Binding RoundedHoursText}" FontSize="12" FontWeight="SemiBold"
+                                                            <Border Width="64" BorderBrush="{DynamicResource BorderBrush}"
+                                                                    BorderThickness="1,0,0,0" Padding="4,8">
+                                                                <TextBlock Text="{Binding RoundedHoursText}" FontSize="11" FontWeight="SemiBold"
                                                                            Foreground="{DynamicResource TextPrimaryBrush}"
                                                                            HorizontalAlignment="Right"/>
                                                             </Border>
