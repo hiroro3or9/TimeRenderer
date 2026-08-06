@@ -38,14 +38,35 @@ public sealed class ProjectCodeInfo : INotifyPropertyChanged
         }
     }
 
-    [JsonIgnore]
-    public string DisplayName => (Code, Name) switch
+    private bool _isActive = true;
+    /// <summary>新しい予定・実績へ割り当て可能か。無効でも過去データの参照は維持する。</summary>
+    public bool IsActive
     {
-        ({ Length: > 0 }, { Length: > 0 }) => $"{Code} - {Name}",
-        ({ Length: > 0 }, _) => Code,
-        (_, { Length: > 0 }) => Name,
-        _ => "（コード未入力）"
-    };
+        get => _isActive;
+        set
+        {
+            if (SetProperty(ref _isActive, value))
+            {
+                OnPropertyChanged(nameof(DisplayName));
+            }
+        }
+    }
+
+    [JsonIgnore]
+    public string DisplayName
+    {
+        get
+        {
+            var label = (Code, Name) switch
+            {
+                ({ Length: > 0 }, { Length: > 0 }) => $"{Code} - {Name}",
+                ({ Length: > 0 }, _) => Code,
+                (_, { Length: > 0 }) => Name,
+                _ => "（コード未入力）"
+            };
+            return IsActive ? label : $"{label}（無効）";
+        }
+    }
 
     public static List<ProjectCodeInfo> CreateDefaults() =>
     [

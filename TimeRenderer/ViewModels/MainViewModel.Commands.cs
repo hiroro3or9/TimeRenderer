@@ -135,7 +135,8 @@ public partial class MainViewModel
                     }
 
                     var editedItem = _dialogService.ShowScheduleEditDialog(
-                        item, [.. Categories], GetTitleSuggestions(), [.. ProjectCodes], DefaultProjectCode);
+                        item, [.. Categories], GetTitleSuggestions(),
+                        GetSelectableProjectCodes(item.ProjectCodeId), DefaultProjectCode);
                     if (editedItem != null)
                     {
                         // 取り消し用に、変更前の状態を控えておく
@@ -439,7 +440,9 @@ public partial class MainViewModel
         RecordingTitle = item.Title;
         _recordingColorCode = item.ColorCode;
         _recordingCategoryId = item.CategoryId ?? ResolveCategory(item)?.Id;
-        _recordingProjectCodeId = item.ProjectCodeId ?? DefaultProjectCode?.Id;
+        _recordingProjectCodeId = ResolveProjectCode(item.ProjectCodeId) is { IsActive: true } selectedProjectCode
+            ? selectedProjectCode.Id
+            : DefaultProjectCode?.Id;
         _recordingSourceItem = item.IsPlanned ? item : null;
         // ToDo から作られた予定なら、この記録の実績を ToDo へも積む
         _recordingTodo = FindTodoById(item.TodoId);
@@ -537,7 +540,7 @@ public partial class MainViewModel
                 TimerOptions,
                 SelectedTimerOption,
                 GetTitleSuggestions(),
-                [.. ProjectCodes],
+                ActiveProjectCodes,
                 DefaultProjectCode);
             if (result != null) // Cancel以外（OK押下時）は開始
             {
@@ -566,7 +569,8 @@ public partial class MainViewModel
     private void AddViaDialog(ScheduleItem? template)
     {
         var result = _dialogService.ShowScheduleEditDialog(
-            template, [.. Categories], GetTitleSuggestions(), [.. ProjectCodes], DefaultProjectCode);
+            template, [.. Categories], GetTitleSuggestions(),
+            GetSelectableProjectCodes(template?.ProjectCodeId), DefaultProjectCode);
         if (result != null)
         {
             ScheduleItems.Add(result);

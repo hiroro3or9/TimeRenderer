@@ -49,7 +49,7 @@ public partial class MainViewModel
         var suggestion = BuildGapFillSuggestion(stats);
 
         var result = _dialogService.ShowGapFillDialog(
-            gap.StartTime, gap.EndTime, suggestion, [.. Categories], [.. ProjectCodes]);
+            gap.StartTime, gap.EndTime, suggestion, [.. Categories], ActiveProjectCodes);
 
         if (result == null) return;
 
