@@ -335,8 +335,8 @@ public partial class MainViewModel
     /// <summary>
     /// 記録の区間をアイテムとして保存する。
     ///
-    /// 予定アイテムから始めた場合も予定は変更せず、全区間を実績として追加する。
-    /// 実績の SourcePlanId で元予定との対応を残す。
+    /// 予定アイテムから始めた場合は、最初の区間で元予定自体を実績へ変換する。
+    /// 離席除外で複数区間に分かれた場合だけ、2区間目以降を実績として追加する。
     /// 1回の停止操作なので、取り消し履歴には1件としてまとめて積む。
     /// </summary>
     /// <param name="todo">
@@ -348,10 +348,49 @@ public partial class MainViewModel
         TodoItem? todo = null)
     {
         var edits = new List<IUndoableEdit>();
+        bool useSource = source != null && source.IsPlanned && ScheduleItems.Contains(source);
+
         for (int i = 0; i < segments.Count; i++)
         {
             var (start, end) = segments[i];
             var durationText = FormatRecordingDuration(end - start);
+
+            if (i == 0 && useSource)
+            {
+                // 通常は記録開始時に実体化済みだが、停止までに状態が変わった場合にも
+                // 仮想アイテムのまま保存対象外にならないよう、ここでも保証する。
+                if (source!.IsVirtual)
+                {
+                    MaterializeOccurrence(source);
+                }
+
+                var before = ItemSnapshot.Capture(source!);
+
+                _isBatchUpdatingItem = true;
+                try
+                {
+                    source!.Kind = ScheduleItemKind.Recorded;
+                    source.Title = title;
+                    source.StartTime = start;
+                    source.EndTime = end;
+                    // 予定に書かれていたメモは残す。空なら記録時間を表示する。
+                    if (string.IsNullOrWhiteSpace(source.Content))
+                    {
+                        source.Content = durationText;
+                    }
+                }
+                finally
+                {
+                    _isBatchUpdatingItem = false;
+                }
+
+                var after = ItemSnapshot.Capture(source!);
+                if (!before.IsSameAs(after))
+                {
+                    edits.Add(new ModifyItemEdit(source!, before, after, "記録"));
+                }
+                continue;
+            }
 
             ScheduleItem newItem = new()
             {

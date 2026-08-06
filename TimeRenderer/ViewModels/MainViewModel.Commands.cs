@@ -418,8 +418,8 @@ public partial class MainViewModel
     private string? _recordingProjectCodeId;
 
     /// <summary>
-    /// 予定から記録を開始した場合の元予定。
-    /// 停止時に予定は残し、別に作る実績の SourcePlanId へこのIDを入れる。
+    /// 予定から記録を開始した場合に、停止時に実績へ変換する元予定。
+    /// null の場合は停止時に新しい実績を作る。
     /// </summary>
     private ScheduleItem? _recordingSourceItem;
 
@@ -427,15 +427,19 @@ public partial class MainViewModel
     /// 選択したアイテムと同じタイトル・色で新しい記録を開始する。
     /// 記録中だった場合は現在の記録を保存してから開始する。
     /// </summary>
-    /// <param name="consumeItem">旧呼び出しとの互換用。予定は常に残すため現在は使用しない。</param>
-    private void StartRecordingFromItem(ScheduleItem item, bool consumeItem = false)
+    private void StartRecordingFromItem(ScheduleItem item)
     {
         if (IsRecording)
         {
             ToggleRecording(); // 現在の記録を停止・保存
         }
 
-        _ = consumeItem;
+        // 定期予定の仮想アイテムを記録対象にした時点で実体化しておく。
+        // 記録中に定期予定が再生成されても、停止時の変換対象を見失わないため。
+        if (item.IsPlanned && item.IsVirtual)
+        {
+            MaterializeOccurrence(item);
+        }
 
         RecordingTitle = item.Title;
         _recordingColorCode = item.ColorCode;
@@ -462,7 +466,7 @@ public partial class MainViewModel
     {
         if (IsRecording)
         {
-            ToggleRecording(); // 停止・保存（消費対象の予定があればそれを更新）
+            ToggleRecording(); // 停止・保存（元予定があれば実績へ変換）
             return;
         }
 
