@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -7,6 +8,7 @@ using Brush = System.Windows.Media.Brush;
 
 using TimeRenderer.Models;
 using TimeRenderer.Helpers;
+using Clipboard = System.Windows.Clipboard;
 
 namespace TimeRenderer.ViewModels;
 
@@ -47,6 +49,8 @@ public partial class MainViewModel
     public bool IsStatsSprintPeriod => StatsPeriod == StatsPeriodMode.Sprint;
 
     public ICommand ChangeStatsPeriodCommand { get; private set; } = null!;
+    public ICommand CopyTimesheetHoursCommand { get; private set; } = null!;
+    public ICommand CopyTimesheetProjectCodeCommand { get; private set; } = null!;
 
     private void InitializeStatsCommands()
     {
@@ -57,6 +61,39 @@ public partial class MainViewModel
                 StatsPeriod = mode;
             }
         });
+
+        CopyTimesheetHoursCommand = new RelayCommand(
+            param =>
+            {
+                if (param is TimesheetMatrixCell { HasValue: true } cell)
+                    CopyTimesheetValue(cell.CopyValue);
+            },
+            param => param is TimesheetMatrixCell { HasValue: true });
+
+        CopyTimesheetProjectCodeCommand = new RelayCommand(
+            param =>
+            {
+                if (param is TimesheetMatrixColumn { CopyValue.Length: > 0 } column)
+                    CopyTimesheetValue(column.CopyValue);
+            },
+            param => param is TimesheetMatrixColumn { CopyValue.Length: > 0 });
+    }
+
+    private void CopyTimesheetValue(string value)
+    {
+        try
+        {
+            Clipboard.SetText(value);
+            TimesheetCopyStatusText = $"{value} をコピーしました";
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Copy timesheet value failed: {ex.Message}");
+            TimesheetCopyStatusText = "コピーできませんでした";
+            _dialogService.ShowMessage(
+                "クリップボードへコピーできませんでした。少し待ってからもう一度お試しください。",
+                "コピーエラー");
+        }
     }
 
     /// <summary>カテゴリ別集計の1行分</summary>
@@ -71,6 +108,34 @@ public partial class MainViewModel
     {
         public string HoursText => FormatHours(Hours);
         public string PercentText { get; init; } = "";
+    }
+
+    /// <summary>タイムシート用マトリクスのプロジェクトコード列。</summary>
+    public record TimesheetMatrixColumn(
+        string ProjectKey,
+        string HeaderText,
+        string DetailText,
+        string CopyValue,
+        bool IsInactive,
+        bool IsWarning);
+
+    /// <summary>タイムシート用マトリクスの時間セル。</summary>
+    public record TimesheetMatrixCell(bool HasValue, double ActualHours, double RoundedHours)
+    {
+        public string ActualHoursText => FormatHours(ActualHours);
+        public string CopyValue => FormatDecimalHoursValue(RoundedHours);
+        public string RoundedHoursText => HasValue ? $"{CopyValue}h" : "";
+        public string ToolTipText => HasValue
+            ? $"実績 {ActualHoursText} → 15分単位 {RoundedHoursText}"
+            : "記録なし";
+    }
+
+    /// <summary>タイムシート用マトリクスの1日分。</summary>
+    public record TimesheetMatrixRow(DateTime Date, IReadOnlyList<TimesheetMatrixCell> Cells)
+    {
+        public string DateText => Date.ToString("M/d(ddd)");
+        public bool IsToday => Date.Date == DateTime.Today;
+        public string RoundedTotalText => FormatDecimalHours(Cells.Sum(cell => cell.RoundedHours));
     }
 
     /// <summary>日別チャートの1セグメント（1カテゴリ分の積み上げ要素）</summary>
@@ -94,6 +159,41 @@ public partial class MainViewModel
     {
         get => _statsProjectCodeItems;
         private set => SetProperty(ref _statsProjectCodeItems, value);
+    }
+
+    private IReadOnlyList<TimesheetMatrixColumn> _statsTimesheetMatrixColumns = [];
+    public IReadOnlyList<TimesheetMatrixColumn> StatsTimesheetMatrixColumns
+    {
+        get => _statsTimesheetMatrixColumns;
+        private set => SetProperty(ref _statsTimesheetMatrixColumns, value);
+    }
+
+    private IReadOnlyList<TimesheetMatrixRow> _statsTimesheetMatrixRows = [];
+    public IReadOnlyList<TimesheetMatrixRow> StatsTimesheetMatrixRows
+    {
+        get => _statsTimesheetMatrixRows;
+        private set => SetProperty(ref _statsTimesheetMatrixRows, value);
+    }
+
+    private IReadOnlyList<TimesheetMatrixCell> _statsTimesheetMatrixTotalCells = [];
+    public IReadOnlyList<TimesheetMatrixCell> StatsTimesheetMatrixTotalCells
+    {
+        get => _statsTimesheetMatrixTotalCells;
+        private set => SetProperty(ref _statsTimesheetMatrixTotalCells, value);
+    }
+
+    private string _statsTimesheetMatrixGrandTotalText = "";
+    public string StatsTimesheetMatrixGrandTotalText
+    {
+        get => _statsTimesheetMatrixGrandTotalText;
+        private set => SetProperty(ref _statsTimesheetMatrixGrandTotalText, value);
+    }
+
+    private string _timesheetCopyStatusText = "";
+    public string TimesheetCopyStatusText
+    {
+        get => _timesheetCopyStatusText;
+        private set => SetProperty(ref _timesheetCopyStatusText, value);
     }
 
     private IReadOnlyList<DailyStat> _statsDailyItems = [];
@@ -141,6 +241,18 @@ public partial class MainViewModel
         return $"{(int)span.TotalHours}:{span.Minutes:D2}";
     }
 
+    /// <summary>時間を最寄りの15分単位へ丸める。</summary>
+    internal static double RoundHoursToQuarter(double hours)
+        => Math.Round(hours * 4, MidpointRounding.AwayFromZero) / 4;
+
+    /// <summary>タイムシートへ転記しやすい10進時間（例: 7.25h）に整形する。</summary>
+    internal static string FormatDecimalHours(double hours)
+        => $"{FormatDecimalHoursValue(hours)}h";
+
+    /// <summary>クリップボードへコピーする10進時間の数字部分を整形する。</summary>
+    internal static string FormatDecimalHoursValue(double hours)
+        => hours.ToString("0.##", CultureInfo.InvariantCulture);
+
     /// <summary>統計対象期間 [start, end) を取得する</summary>
     private (DateTime Start, DateTime End) GetStatsRange()
     {
@@ -180,6 +292,8 @@ public partial class MainViewModel
     {
         if (CurrentViewMode != ViewMode.Stats) return;
 
+        TimesheetCopyStatusText = "";
+
         var (rangeStart, rangeEnd) = GetStatsRange();
 
         // 集計キー：カテゴリID（未分類は "color:<コード>"）
@@ -187,8 +301,10 @@ public partial class MainViewModel
         var categoryTotals = new Dictionary<string, double>();
         var projectCodeTotals = new Dictionary<string, double>();
         var dailyTotals = new Dictionary<DateTime, Dictionary<string, double>>();
+        var dailyProjectCodeTotals = new Dictionary<DateTime, Dictionary<string, double>>();
         var displayInfo = new Dictionary<string, (string Name, Brush Brush)>();
         var projectCodeDisplayNames = new Dictionary<string, string>();
+        const string unassignedProjectKey = "__unassigned_project__";
         int itemCount = 0;
 
         foreach (var item in ScheduleItems)
@@ -202,7 +318,6 @@ public partial class MainViewModel
 
             itemCount++;
 
-            const string unassignedProjectKey = "__unassigned_project__";
             var projectCode = ResolveProjectCode(item.ProjectCodeId);
             var projectKey = item.ProjectCodeId ?? unassignedProjectKey;
             projectCodeTotals[projectKey] = projectCodeTotals.GetValueOrDefault(projectKey) + (end - start).TotalHours;
@@ -234,6 +349,13 @@ public partial class MainViewModel
                     dailyTotals[d] = perDay;
                 }
                 perDay[key] = perDay.GetValueOrDefault(key) + hours;
+
+                if (!dailyProjectCodeTotals.TryGetValue(d, out var projectCodesPerDay))
+                {
+                    projectCodesPerDay = [];
+                    dailyProjectCodeTotals[d] = projectCodesPerDay;
+                }
+                projectCodesPerDay[projectKey] = projectCodesPerDay.GetValueOrDefault(projectKey) + hours;
             }
         }
 
@@ -269,6 +391,68 @@ public partial class MainViewModel
                 PercentText = $"{percent:0.#}%"
             };
         })];
+
+        // 月次タイムシート用：日・プロジェクトコード単位で合算してから15分単位へ丸める。
+        // 個々の記録を先に丸めると、細切れの記録が多い日に誤差が積み上がるため合算後に行う。
+        if (StatsPeriod == StatsPeriodMode.Month)
+        {
+            var matrixColumns = orderedProjectKeys.Select(key =>
+            {
+                var projectCode = ResolveProjectCode(key);
+                if (projectCode != null)
+                {
+                    var header = projectCode.Code.Length > 0
+                        ? projectCode.Code
+                        : projectCode.Name.Length > 0 ? projectCode.Name : "コード未入力";
+                    var detail = projectCode.Name;
+                    if (!projectCode.IsActive)
+                        detail = detail.Length > 0 ? $"{detail}（無効）" : "無効";
+                    return new TimesheetMatrixColumn(
+                        key, header, detail, projectCode.Code,
+                        !projectCode.IsActive, projectCode.Code.Length == 0);
+                }
+
+                return key == unassignedProjectKey
+                    ? new TimesheetMatrixColumn(key, "未設定", "コードなし", "", false, true)
+                    : new TimesheetMatrixColumn(key, "不明", "マスターに存在しません", "", false, true);
+            }).ToList();
+
+            var matrixRows = new List<TimesheetMatrixRow>();
+            foreach (var (date, projectCodesPerDay) in dailyProjectCodeTotals.OrderBy(pair => pair.Key))
+            {
+                var cells = matrixColumns.Select(column =>
+                {
+                    if (!projectCodesPerDay.TryGetValue(column.ProjectKey, out var hours))
+                        return new TimesheetMatrixCell(false, 0, 0);
+                    return new TimesheetMatrixCell(true, hours, RoundHoursToQuarter(hours));
+                }).ToList();
+                matrixRows.Add(new TimesheetMatrixRow(date, cells));
+            }
+
+            var totalCells = Enumerable.Range(0, matrixColumns.Count)
+                .Select(index =>
+                {
+                    var cells = matrixRows.Select(row => row.Cells[index]).ToList();
+                    return new TimesheetMatrixCell(
+                        cells.Any(cell => cell.HasValue),
+                        cells.Sum(cell => cell.ActualHours),
+                        cells.Sum(cell => cell.RoundedHours));
+                })
+                .ToList();
+
+            StatsTimesheetMatrixColumns = matrixColumns;
+            StatsTimesheetMatrixRows = matrixRows;
+            StatsTimesheetMatrixTotalCells = totalCells;
+            StatsTimesheetMatrixGrandTotalText = FormatDecimalHours(
+                matrixRows.Sum(row => row.Cells.Sum(cell => cell.RoundedHours)));
+        }
+        else
+        {
+            StatsTimesheetMatrixColumns = [];
+            StatsTimesheetMatrixRows = [];
+            StatsTimesheetMatrixTotalCells = [];
+            StatsTimesheetMatrixGrandTotalText = "";
+        }
 
         StatsCategoryItems = [.. orderedKeys.Select(key =>
         {

@@ -415,7 +415,8 @@ public partial class MainViewModel
             case Services.RoutineScope.ThisDay:
             {
                 var edited = _dialogService.ShowScheduleEditDialog(
-                    item, [.. Categories], GetTitleSuggestions(), [.. ProjectCodes], DefaultProjectCode);
+                    item, [.. Categories], GetTitleSuggestions(),
+                    GetSelectableProjectCodes(item.ProjectCodeId), DefaultProjectCode);
                 if (edited == null) return;
 
                 var originalDate = item.StartTime.Date;

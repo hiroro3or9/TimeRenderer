@@ -562,11 +562,11 @@
                             <TextBlock Text="プロジェクトコード" Style="{StaticResource SettingsSectionHeaderStyle}"/>
                         </Expander.Header>
                     <StackPanel>
-                    <TextBlock Text="記録を案件・プロジェクト単位で集計するためのコードです"
+                    <TextBlock Text="記録を案件・プロジェクト単位で集計するためのコードです。無効化しても過去の記録には残ります"
                                FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
                                TextWrapping="Wrap" Margin="0,0,0,10"/>
 
-                    <Grid Margin="0,0,28,4">
+                    <Grid Margin="0,0,92,4">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="92"/>
                             <ColumnDefinition Width="*"/>
@@ -583,14 +583,34 @@
                                         <ColumnDefinition Width="92"/>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBox Grid.Column="0" Text="{Binding Code, UpdateSourceTrigger=LostFocus}"
                                              Style="{StaticResource InputTextBoxStyle}" FontSize="12"
-                                             VerticalAlignment="Center"/>
+                                             VerticalAlignment="Center" IsEnabled="{Binding IsActive}"/>
                                     <TextBox Grid.Column="1" Text="{Binding Name, UpdateSourceTrigger=LostFocus}"
                                              Style="{StaticResource InputTextBoxStyle}" FontSize="12"
-                                             VerticalAlignment="Center" Margin="8,0,0,0"/>
-                                    <Button Grid.Column="2" Content="✕" Margin="4,0,0,0"
+                                             VerticalAlignment="Center" Margin="8,0,0,0" IsEnabled="{Binding IsActive}"/>
+                                    <Button Grid.Column="2" Margin="4,0,0,0"
+                                            Command="{Binding DataContext.ToggleProjectCodeActiveCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding}" Width="56" Height="24" Cursor="Hand">
+                                        <Button.Style>
+                                            <Style TargetType="Button" BasedOn="{StaticResource GhostButtonStyle}">
+                                                <Setter Property="Content" Value="無効化"/>
+                                                <Setter Property="FontSize" Value="11"/>
+                                                <Setter Property="Padding" Value="4,2"/>
+                                                <Setter Property="ToolTip" Value="新しい予定・実績の選択肢から外す"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsActive}" Value="False">
+                                                        <Setter Property="Content" Value="有効化"/>
+                                                        <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
+                                                        <Setter Property="ToolTip" Value="新しい予定・実績で再び選択できるようにする"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+                                    <Button Grid.Column="3" Content="✕" Margin="4,0,0,0"
                                             Command="{Binding DataContext.DeleteProjectCodeCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                             CommandParameter="{Binding}"
                                             Style="{StaticResource IconButtonStyle}" Foreground="{DynamicResource TextSecondaryBrush}"
@@ -608,7 +628,7 @@
                     <TextBlock Text="新しい予定・実績と「記録開始」で作る記録に自動設定されます。アイテム編集や記録開始時に変更できます。"
                                FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
                                TextWrapping="Wrap" Margin="0,0,0,8"/>
-                    <ComboBox ItemsSource="{Binding ProjectCodes}"
+                    <ComboBox ItemsSource="{Binding ActiveProjectCodes}"
                               SelectedItem="{Binding SelectedDefaultProjectCode}"
                               DisplayMemberPath="DisplayName" Height="32" Margin="0,0,0,4"/>
                     </StackPanel>

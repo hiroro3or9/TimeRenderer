@@ -12,14 +12,20 @@ public partial class MainViewModel
 {
     public ObservableCollection<ProjectCodeInfo> ProjectCodes { get; } = [];
 
+    /// <summary>新しい予定・実績で選択できるプロジェクトコード。</summary>
+    public IReadOnlyList<ProjectCodeInfo> ActiveProjectCodes => [.. ProjectCodes.Where(p => p.IsActive)];
+
     public ICommand AddProjectCodeCommand { get; private set; } = null!;
     public ICommand DeleteProjectCodeCommand { get; private set; } = null!;
+    public ICommand ToggleProjectCodeActiveCommand { get; private set; } = null!;
 
     private string? _defaultProjectCodeId;
 
     /// <summary>新しい予定・実績と、通常の記録開始で使用する既定のプロジェクトコード。</summary>
     public ProjectCodeInfo? DefaultProjectCode =>
-        ResolveProjectCode(_defaultProjectCodeId) ?? ProjectCodes.FirstOrDefault();
+        ResolveProjectCode(_defaultProjectCodeId) is { IsActive: true } selected
+            ? selected
+            : ProjectCodes.FirstOrDefault(p => p.IsActive);
 
     /// <summary>設定パネルの既定値コンボボックス用。</summary>
     public ProjectCodeInfo? SelectedDefaultProjectCode
@@ -27,7 +33,7 @@ public partial class MainViewModel
         get => DefaultProjectCode;
         set
         {
-            if (value == null || value.Id == _defaultProjectCodeId) return;
+            if (value is not { IsActive: true } || value.Id == _defaultProjectCodeId) return;
 
             _defaultProjectCodeId = value.Id;
             NotifyDefaultProjectCodeChanged();
@@ -37,7 +43,11 @@ public partial class MainViewModel
 
     private void InitializeProjectCodeCommands()
     {
-        ProjectCodes.CollectionChanged += (_, _) => NotifyDefaultProjectCodeChanged();
+        ProjectCodes.CollectionChanged += (_, _) =>
+        {
+            NotifyProjectCodeChoicesChanged();
+            System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+        };
 
         AddProjectCodeCommand = new RelayCommand(_ =>
         {
@@ -56,10 +66,22 @@ public partial class MainViewModel
             SaveSettings();
         });
 
+        ToggleProjectCodeActiveCommand = new RelayCommand(
+            param =>
+            {
+                if (param is not ProjectCodeInfo projectCode) return;
+
+                projectCode.IsActive = !projectCode.IsActive;
+            },
+            param => param is ProjectCodeInfo projectCode &&
+                     (!projectCode.IsActive || ProjectCodes.Count(p => p.IsActive) > 1));
+
         DeleteProjectCodeCommand = new RelayCommand(
             param =>
             {
-                if (param is not ProjectCodeInfo projectCode || ProjectCodes.Count <= 1) return;
+                if (param is not ProjectCodeInfo projectCode ||
+                    ProjectCodes.Count <= 1 ||
+                    (projectCode.IsActive && ProjectCodes.Count(p => p.IsActive) <= 1)) return;
 
                 if (ScheduleItems.Any(item => item.ProjectCodeId == projectCode.Id))
                 {
@@ -79,14 +101,16 @@ public partial class MainViewModel
 
                 if (_defaultProjectCodeId == projectCode.Id)
                 {
-                    _defaultProjectCodeId = ProjectCodes.FirstOrDefault()?.Id;
+                    _defaultProjectCodeId = ProjectCodes.FirstOrDefault(p => p.IsActive)?.Id;
                 }
 
                 NotifyDefaultProjectCodeChanged();
                 SaveSettings();
                 UpdateStats();
             },
-            param => param is ProjectCodeInfo && ProjectCodes.Count > 1);
+            param => param is ProjectCodeInfo projectCode &&
+                     ProjectCodes.Count > 1 &&
+                     (!projectCode.IsActive || ProjectCodes.Count(p => p.IsActive) > 1));
     }
 
     private void LoadProjectCodes(List<ProjectCodeInfo>? loaded)
@@ -99,6 +123,7 @@ public partial class MainViewModel
         ProjectCodes.Clear();
 
         var source = loaded is { Count: > 0 } ? loaded : ProjectCodeInfo.CreateDefaults();
+        if (source.All(p => !p.IsActive)) source[0].IsActive = true;
         foreach (var projectCode in source)
         {
             if (string.IsNullOrEmpty(projectCode.Id)) projectCode.Id = Guid.NewGuid().ToString("N");
@@ -109,8 +134,10 @@ public partial class MainViewModel
 
     private void LoadDefaultProjectCodeId(string? id)
     {
-        _defaultProjectCodeId = ResolveProjectCode(id)?.Id ?? ProjectCodes.FirstOrDefault()?.Id;
-        NotifyDefaultProjectCodeChanged();
+        _defaultProjectCodeId = ResolveProjectCode(id) is { IsActive: true } selected
+            ? selected.Id
+            : ProjectCodes.FirstOrDefault(p => p.IsActive)?.Id;
+        NotifyProjectCodeChoicesChanged();
     }
 
     private void AttachProjectCode(ProjectCodeInfo projectCode)
@@ -121,19 +148,42 @@ public partial class MainViewModel
 
     private void OnProjectCodePropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (_isLoadingData || e.PropertyName == nameof(ProjectCodeInfo.DisplayName)) return;
+        if (e.PropertyName == nameof(ProjectCodeInfo.DisplayName)) return;
+
+        if (e.PropertyName == nameof(ProjectCodeInfo.IsActive))
+        {
+            if (sender is ProjectCodeInfo { IsActive: false } projectCode &&
+                _defaultProjectCodeId == projectCode.Id)
+            {
+                _defaultProjectCodeId = ProjectCodes.FirstOrDefault(p => p.IsActive)?.Id;
+            }
+            NotifyProjectCodeChoicesChanged();
+            System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+        }
+
+        if (_isLoadingData) return;
 
         SaveSettings();
         UpdateStats();
-        NotifyDefaultProjectCodeChanged();
+        NotifyProjectCodeChoicesChanged();
     }
 
     public ProjectCodeInfo? ResolveProjectCode(string? id) =>
         string.IsNullOrEmpty(id) ? null : ProjectCodes.FirstOrDefault(p => p.Id == id);
 
+    /// <summary>新規選択肢に、編集中の無効コードだけを加えて過去の紐づけを維持する。</summary>
+    private IReadOnlyList<ProjectCodeInfo> GetSelectableProjectCodes(string? currentProjectCodeId = null) =>
+        [.. ProjectCodes.Where(p => p.IsActive || p.Id == currentProjectCodeId)];
+
     private void NotifyDefaultProjectCodeChanged()
     {
         OnPropertyChanged(nameof(DefaultProjectCode));
         OnPropertyChanged(nameof(SelectedDefaultProjectCode));
+    }
+
+    private void NotifyProjectCodeChoicesChanged()
+    {
+        OnPropertyChanged(nameof(ActiveProjectCodes));
+        NotifyDefaultProjectCodeChanged();
     }
 }
