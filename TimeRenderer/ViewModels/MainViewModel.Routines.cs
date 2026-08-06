@@ -123,7 +123,7 @@ public partial class MainViewModel
                 {
                     PendingReminders.Remove(item);
                     // 予定アイテム自体を実績として使う（停止時に別アイテムを作らない）
-                    StartRecordingFromItem(item, consumeItem: true);
+                    StartRecordingFromItem(item);
                 }
             },
             param => param is ScheduleItem
@@ -570,7 +570,7 @@ public partial class MainViewModel
             if (autoStart && (forceStart || !IsRecording))
             {
                 // 予定アイテム自体を実績として使う（停止時に別アイテムを作らない）
-                StartRecordingFromItem(item, consumeItem: true);
+                StartRecordingFromItem(item);
                 ShowAutoStartNotice($"「{item.Title}」の記録を自動開始しました");
             }
             else if (!PendingReminders.Contains(item))

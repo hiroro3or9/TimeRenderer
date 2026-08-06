@@ -45,7 +45,8 @@ public class ScheduleItem : INotifyPropertyChanged
 
     private string? _sourcePlanId;
     /// <summary>
-    /// 予定から開始した実績が参照する元予定のID。予定を残したまま実績を比較できるようにする。
+    /// 予定から開始した実績が参照する元アイテムのID。
+    /// 離席除外で記録が分割された場合など、同じ予定由来の実績を関連付ける。
     /// </summary>
     public string? SourcePlanId
     {
