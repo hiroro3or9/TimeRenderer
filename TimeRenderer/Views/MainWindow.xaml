@@ -12,7 +12,7 @@
         mc:Ignorable="d"
         Background="{DynamicResource BackgroundBrush}"
         Icon="pack://application:,,,/Assets/AppIcon.ico"
-        Title="TimeRenderer" Height="700" Width="1100"
+        Title="TimeRenderer" Height="700" Width="1100" MinWidth="840"
         PreviewKeyDown="Window_PreviewKeyDownForUndo">
 
     <Window.InputBindings>
@@ -26,15 +26,18 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*"/>
-            <ColumnDefinition Width="Auto"/> <!-- ToDo Panel -->
-        </Grid.ColumnDefinitions>
-
         <!-- ツールバー + 定期予定リマインダー通知（縦に積むための StackPanel） -->
-        <StackPanel Grid.Row="0" Grid.ColumnSpan="2">
+        <StackPanel Grid.Row="0">
         <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="12,8">
-            <Grid>
+            <!--
+                広い画面では3つの操作群を1段に並べる。幅が足りないときはコードビハインドで
+                記録・表示切替のまとまりだけを2段目へ送り、右端の操作が画面外へ消えるのを防ぐ。
+            -->
+            <Grid x:Name="ToolbarLayoutGrid" SizeChanged="ToolbarLayout_SizeChanged">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
@@ -42,7 +45,9 @@
                 </Grid.ColumnDefinitions>
 
                 <!-- 左側：追加・ナビゲーション・日付 -->
-                <StackPanel Orientation="Horizontal" Grid.Column="0" VerticalAlignment="Center">
+                <StackPanel x:Name="ToolbarNavigationGroup" Grid.Row="0" Grid.Column="0"
+                            Orientation="Horizontal" VerticalAlignment="Center"
+                            SizeChanged="ToolbarLayout_SizeChanged">
                     <Button Content="＋ 追加" Click="AddButton_Click" Style="{StaticResource PrimaryButtonStyle}" Margin="0,0,8,0"/>
 
                     <!-- 取り消し / やり直し（予定の追加・削除・編集・ドラッグが対象） -->
@@ -66,8 +71,10 @@
                     <TextBlock Text="{Binding DateDisplay}" VerticalAlignment="Center" FontSize="17" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="4,0,0,0"/>
                 </StackPanel>
 
-                <!-- 中央（右寄せ）：検索 + 色フィルタ -->
-                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="12,0,0,0">
+                <!-- 検索 + 色フィルタ -->
+                <StackPanel x:Name="ToolbarSearchGroup" Grid.Row="0" Grid.Column="1"
+                            Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center"
+                            Margin="12,0,0,0" SizeChanged="ToolbarLayout_SizeChanged">
 
                     <!-- 検索トグル（クリックで検索フライアウトを開く） -->
                     <ToggleButton x:Name="SearchToggle" Style="{StaticResource IconToggleButtonStyle}" ToolTip="検索"
@@ -252,10 +259,10 @@
                     </Popup>
                 </StackPanel>
 
-                <!-- 右側：記録・表示切替・パネル -->
-                <StackPanel Orientation="Horizontal" Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center">
-
-                    <Border Style="{StaticResource ToolbarSeparatorStyle}"/>
+                <!-- 記録・表示切替・パネル。幅が足りないときは、この操作群ごと2段目へ送る -->
+                <StackPanel x:Name="ToolbarActionsGroup" Grid.Row="0" Grid.Column="2"
+                            Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center"
+                            SizeChanged="ToolbarLayout_SizeChanged">
 
                     <!--
                         出勤 / 退勤。作業内容の記録（右の記録ボタン）とは別の軸で、
@@ -608,11 +615,12 @@
         <views:NotesView Grid.Row="1" Grid.RowSpan="2"
                          Visibility="{Binding IsNotesMode, Converter={StaticResource BooleanToVisibilityConverter}}"/>
 
-        <!-- ToDo パネル -->
-        <views:TodoPanel Grid.Row="1" Grid.RowSpan="2" Grid.Column="1"/>
+        <!-- ToDo パネル (右スライドイン・オーバーレイ) -->
+        <views:TodoPanel Grid.Row="1" Grid.RowSpan="2"
+                         HorizontalAlignment="Right" Panel.ZIndex="90"/>
 
         <!-- 設定パネル (右スライドイン・オーバーレイ) -->
-        <views:SettingsPanel Grid.Row="1" Grid.RowSpan="2" Grid.ColumnSpan="2"
+        <views:SettingsPanel Grid.Row="1" Grid.RowSpan="2"
                              HorizontalAlignment="Right" Panel.ZIndex="100"/>
 
     </Grid>

@@ -28,6 +28,10 @@ namespace TimeRenderer.Views.Dialogs
         {
             InitializeComponent();
 
+            // 高DPIや小さい画面でもウィンドウ下端が作業領域の外へ出ないようにする。
+            MaxHeight = Math.Max(MinHeight, SystemParameters.WorkArea.Height - 24);
+            Height = Math.Min(Height, MaxHeight);
+
             var duration = end > start ? end - start : TimeSpan.Zero;
             HeadlineText.Text = $"{start:M月d日 (ddd)} {start:H:mm} - {end:H:mm}（{Format(duration)}）";
 

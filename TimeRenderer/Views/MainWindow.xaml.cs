@@ -26,6 +26,7 @@ namespace TimeRenderer.Views
         private WinForms.ToolStripMenuItem _recordMenuItem = null!;
         private WinForms.ToolStripMenuItem _workDayMenuItem = null!;
         private bool _isExiting = false;
+        private bool _isToolbarCompact;
 
         public MainWindow()
         {
@@ -46,6 +47,52 @@ namespace TimeRenderer.Views
             // 検索/フィルタのポップアップをトグルボタンの右端に揃えて表示する
             SearchFlyout.CustomPopupPlacementCallback = PlaceDropdownRightAligned;
             FilterPopup.CustomPopupPlacementCallback = PlaceDropdownRightAligned;
+        }
+
+        /// <summary>
+        /// ツールバーの操作群が1段に収まらないとき、記録・表示切替のまとまりを2段目へ送る。
+        /// 個々のボタンを途中で折り返さないため、機能のまとまりと操作順は維持される。
+        /// </summary>
+        private void ToolbarLayout_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            if (ToolbarLayoutGrid.ActualWidth <= 0) return;
+
+            // Grid の * 列は、幅不足のとき検索グループを 0px まで圧縮する。
+            // 圧縮後の DesiredSize では判定できないため、各 StackPanel の子の自然幅を合計する。
+            double requiredWidth = GetHorizontalContentWidth(ToolbarNavigationGroup)
+                                   + GetHorizontalContentWidth(ToolbarSearchGroup)
+                                   + GetHorizontalContentWidth(ToolbarActionsGroup);
+            bool shouldCompact = ToolbarLayoutGrid.ActualWidth < requiredWidth;
+
+            if (_isToolbarCompact == shouldCompact) return;
+            _isToolbarCompact = shouldCompact;
+
+            if (shouldCompact)
+            {
+                Grid.SetRow(ToolbarActionsGroup, 1);
+                Grid.SetColumn(ToolbarActionsGroup, 0);
+                Grid.SetColumnSpan(ToolbarActionsGroup, 3);
+                ToolbarActionsGroup.HorizontalAlignment = System.Windows.HorizontalAlignment.Left;
+                ToolbarActionsGroup.Margin = new Thickness(0, 4, 0, 0);
+            }
+            else
+            {
+                Grid.SetRow(ToolbarActionsGroup, 0);
+                Grid.SetColumn(ToolbarActionsGroup, 2);
+                Grid.SetColumnSpan(ToolbarActionsGroup, 1);
+                ToolbarActionsGroup.HorizontalAlignment = System.Windows.HorizontalAlignment.Right;
+                ToolbarActionsGroup.Margin = new Thickness(0);
+            }
+        }
+
+        private static double GetHorizontalContentWidth(StackPanel group)
+        {
+            double width = group.Margin.Left + group.Margin.Right;
+            foreach (UIElement child in group.Children)
+            {
+                width += child.DesiredSize.Width;
+            }
+            return width;
         }
 
         /// <summary>

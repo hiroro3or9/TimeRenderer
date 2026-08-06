@@ -20,6 +20,13 @@ public partial class MainViewModel
         get => _isSettingsPanelVisible;
         set
         {
+            // 右側のオーバーレイ同士が重ならないよう、設定を開くときは ToDo を閉じる。
+            if (value && _isTodoPanelVisible)
+            {
+                _isTodoPanelVisible = false;
+                OnPropertyChanged(nameof(IsTodoPanelVisible));
+            }
+
             if (SetProperty(ref _isSettingsPanelVisible, value))
             {
                 SaveSettings();
@@ -192,7 +199,8 @@ public partial class MainViewModel
         _isSettingsPanelVisible = settings.IsSettingsPanelVisible;
         OnPropertyChanged(nameof(IsSettingsPanelVisible));
 
-        _isTodoPanelVisible = settings.IsTodoPanelVisible;
+        // 旧設定で両方が開いていても、同じ位置のオーバーレイを重ねない。
+        _isTodoPanelVisible = settings.IsTodoPanelVisible && !_isSettingsPanelVisible;
         OnPropertyChanged(nameof(IsTodoPanelVisible));
 
         _showCompletedTodos = settings.ShowCompletedTodos;
