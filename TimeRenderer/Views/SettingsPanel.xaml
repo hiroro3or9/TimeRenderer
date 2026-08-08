@@ -9,7 +9,7 @@
             </Border.Effect>
             <Border.Style>
                 <Style TargetType="Border">
-                    <Setter Property="Width" Value="320"/>
+                    <Setter Property="Width" Value="400"/>
                     <Style.Triggers>
                         <DataTrigger Binding="{Binding IsSettingsPanelVisible}" Value="False">
                             <DataTrigger.EnterActions>
@@ -26,7 +26,7 @@
                             <DataTrigger.ExitActions>
                                 <BeginStoryboard>
                                     <Storyboard>
-                                        <DoubleAnimation Storyboard.TargetProperty="Width" To="320" Duration="0:0:0.15">
+                                        <DoubleAnimation Storyboard.TargetProperty="Width" To="400" Duration="0:0:0.15">
                                             <DoubleAnimation.EasingFunction>
                                                 <QuadraticEase EasingMode="EaseOut"/>
                                             </DoubleAnimation.EasingFunction>
@@ -38,7 +38,7 @@
                     </Style.Triggers>
                 </Style>
             </Border.Style>
-            <Grid Width="320">
+            <Grid Width="400">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/> <!-- Header -->
                     <RowDefinition Height="*"/>    <!-- Content -->
@@ -485,8 +485,8 @@
                 </ScrollViewer>
                 </TabItem>
 
-                <!-- タブ2: 分類（カテゴリ・定型タイトル） -->
-                <TabItem Header="分類" Style="{StaticResource SettingsTabItemStyle}">
+                <!-- 管理パネルへ移行済み。旧XAMLは段階的な削除まで非表示にする -->
+                <TabItem Header="分類" Style="{StaticResource SettingsTabItemStyle}" Visibility="Collapsed">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel Margin="24,4,24,24" Background="{DynamicResource SurfaceBrush}">
                     <!-- カテゴリ設定 -->
@@ -669,7 +669,7 @@
                 </TabItem>
 
                 <!-- タブ3: 定期予定（ルーティン） -->
-                <TabItem Header="定期予定" Style="{StaticResource SettingsTabItemStyle}">
+                <TabItem Header="定期予定" Style="{StaticResource SettingsTabItemStyle}" Visibility="Collapsed">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel Margin="24,4,24,24" Background="{DynamicResource SurfaceBrush}">
                     <!-- 定期予定（ルーティン）設定 -->
@@ -729,7 +729,7 @@
                 </TabItem>
 
                 <!-- タブ4: スプリント -->
-                <TabItem Header="スプリント" Style="{StaticResource SettingsTabItemStyle}">
+                <TabItem Header="スプリント" Style="{StaticResource SettingsTabItemStyle}" Visibility="Collapsed">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel Margin="24,4,24,24" Background="{DynamicResource SurfaceBrush}">
                     <!-- スプリント設定 -->

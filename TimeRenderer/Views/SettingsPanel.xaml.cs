@@ -1,10 +1,10 @@
-using UserControl = System.Windows.Controls.UserControl;
+﻿using UserControl = System.Windows.Controls.UserControl;
 
 namespace TimeRenderer.Views
 {
     /// <summary>
     /// 設定パネル（右スライドイン・オーバーレイ）。
-    /// 一般・分類・定期予定・スプリントの各タブを持つ。ロジックはバインディングのみ。
+    /// 外観、表示、通知、勤務などの一般設定を扱う。データ管理は ManagementPanel が担当する。
     /// </summary>
     public partial class SettingsPanel : UserControl
     {

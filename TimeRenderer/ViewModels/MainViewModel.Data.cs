@@ -20,14 +20,44 @@ public partial class MainViewModel
         get => _isSettingsPanelVisible;
         set
         {
-            // 右側のオーバーレイ同士が重ならないよう、設定を開くときは ToDo を閉じる。
+            // 右側のオーバーレイ同士が重ならないよう、設定を開くときは他のパネルを閉じる。
             if (value && _isTodoPanelVisible)
             {
                 _isTodoPanelVisible = false;
                 OnPropertyChanged(nameof(IsTodoPanelVisible));
             }
+            if (value && _isManagementPanelVisible)
+            {
+                _isManagementPanelVisible = false;
+                OnPropertyChanged(nameof(IsManagementPanelVisible));
+            }
 
             if (SetProperty(ref _isSettingsPanelVisible, value))
+            {
+                SaveSettings();
+            }
+        }
+    }
+
+    private bool _isManagementPanelVisible;
+    /// <summary>カテゴリ・定期予定・スプリントなどのデータ管理パネルを表示するか。</summary>
+    public bool IsManagementPanelVisible
+    {
+        get => _isManagementPanelVisible;
+        set
+        {
+            if (value && _isTodoPanelVisible)
+            {
+                _isTodoPanelVisible = false;
+                OnPropertyChanged(nameof(IsTodoPanelVisible));
+            }
+            if (value && _isSettingsPanelVisible)
+            {
+                _isSettingsPanelVisible = false;
+                OnPropertyChanged(nameof(IsSettingsPanelVisible));
+            }
+
+            if (SetProperty(ref _isManagementPanelVisible, value))
             {
                 SaveSettings();
             }
@@ -147,6 +177,7 @@ public partial class MainViewModel
     private AppSettings BuildSettings() => new()
     {
         IsSettingsPanelVisible = IsSettingsPanelVisible,
+        IsManagementPanelVisible = IsManagementPanelVisible,
         IsTodoPanelVisible = IsTodoPanelVisible,
         ShowCompletedTodos = ShowCompletedTodos,
         TodoSortMode = (int)CurrentTodoSortMode,
@@ -199,8 +230,13 @@ public partial class MainViewModel
         _isSettingsPanelVisible = settings.IsSettingsPanelVisible;
         OnPropertyChanged(nameof(IsSettingsPanelVisible));
 
-        // 旧設定で両方が開いていても、同じ位置のオーバーレイを重ねない。
-        _isTodoPanelVisible = settings.IsTodoPanelVisible && !_isSettingsPanelVisible;
+        // 壊れた設定や旧バージョンで複数が開いていても、同じ位置のパネルを重ねない。
+        _isManagementPanelVisible = settings.IsManagementPanelVisible && !_isSettingsPanelVisible;
+        OnPropertyChanged(nameof(IsManagementPanelVisible));
+
+        _isTodoPanelVisible = settings.IsTodoPanelVisible
+                              && !_isSettingsPanelVisible
+                              && !_isManagementPanelVisible;
         OnPropertyChanged(nameof(IsTodoPanelVisible));
 
         _showCompletedTodos = settings.ShowCompletedTodos;

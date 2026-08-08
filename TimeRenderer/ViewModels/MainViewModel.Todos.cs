@@ -49,11 +49,16 @@ public partial class MainViewModel
         get => _isTodoPanelVisible;
         set
         {
-            // 右側のオーバーレイ同士が重ならないよう、ToDo を開くときは設定を閉じる。
+            // 右側のオーバーレイ同士が重ならないよう、ToDo を開くときは他のパネルを閉じる。
             if (value && _isSettingsPanelVisible)
             {
                 _isSettingsPanelVisible = false;
                 OnPropertyChanged(nameof(IsSettingsPanelVisible));
+            }
+            if (value && _isManagementPanelVisible)
+            {
+                _isManagementPanelVisible = false;
+                OnPropertyChanged(nameof(IsManagementPanelVisible));
             }
 
             if (SetProperty(ref _isTodoPanelVisible, value)) SaveSettings();
