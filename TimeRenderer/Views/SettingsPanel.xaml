@@ -41,6 +41,7 @@
             <Grid Width="400">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/> <!-- Header -->
+                    <RowDefinition Height="Auto"/> <!-- Search -->
                     <RowDefinition Height="*"/>    <!-- Content -->
                 </Grid.RowDefinitions>
                 
@@ -52,16 +53,66 @@
                                 Style="{StaticResource IconButtonStyle}" Foreground="{DynamicResource TextSecondaryBrush}"/>
                     </Grid>
                 </Border>
-                
-                <!-- コンテンツ（タブ切替 + 各タブ内は縦スクロール・セクション折りたたみ） -->
-                <TabControl Grid.Row="1" Style="{StaticResource SettingsTabControlStyle}">
 
-                <!-- タブ1: 一般（外観・表示設定） -->
-                <TabItem Header="一般" Style="{StaticResource SettingsTabItemStyle}">
+                <!-- 設定名・説明文のキーワードでセクションを絞り込む -->
+                <Border Grid.Row="1" Height="36" Margin="14,10,14,6" CornerRadius="6"
+                        Background="{DynamicResource BackgroundBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="&#xE721;" FontFamily="Segoe MDL2 Assets" FontSize="12"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   VerticalAlignment="Center" Margin="9,0,5,0"/>
+                        <TextBox x:Name="SettingsSearchBox" Grid.Column="1"
+                                 BorderThickness="0" Background="Transparent"
+                                 VerticalContentAlignment="Center" FontSize="13"
+                                 Foreground="{DynamicResource TextPrimaryBrush}"
+                                 TextChanged="SettingsSearchBox_TextChanged"
+                                 ToolTip="設定名や説明を検索"/>
+                        <TextBlock Grid.Column="1" Text="設定を検索" FontSize="13"
+                                   Foreground="{DynamicResource TextMutedBrush}"
+                                   VerticalAlignment="Center" IsHitTestVisible="False">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Text, ElementName=SettingsSearchBox}" Value="">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <Button x:Name="SettingsSearchClearButton" Grid.Column="2" Content="✕"
+                                Width="24" Height="24" Margin="0,0,5,0"
+                                Style="{StaticResource IconButtonStyle}"
+                                Foreground="{DynamicResource TextSecondaryBrush}"
+                                Visibility="Collapsed" ToolTip="検索をクリア"
+                                Click="SettingsSearchClearButton_Click"/>
+                    </Grid>
+                </Border>
+                
+                <!-- 一般設定。データ管理は ManagementPanel へ分離済み -->
+                <TabControl Grid.Row="2" Background="Transparent" BorderThickness="0">
+                <TabControl.Template>
+                    <ControlTemplate TargetType="TabControl">
+                        <ContentPresenter ContentSource="SelectedContent"/>
+                    </ControlTemplate>
+                </TabControl.Template>
+
+                <TabItem>
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel Margin="24,4,24,24" Background="{DynamicResource SurfaceBrush}">
+                    <TextBlock x:Name="NoSettingsResultsText"
+                               Text="該当する設定がありません" TextAlignment="Center"
+                               FontSize="13" Margin="0,24" Visibility="Collapsed"
+                               Foreground="{DynamicResource TextSecondaryBrush}"/>
                     <!-- 外観設定 -->
-                    <Expander Style="{StaticResource SettingsExpanderStyle}">
+                    <Expander x:Name="AppearanceSettingsSection" Style="{StaticResource SettingsExpanderStyle}">
                         <Expander.Header>
                             <TextBlock Text="外観" Style="{StaticResource SettingsSectionHeaderStyle}"/>
                         </Expander.Header>
@@ -112,7 +163,7 @@
                     </Expander>
 
                     <!-- 表示設定 -->
-                    <Expander Style="{StaticResource SettingsExpanderStyle}">
+                    <Expander x:Name="DisplaySettingsSection" Style="{StaticResource SettingsExpanderStyle}">
                         <Expander.Header>
                             <TextBlock Text="表示設定" Style="{StaticResource SettingsSectionHeaderStyle}"/>
                         </Expander.Header>
@@ -177,7 +228,7 @@
                     </Expander>
 
                     <!-- 離席・中断の検知 -->
-                    <Expander Style="{StaticResource SettingsExpanderStyle}">
+                    <Expander x:Name="AwaySettingsSection" Style="{StaticResource SettingsExpanderStyle}">
                         <Expander.Header>
                             <TextBlock Text="離席・中断の検知" Style="{StaticResource SettingsSectionHeaderStyle}"/>
                         </Expander.Header>
@@ -236,7 +287,7 @@
                     </Expander>
 
                     <!-- 使用アプリの記録 -->
-                    <Expander Style="{StaticResource SettingsExpanderStyle}">
+                    <Expander x:Name="AppUsageSettingsSection" Style="{StaticResource SettingsExpanderStyle}">
                         <Expander.Header>
                             <TextBlock Text="使用アプリの記録" Style="{StaticResource SettingsSectionHeaderStyle}"/>
                         </Expander.Header>
@@ -267,7 +318,7 @@
                     </Expander>
 
                     <!-- ToDo -->
-                    <Expander Style="{StaticResource SettingsExpanderStyle}">
+                    <Expander x:Name="TodoSettingsSection" Style="{StaticResource SettingsExpanderStyle}">
                         <Expander.Header>
                             <TextBlock Text="ToDo" Style="{StaticResource SettingsSectionHeaderStyle}"/>
                         </Expander.Header>
@@ -406,7 +457,7 @@
                     </Expander>
 
                     <!-- 勤務（出勤・退勤）の記録 -->
-                    <Expander Style="{StaticResource SettingsExpanderStyle}">
+                    <Expander x:Name="WorkSettingsSection" Style="{StaticResource SettingsExpanderStyle}">
                         <Expander.Header>
                             <TextBlock Text="勤務の記録（出勤・退勤）" Style="{StaticResource SettingsSectionHeaderStyle}"/>
                         </Expander.Header>
@@ -480,351 +531,6 @@
                                        Foreground="{DynamicResource TextSecondaryBrush}"
                                        Text="退勤したときに、その日の勤務時間・記録時間・完了した ToDo の件数を出し、片付かなかった ToDo を明日へ送るか確認します。「今日やる」は日をまたぐと自動で外れるため、手を付けなかったものが黙って消えるのを防ぎます。送るのは「今日やる」の印だけで、期限は変わりません。自動で締めた退勤では出しません。"/>
                         </StackPanel>
-                    </Expander>
-                </StackPanel>
-                </ScrollViewer>
-                </TabItem>
-
-                <!-- 管理パネルへ移行済み。旧XAMLは段階的な削除まで非表示にする -->
-                <TabItem Header="分類" Style="{StaticResource SettingsTabItemStyle}" Visibility="Collapsed">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                <StackPanel Margin="24,4,24,24" Background="{DynamicResource SurfaceBrush}">
-                    <!-- カテゴリ設定 -->
-                    <Expander Style="{StaticResource SettingsExpanderStyle}">
-                        <Expander.Header>
-                            <TextBlock Text="カテゴリ" Style="{StaticResource SettingsSectionHeaderStyle}"/>
-                        </Expander.Header>
-                    <StackPanel>
-                    <TextBlock Text="色に名前を付けて分類できます（統計に反映）" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,10"/>
-                    <ItemsControl ItemsSource="{Binding Categories}" Margin="0,0,0,8">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Grid Margin="0,0,0,6">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <!-- 色選択 -->
-                                    <ComboBox Grid.Column="0" Width="56" VerticalAlignment="Center" Margin="0,0,8,0"
-                                              ItemsSource="{Binding DataContext.PaletteColors, RelativeSource={RelativeSource AncestorType=Window}}"
-                                              SelectedValuePath="Code" SelectedValue="{Binding ColorCode}">
-                                        <ComboBox.ItemTemplate>
-                                            <DataTemplate>
-                                                <Border Width="20" Height="14" Background="{Binding Brush}" CornerRadius="3"
-                                                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                                                        ToolTip="{Binding Name}"/>
-                                            </DataTemplate>
-                                        </ComboBox.ItemTemplate>
-                                    </ComboBox>
-                                    <!-- 名前 -->
-                                    <TextBox Grid.Column="1" Text="{Binding Name, UpdateSourceTrigger=LostFocus}"
-                                             Style="{StaticResource InputTextBoxStyle}" FontSize="12" VerticalAlignment="Center"/>
-                                    <!-- 削除 -->
-                                    <Button Grid.Column="2" Content="✕" Margin="4,0,0,0"
-                                            Command="{Binding DataContext.DeleteCategoryCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                            CommandParameter="{Binding}"
-                                            Style="{StaticResource IconButtonStyle}" Foreground="{DynamicResource TextSecondaryBrush}"
-                                            Width="24" Height="24" Cursor="Hand"/>
-                                </Grid>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                    <Button Content="＋ カテゴリを追加" Command="{Binding AddCategoryCommand}"
-                            Style="{StaticResource BaseButtonStyle}" HorizontalAlignment="Stretch" Margin="0,0,0,4"/>
-
-                    <!-- 記録開始時の既定カテゴリ -->
-                    <Separator Margin="0,12,0,10" Background="{DynamicResource BorderBrush}"/>
-                    <TextBlock Text="記録開始時の種別" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,4"/>
-                    <TextBlock Text="「記録開始」で作られる記録に付くカテゴリです（予定から記録を始めた場合はその予定の種別が優先されます）"
-                               FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
-                               TextWrapping="Wrap" Margin="0,0,0,8"/>
-                    <ComboBox ItemsSource="{Binding Categories}"
-                              SelectedItem="{Binding SelectedRecordingCategory}"
-                              Height="32" Margin="0,0,0,4">
-                        <ComboBox.ItemTemplate>
-                            <DataTemplate>
-                                <StackPanel Orientation="Horizontal">
-                                    <Border Width="20" Height="14" Background="{Binding Brush}" CornerRadius="3"
-                                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                                            VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                    <TextBlock Text="{Binding Name}" VerticalAlignment="Center" FontSize="12"/>
-                                </StackPanel>
-                            </DataTemplate>
-                        </ComboBox.ItemTemplate>
-                    </ComboBox>
-                    </StackPanel>
-                    </Expander>
-
-                    <!-- プロジェクトコード設定 -->
-                    <Expander Style="{StaticResource SettingsExpanderStyle}">
-                        <Expander.Header>
-                            <TextBlock Text="プロジェクトコード" Style="{StaticResource SettingsSectionHeaderStyle}"/>
-                        </Expander.Header>
-                    <StackPanel>
-                    <TextBlock Text="記録を案件・プロジェクト単位で集計するためのコードです。無効化しても過去の記録には残ります"
-                               FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
-                               TextWrapping="Wrap" Margin="0,0,0,10"/>
-
-                    <Grid Margin="0,0,92,4">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="92"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="コード" Style="{StaticResource FieldLabelStyle}"/>
-                        <TextBlock Grid.Column="1" Text="名称" Style="{StaticResource FieldLabelStyle}" Margin="8,0,0,0"/>
-                    </Grid>
-
-                    <ItemsControl ItemsSource="{Binding ProjectCodes}" Margin="0,0,0,8">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Grid Margin="0,0,0,6">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="92"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBox Grid.Column="0" Text="{Binding Code, UpdateSourceTrigger=LostFocus}"
-                                             Style="{StaticResource InputTextBoxStyle}" FontSize="12"
-                                             VerticalAlignment="Center" IsEnabled="{Binding IsActive}"/>
-                                    <TextBox Grid.Column="1" Text="{Binding Name, UpdateSourceTrigger=LostFocus}"
-                                             Style="{StaticResource InputTextBoxStyle}" FontSize="12"
-                                             VerticalAlignment="Center" Margin="8,0,0,0" IsEnabled="{Binding IsActive}"/>
-                                    <Button Grid.Column="2" Margin="4,0,0,0"
-                                            Command="{Binding DataContext.ToggleProjectCodeActiveCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                            CommandParameter="{Binding}" Width="56" Height="24" Cursor="Hand">
-                                        <Button.Style>
-                                            <Style TargetType="Button" BasedOn="{StaticResource GhostButtonStyle}">
-                                                <Setter Property="Content" Value="無効化"/>
-                                                <Setter Property="FontSize" Value="11"/>
-                                                <Setter Property="Padding" Value="4,2"/>
-                                                <Setter Property="ToolTip" Value="新しい予定・実績の選択肢から外す"/>
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding IsActive}" Value="False">
-                                                        <Setter Property="Content" Value="有効化"/>
-                                                        <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
-                                                        <Setter Property="ToolTip" Value="新しい予定・実績で再び選択できるようにする"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Button.Style>
-                                    </Button>
-                                    <Button Grid.Column="3" Content="✕" Margin="4,0,0,0"
-                                            Command="{Binding DataContext.DeleteProjectCodeCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                            CommandParameter="{Binding}"
-                                            Style="{StaticResource IconButtonStyle}" Foreground="{DynamicResource TextSecondaryBrush}"
-                                            Width="24" Height="24" Cursor="Hand"/>
-                                </Grid>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-
-                    <Button Content="＋ プロジェクトコードを追加" Command="{Binding AddProjectCodeCommand}"
-                            Style="{StaticResource BaseButtonStyle}" HorizontalAlignment="Stretch" Margin="0,0,0,4"/>
-
-                    <Separator Margin="0,12,0,10" Background="{DynamicResource BorderBrush}"/>
-                    <TextBlock Text="既定のプロジェクトコード" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,4"/>
-                    <TextBlock Text="新しい予定・実績と「記録開始」で作る記録に自動設定されます。アイテム編集や記録開始時に変更できます。"
-                               FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
-                               TextWrapping="Wrap" Margin="0,0,0,8"/>
-                    <ComboBox ItemsSource="{Binding ActiveProjectCodes}"
-                              SelectedItem="{Binding SelectedDefaultProjectCode}"
-                              DisplayMemberPath="DisplayName" Height="32" Margin="0,0,0,4"/>
-                    </StackPanel>
-                    </Expander>
-
-                    <!-- 定型タイトル設定 -->
-                    <Expander Style="{StaticResource SettingsExpanderStyle}">
-                        <Expander.Header>
-                            <TextBlock Text="定型タイトル" Style="{StaticResource SettingsSectionHeaderStyle}"/>
-                        </Expander.Header>
-                    <StackPanel>
-                    <TextBlock Text="タイトル入力欄の候補に常に表示されます" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,10"/>
-                    <ItemsControl ItemsSource="{Binding PinnedTitles}" Margin="0,0,0,8">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Grid Margin="0,0,0,6">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBox Grid.Column="0" Text="{Binding Text, UpdateSourceTrigger=LostFocus}"
-                                             Style="{StaticResource InputTextBoxStyle}" FontSize="12" VerticalAlignment="Center"/>
-                                    <Button Grid.Column="1" Content="✕" Margin="4,0,0,0"
-                                            Command="{Binding DataContext.DeletePinnedTitleCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                            CommandParameter="{Binding}"
-                                            Style="{StaticResource IconButtonStyle}" Foreground="{DynamicResource TextSecondaryBrush}"
-                                            Width="24" Height="24" Cursor="Hand"/>
-                                </Grid>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                    <Button Content="＋ 定型タイトルを追加" Command="{Binding AddPinnedTitleCommand}"
-                            Style="{StaticResource BaseButtonStyle}" HorizontalAlignment="Stretch" Margin="0,0,0,4"/>
-                    </StackPanel>
-                    </Expander>
-                </StackPanel>
-                </ScrollViewer>
-                </TabItem>
-
-                <!-- タブ3: 定期予定（ルーティン） -->
-                <TabItem Header="定期予定" Style="{StaticResource SettingsTabItemStyle}" Visibility="Collapsed">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                <StackPanel Margin="24,4,24,24" Background="{DynamicResource SurfaceBrush}">
-                    <!-- 定期予定（ルーティン）設定 -->
-                    <Expander Style="{StaticResource SettingsExpanderStyle}">
-                        <Expander.Header>
-                            <TextBlock Text="定期予定（ルーティン）" Style="{StaticResource SettingsSectionHeaderStyle}"/>
-                        </Expander.Header>
-                    <StackPanel>
-                    <TextBlock Text="決まった曜日・日付の予定を自動生成します（毎週・隔週などのN週ごと／毎月・隔月などのNヶ月ごと）。記録の開始忘れ防止に使えます（開始時刻にリマインダー通知、または自動で記録開始）"
-                               FontSize="11" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" Margin="0,0,0,10"/>
-                    <ItemsControl ItemsSource="{Binding Routines}" Margin="0,0,0,8">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="8" Margin="0,0,0,6">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-                                        <StackPanel Grid.Column="0">
-                                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                            <TextBlock FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0">
-                                                <Run Text="{Binding RecurrenceDisplay, Mode=OneWay}"/>
-                                                <Run Text=" "/>
-                                                <Run Text="{Binding TimeRangeDisplay, Mode=OneWay}"/>
-                                                <Run Text="  "/>
-                                                <Run Text="{Binding StartDateDisplay, Mode=OneWay}"/>
-                                            </TextBlock>
-                                            <TextBlock Text="自動開始" FontSize="10" Foreground="{DynamicResource PrimaryBrush}" Margin="0,2,0,0"
-                                                       Visibility="{Binding IsAutoStart, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-                                            <TextBlock Text="無効" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0"
-                                                       Visibility="{Binding IsEnabled, Converter={StaticResource InvertedBooleanToVisibilityConverter}}"/>
-                                        </StackPanel>
-                                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                            <Button Content="編集"
-                                                    Command="{Binding DataContext.EditRoutineCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                    CommandParameter="{Binding}"
-                                                    Style="{StaticResource GhostButtonStyle}"
-                                                    Padding="6,4" FontSize="11" Margin="0,0,4,0" Cursor="Hand"/>
-                                            <Button Content="削除"
-                                                    Command="{Binding DataContext.DeleteRoutineCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                    CommandParameter="{Binding}"
-                                                    Style="{StaticResource GhostButtonStyle}" Foreground="{DynamicResource DangerBrush}"
-                                                    Padding="6,4" FontSize="11" Cursor="Hand"/>
-                                        </StackPanel>
-                                    </Grid>
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                    <Button Content="＋ 定期予定を追加" Command="{Binding AddRoutineCommand}"
-                            Style="{StaticResource BaseButtonStyle}" HorizontalAlignment="Stretch" Margin="0,0,0,4"/>
-                    </StackPanel>
-                    </Expander>
-                </StackPanel>
-                </ScrollViewer>
-                </TabItem>
-
-                <!-- タブ4: スプリント -->
-                <TabItem Header="スプリント" Style="{StaticResource SettingsTabItemStyle}" Visibility="Collapsed">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                <StackPanel Margin="24,4,24,24" Background="{DynamicResource SurfaceBrush}">
-                    <!-- スプリント設定 -->
-                    <Expander Style="{StaticResource SettingsExpanderStyle}">
-                        <Expander.Header>
-                            <TextBlock Text="スプリント設定 (手動)" Style="{StaticResource SettingsSectionHeaderStyle}"/>
-                        </Expander.Header>
-                    <StackPanel>
-                        <!-- 手動スプリント一覧リスト -->
-                        <ListBox ItemsSource="{Binding ManualSprints}" MaxHeight="120" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Background="Transparent" Margin="0,0,0,12" Focusable="False">
-                            <ListBox.ItemContainerStyle>
-                                <Style TargetType="ListBoxItem">
-                                    <Setter Property="Padding" Value="4,6"/>
-                                    <Setter Property="Background" Value="Transparent"/>
-                                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                                    <Setter Property="Focusable" Value="False"/>
-                                </Style>
-                            </ListBox.ItemContainerStyle>
-                            <ListBox.ItemTemplate>
-                                <DataTemplate>
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-                                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="12"/>
-                                            <TextBlock FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0">
-                                                <Run Text="{Binding StartDate, StringFormat='yyyy/MM/dd', Mode=OneWay}"/>
-                                                <Run Text=" - "/>
-                                                <Run Text="{Binding EndDate, StringFormat='MM/dd', Mode=OneWay}"/>
-                                            </TextBlock>
-                                        </StackPanel>
-                                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                            <Button Content="編集" 
-                                                    Command="{Binding DataContext.EditManualSprintCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                    CommandParameter="{Binding}"
-                                                    Style="{StaticResource GhostButtonStyle}" 
-                                                    Padding="6,4" FontSize="11" Margin="0,0,4,0" Cursor="Hand"/>
-                                            <Button Content="削除" 
-                                                    Command="{Binding DataContext.DeleteManualSprintCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                    CommandParameter="{Binding}"
-                                                    Style="{StaticResource GhostButtonStyle}" Foreground="{DynamicResource DangerBrush}" 
-                                                    Padding="6,4" FontSize="11" Cursor="Hand"/>
-                                        </StackPanel>
-                                    </Grid>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
-
-                        <!-- 追加フォームコントロール -->
-                        <Grid Margin="0,0,0,10">
-                            <!-- 追加ボタン -->
-                            <Button Content="＋ スプリントを追加" 
-                                    Command="{Binding ShowAddSprintFormCommand}"
-                                    Visibility="{Binding IsAddSprintFormVisible, Converter={StaticResource InvertedBooleanToVisibilityConverter}}"
-                                    Style="{StaticResource BaseButtonStyle}" HorizontalAlignment="Stretch"/>
-                            
-                            <!-- インライン追加フォーム -->
-                            <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="12" Background="{DynamicResource BackgroundBrush}"
-                                    Visibility="{Binding IsAddSprintFormVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                <StackPanel>
-                                    <TextBlock Text="{Binding FormTitle}" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,10"/>
-                                    <TextBlock Text="スプリント名" Style="{StaticResource FieldLabelStyle}"/>
-                                    <TextBox Text="{Binding NewSprintName, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10" Style="{StaticResource InputTextBoxStyle}"/>
-                                    
-                                    <Grid Margin="0,0,0,12">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="12"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <StackPanel Grid.Column="0">
-                                            <TextBlock Text="開始日" Style="{StaticResource FieldLabelStyle}"/>
-                                            <DatePicker SelectedDate="{Binding NewSprintStartDate, UpdateSourceTrigger=PropertyChanged}"/>
-                                        </StackPanel>
-                                        <StackPanel Grid.Column="2">
-                                            <TextBlock Text="終了日" Style="{StaticResource FieldLabelStyle}"/>
-                                            <DatePicker SelectedDate="{Binding NewSprintEndDate, UpdateSourceTrigger=PropertyChanged}"/>
-                                        </StackPanel>
-                                    </Grid>
-                                    
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="8"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <Button Grid.Column="0" Content="キャンセル" Command="{Binding HideAddSprintFormCommand}" Style="{StaticResource BaseButtonStyle}" Cursor="Hand"/>
-                                        <Button Grid.Column="2" Content="保存" Command="{Binding SaveNewSprintCommand}" Style="{StaticResource PrimaryButtonStyle}" Cursor="Hand"/>
-                                    </Grid>
-                                </StackPanel>
-                            </Border>
-                        </Grid>
-                    </StackPanel>
                     </Expander>
                 </StackPanel>
                 </ScrollViewer>

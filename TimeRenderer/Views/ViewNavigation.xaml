@@ -1,0 +1,75 @@
+﻿<UserControl x:Class="TimeRenderer.Views.ViewNavigation"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!--
+        全表示モードを、意味の近い4グループに分けて常時表示する。
+        RadioButton は同じ GroupName を共有し、選択中のモードを一つだけ明示する。
+    -->
+    <Border Background="{DynamicResource SurfaceBrush}"
+            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1"
+            Padding="12,5">
+        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <StackPanel Margin="0,0,12,0">
+                    <TextBlock Text="ホーム" Style="{StaticResource ViewNavigationGroupLabelStyle}"/>
+                    <RadioButton GroupName="MainViewMode" Content="今日"
+                                 Style="{StaticResource ViewNavigationItemStyle}"
+                                 IsChecked="{Binding IsTodayMode, Mode=OneWay}"
+                                 Command="{Binding ChangeViewModeCommand}" CommandParameter="Today"/>
+                </StackPanel>
+
+                <Border Width="1" Background="{DynamicResource BorderBrush}" Margin="0,3,12,2"/>
+
+                <StackPanel Margin="0,0,12,0">
+                    <TextBlock Text="カレンダー" Style="{StaticResource ViewNavigationGroupLabelStyle}"/>
+                    <StackPanel Orientation="Horizontal">
+                        <RadioButton GroupName="MainViewMode" Content="日"
+                                     Style="{StaticResource ViewNavigationItemStyle}"
+                                     IsChecked="{Binding IsDayMode, Mode=OneWay}"
+                                     Command="{Binding ChangeViewModeCommand}" CommandParameter="Day"/>
+                        <RadioButton GroupName="MainViewMode" Content="週"
+                                     Style="{StaticResource ViewNavigationItemStyle}"
+                                     IsChecked="{Binding IsWeekMode, Mode=OneWay}"
+                                     Command="{Binding ChangeViewModeCommand}" CommandParameter="Week"/>
+                        <RadioButton GroupName="MainViewMode" Content="月"
+                                     Style="{StaticResource ViewNavigationItemStyle}"
+                                     IsChecked="{Binding IsMonthMode, Mode=OneWay}"
+                                     Command="{Binding ChangeViewModeCommand}" CommandParameter="Month"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <Border Width="1" Background="{DynamicResource BorderBrush}" Margin="0,3,12,2"/>
+
+                <StackPanel Margin="0,0,12,0">
+                    <TextBlock Text="スプリント" Style="{StaticResource ViewNavigationGroupLabelStyle}"/>
+                    <StackPanel Orientation="Horizontal">
+                        <RadioButton GroupName="MainViewMode" Content="カレンダー"
+                                     Style="{StaticResource ViewNavigationItemStyle}"
+                                     IsChecked="{Binding IsSprintMode, Mode=OneWay}"
+                                     Command="{Binding ChangeViewModeCommand}" CommandParameter="Sprint"/>
+                        <RadioButton GroupName="MainViewMode" Content="タイムライン"
+                                     Style="{StaticResource ViewNavigationItemStyle}"
+                                     IsChecked="{Binding IsSprintTimelineMode, Mode=OneWay}"
+                                     Command="{Binding ChangeViewModeCommand}" CommandParameter="SprintTimeline"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <Border Width="1" Background="{DynamicResource BorderBrush}" Margin="0,3,12,2"/>
+
+                <StackPanel>
+                    <TextBlock Text="分析" Style="{StaticResource ViewNavigationGroupLabelStyle}"/>
+                    <StackPanel Orientation="Horizontal">
+                        <RadioButton GroupName="MainViewMode" Content="統計"
+                                     Style="{StaticResource ViewNavigationItemStyle}"
+                                     IsChecked="{Binding IsStatsMode, Mode=OneWay}"
+                                     Command="{Binding ChangeViewModeCommand}" CommandParameter="Stats"/>
+                        <RadioButton GroupName="MainViewMode" Content="ふりかえり"
+                                     Style="{StaticResource ViewNavigationItemStyle}"
+                                     IsChecked="{Binding IsNotesMode, Mode=OneWay}"
+                                     Command="{Binding ChangeViewModeCommand}" CommandParameter="Notes"/>
+                    </StackPanel>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+    </Border>
+</UserControl>

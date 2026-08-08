@@ -259,7 +259,7 @@
                     </Popup>
                 </StackPanel>
 
-                <!-- 記録・表示切替・パネル。幅が足りないときは、この操作群ごと2段目へ送る -->
+                <!-- 記録・パネル操作。幅が足りないときは、この操作群ごと2段目へ送る -->
                 <StackPanel x:Name="ToolbarActionsGroup" Grid.Row="0" Grid.Column="2"
                             Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center"
                             SizeChanged="ToolbarLayout_SizeChanged">
@@ -339,12 +339,6 @@
 
                     <Border Style="{StaticResource ToolbarSeparatorStyle}"/>
 
-                    <!-- 表示切替ドロップダウン -->
-                    <ComboBox ItemsSource="{Binding ViewModeOptions}" SelectedItem="{Binding SelectedViewModeOption}"
-                              DisplayMemberPath="Label" Width="124" VerticalAlignment="Center" ToolTip="表示モード"/>
-
-                    <Border Style="{StaticResource ToolbarSeparatorStyle}"/>
-
                     <!-- ToDo / メモ / 設定 -->
                     <ToggleButton IsChecked="{Binding IsTodoPanelVisible}"
                                   Style="{StaticResource IconToggleButtonStyle}"
@@ -375,232 +369,23 @@
                                   VerticalAlignment="Center"/>
                 </StackPanel>
             </Grid>
-        </Border>
+        </Border></StackPanel>
 
-        <!-- 通知は NotificationHost へ移行済み。旧表示は互換確認後にXAMLから削除する -->
-        <StackPanel Visibility="Collapsed">
-
-        <!-- 定期予定リマインダー通知（開始時刻に達した予定ごとに1行表示） -->
-        <ItemsControl ItemsSource="{Binding PendingReminders}">
-            <ItemsControl.ItemTemplate>
-                <DataTemplate>
-                    <Border Background="{DynamicResource PrimarySubtleBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="12,8">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="&#xE7BA;" FontFamily="Segoe MDL2 Assets" FontSize="14"
-                                       VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource PrimaryBrush}"/>
-                            <TextBlock Grid.Column="1" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="13">
-                                <Run Text="{Binding Title, Mode=OneWay}" FontWeight="Bold"/>
-                                <Run Text=" の開始時刻です。記録を開始しますか？"/>
-                            </TextBlock>
-                            <Button Grid.Column="2" Content="記録開始"
-                                    Command="{Binding DataContext.StartReminderCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                    CommandParameter="{Binding}"
-                                    Style="{StaticResource PrimaryButtonStyle}" Padding="10,4" FontSize="12" Margin="0,0,8,0" Cursor="Hand"/>
-                            <Button Grid.Column="3" Content="✕"
-                                    Command="{Binding DataContext.DismissReminderCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                    CommandParameter="{Binding}"
-                                    Style="{StaticResource IconButtonStyle}" Foreground="{DynamicResource TextSecondaryBrush}"
-                                    Width="24" Height="24" Cursor="Hand"/>
-                        </Grid>
-                    </Border>
-                </DataTemplate>
-            </ItemsControl.ItemTemplate>
-        </ItemsControl>
-
-        <!--
-            ToDo の通知（通知日時に達した ToDo ごとに1行表示）。
-            定期予定のリマインダーと形は揃えつつ、色とアイコンを変えて別物だと分かるようにする。
-        -->
-        <ItemsControl ItemsSource="{Binding PendingTodoReminders}">
-            <ItemsControl.ItemTemplate>
-                <DataTemplate>
-                    <Border Background="{DynamicResource TodoReminderSubtleBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="12,8">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="&#xEA8F;" FontFamily="Segoe MDL2 Assets" FontSize="14"
-                                       VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TodoDueTodayBrush}"/>
-                            <TextBlock Grid.Column="1" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="13"
-                                       TextTrimming="CharacterEllipsis">
-                                <Run Text="ToDo: " Foreground="{DynamicResource TextSecondaryBrush}"/>
-                                <Run Text="{Binding Title, Mode=OneWay}" FontWeight="Bold"/>
-                            </TextBlock>
-                            <Button Grid.Column="2" Content="記録開始"
-                                    Command="{Binding DataContext.StartRecordingFromTodoReminderCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                    CommandParameter="{Binding}"
-                                    Style="{StaticResource PrimaryButtonStyle}" Padding="10,4" FontSize="12" Margin="0,0,6,0" Cursor="Hand"/>
-                            <Button Grid.Column="3" Content="完了"
-                                    Command="{Binding DataContext.CompleteTodoReminderCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                    CommandParameter="{Binding}"
-                                    Style="{StaticResource BaseButtonStyle}" Padding="10,4" FontSize="12" Margin="0,0,6,0" Cursor="Hand"/>
-                            <!--
-                                あとで。押しやすさを保つため既定の先送り（設定で変更可）はボタンのまま、
-                                それ以外は ▾ から選ぶ。コンテキストメニューは視覚ツリーの外にあり
-                                RelativeSource で VM へ辿れないため、コードビハインドで実行する。
-                            -->
-                            <StackPanel Grid.Column="4" Orientation="Horizontal" Margin="0,0,8,0">
-                                <Button Content="{Binding DataContext.TodoSnoozeLabel, RelativeSource={RelativeSource AncestorType=Window}}"
-                                        Command="{Binding DataContext.SnoozeTodoReminderCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                        CommandParameter="{Binding}"
-                                        Style="{StaticResource BaseButtonStyle}" Padding="10,4" FontSize="12" Cursor="Hand"
-                                        ToolTip="この時間だけ先送りして、もう一度通知します"/>
-                                <Button Content="&#xE70D;" FontFamily="Segoe MDL2 Assets" FontSize="8"
-                                        Width="22" Height="24" Padding="0" Margin="2,0,0,0" Cursor="Hand"
-                                        Style="{StaticResource IconButtonStyle}"
-                                        Foreground="{DynamicResource TextSecondaryBrush}"
-                                        ToolTip="先送りする時間を選ぶ"
-                                        Click="TodoSnoozeMenuButton_Click">
-                                    <Button.ContextMenu>
-                                        <ContextMenu>
-                                            <MenuItem Header="5分後" Tag="5" Click="TodoSnoozeMenuItem_Click"/>
-                                            <MenuItem Header="15分後" Tag="15" Click="TodoSnoozeMenuItem_Click"/>
-                                            <MenuItem Header="30分後" Tag="30" Click="TodoSnoozeMenuItem_Click"/>
-                                            <MenuItem Header="1時間後" Tag="60" Click="TodoSnoozeMenuItem_Click"/>
-                                            <MenuItem Header="3時間後" Tag="180" Click="TodoSnoozeMenuItem_Click"/>
-                                            <Separator/>
-                                            <MenuItem Header="明日の朝" Tag="tomorrow" Click="TodoSnoozeMenuItem_Click"/>
-                                        </ContextMenu>
-                                    </Button.ContextMenu>
-                                </Button>
-                            </StackPanel>
-                            <Button Grid.Column="5" Content="✕"
-                                    Command="{Binding DataContext.DismissTodoReminderCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                    CommandParameter="{Binding}"
-                                    Style="{StaticResource IconButtonStyle}" Foreground="{DynamicResource TextSecondaryBrush}"
-                                    Width="24" Height="24" Cursor="Hand" ToolTip="この通知を閉じる（ToDo は残ります）"/>
-                        </Grid>
-                    </Border>
-                </DataTemplate>
-            </ItemsControl.ItemTemplate>
-        </ItemsControl>
-
-        <!--
-            見逃した通知。
-            アプリを閉じている間に過ぎた通知を個別に出すと、起動直後に画面が埋まる。
-            かといって黙って消すと通知を付けた意味が無いので、まとめて1本だけ出す。
-        -->
-        <Border Background="{DynamicResource TodoReminderSubtleBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="12,8"
-                Visibility="{Binding HasTodoMissedNotice, Converter={StaticResource BooleanToVisibilityConverter}}">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0" Text="&#xE7BA;" FontFamily="Segoe MDL2 Assets" FontSize="14"
-                           VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TodoOverdueBrush}"/>
-                <TextBlock Grid.Column="1" Text="{Binding TodoMissedNotice}" VerticalAlignment="Center"
-                           Foreground="{DynamicResource TextPrimaryBrush}" FontSize="13" TextTrimming="CharacterEllipsis"/>
-                <Button Grid.Column="2" Content="確認する"
-                        Command="{Binding ShowMissedTodosCommand}"
-                        Style="{StaticResource PrimaryButtonStyle}" Padding="10,4" FontSize="12" Margin="0,0,8,0" Cursor="Hand"
-                        ToolTip="ToDo パネルを開いて、見逃した1件目を選びます"/>
-                <Button Grid.Column="3" Content="✕"
-                        Command="{Binding DismissTodoMissedNoticeCommand}"
-                        Style="{StaticResource IconButtonStyle}" Foreground="{DynamicResource TextSecondaryBrush}"
-                        Width="24" Height="24" Cursor="Hand" ToolTip="この通知を閉じる（ToDo は残ります）"/>
-            </Grid>
-        </Border>
-
-        <!--
-            ToDo のまとめ通知（1日1回）。
-            個別の通知日時を付け忘れていても、その日に片付ける量が一度は目に入るようにする。
-        -->
-        <Border Background="{DynamicResource TodoReminderSubtleBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="12,8"
-                Visibility="{Binding HasTodoDigest, Converter={StaticResource BooleanToVisibilityConverter}}">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0" Text="&#xE8FD;" FontFamily="Segoe MDL2 Assets" FontSize="14"
-                           VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TodoDueTodayBrush}"/>
-                <TextBlock Grid.Column="1" Text="{Binding TodoDigestNotice}" VerticalAlignment="Center"
-                           Foreground="{DynamicResource TextPrimaryBrush}" FontSize="13" TextTrimming="CharacterEllipsis"/>
-                <Button Grid.Column="2" Content="ToDo を開く"
-                        Command="{Binding FocusQuickAddTodoCommand}"
-                        Style="{StaticResource PrimaryButtonStyle}" Padding="10,4" FontSize="12" Margin="0,0,8,0" Cursor="Hand"/>
-                <Button Grid.Column="3" Content="✕"
-                        Command="{Binding DismissTodoDigestCommand}"
-                        Style="{StaticResource IconButtonStyle}" Foreground="{DynamicResource TextSecondaryBrush}"
-                        Width="24" Height="24" Cursor="Hand" ToolTip="この通知を閉じる"/>
-            </Grid>
-        </Border>
-
-        <!-- 自動記録開始の通知（数秒で自動的に消える） -->
-        <Border Background="{DynamicResource PrimarySubtleBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="12,8"
-                Visibility="{Binding HasAutoStartNotice, Converter={StaticResource BooleanToVisibilityConverter}}">
-            <TextBlock Text="{Binding AutoStartNotice}" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="13"/>
-        </Border>
-
-        <!-- 記録中の離席通知（記録は続けたまま、停止時に除外できることを伝える） -->
-        <Border Background="{DynamicResource WarningSubtleBrush}" BorderBrush="{DynamicResource WarningBorderBrush}" BorderThickness="0,0,0,1" Padding="12,6"
-                Visibility="{Binding ShowAwayBanner, Converter={StaticResource BooleanToVisibilityConverter}}">
-            <StackPanel Orientation="Horizontal">
-                <TextBlock Text="&#xE823;" FontFamily="Segoe MDL2 Assets" FontSize="14"
-                           Foreground="{DynamicResource WarningBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                <TextBlock Text="{Binding AwayBannerText}" FontSize="12" VerticalAlignment="Center"
-                           Foreground="{DynamicResource WarningTextBrush}"/>
-            </StackPanel>
-        </Border>
-
-        <!--
-            データ読み込みの異常通知（バックアップからの復元 / 読み込み失敗）。
-            記録が失われたように見える状況で、原因と次の行動が分かるようにする。
-        -->
-        <Border Background="{DynamicResource WarningSubtleBrush}" BorderBrush="{DynamicResource WarningBorderBrush}" BorderThickness="0,0,0,2" Padding="12,8"
-                Visibility="{Binding HasDataNotice, Converter={StaticResource BooleanToVisibilityConverter}}">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-
-                <TextBlock Grid.Column="0" Text="&#xE7BA;" FontFamily="Segoe MDL2 Assets" FontSize="16"
-                           Foreground="{DynamicResource WarningBrush}" VerticalAlignment="Top" Margin="0,1,10,0"/>
-
-                <TextBlock Grid.Column="1" Text="{Binding DataNotice}" TextWrapping="Wrap"
-                           Foreground="{DynamicResource WarningTextBrush}" FontSize="12" VerticalAlignment="Center"/>
-
-                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
-                    <Button Content="データフォルダを開く" Padding="10,4" Cursor="Hand" Margin="0,0,6,0"
-                            Command="{Binding OpenDataFolderCommand}"/>
-                    <Button Content="✕" Width="26" Padding="0,4" Cursor="Hand" ToolTip="この通知を閉じる"
-                            Command="{Binding DismissDataNoticeCommand}"/>
-                </StackPanel>
-            </Grid>
-        </Border>
-        </StackPanel>
-        </StackPanel>
+        <!-- 全表示モードをグループ化して常時見せるナビゲーション -->
+        <views:ViewNavigation Grid.Row="1"/>
 
         <!-- 今日ホーム（予定・ToDo・実績の要約） -->
-        <views:TodayView Grid.Row="1" Grid.RowSpan="2"
+        <views:TodayView Grid.Row="2"
                          Visibility="{Binding IsTodayMode, Converter={StaticResource BooleanToVisibilityConverter}}"/>
 
         <!-- 日/週ビュー（曜日ヘッダー・終日イベント・時間グリッド） -->
         <!-- 日/週のときだけ表示する。以前は「月以外」だったため、スプリント・タイムライン・統計の
              各モードでも裏で生き続け、見えないアイテムのレイアウトと描画にコストを払っていた -->
-        <views:DayWeekView Grid.Row="1" Grid.RowSpan="2"
+        <views:DayWeekView Grid.Row="2"
                            Visibility="{Binding IsDayOrWeekMode, Converter={StaticResource BooleanToVisibilityConverter}}"/>
 
         <!-- 月表示用のカレンダー領域 -->
-        <views:CalendarGridView Grid.Row="1" Grid.RowSpan="2" Background="{DynamicResource SurfaceBrush}"
+        <views:CalendarGridView Grid.Row="2" Background="{DynamicResource SurfaceBrush}"
                                 Rows="6"
                                 Visibility="{Binding IsMonthMode, Converter={StaticResource BooleanToVisibilityConverter}}"
                                 controls:CalendarMonthCellControl.ItemClicked="MonthCell_ItemClicked"
@@ -609,7 +394,7 @@
                                 controls:CalendarMonthCellControl.CellClicked="MonthCell_Clicked"/>
 
         <!-- スプリント表示用のカレンダー領域（週数に応じた可変グリッド） -->
-        <views:CalendarGridView Grid.Row="1" Grid.RowSpan="2" Background="{DynamicResource SurfaceBrush}"
+        <views:CalendarGridView Grid.Row="2" Background="{DynamicResource SurfaceBrush}"
                                 Rows="{Binding SprintWeekRows}"
                                 Visibility="{Binding IsSprintMode, Converter={StaticResource BooleanToVisibilityConverter}}"
                                 controls:CalendarMonthCellControl.ItemClicked="MonthCell_ItemClicked"
@@ -618,30 +403,30 @@
                                 controls:CalendarMonthCellControl.CellClicked="MonthCell_Clicked"/>
 
         <!-- スプリントタイムライン表示用の領域 -->
-        <views:TimelineView Grid.Row="1" Grid.RowSpan="2"
+        <views:TimelineView Grid.Row="2"
                             Visibility="{Binding IsSprintTimelineMode, Converter={StaticResource BooleanToVisibilityConverter}}"/>
 
         <!-- 統計表示用の領域 -->
-        <views:StatsView Grid.Row="1" Grid.RowSpan="2"
+        <views:StatsView Grid.Row="2"
                          Visibility="{Binding IsStatsMode, Converter={StaticResource BooleanToVisibilityConverter}}"/>
 
         <!-- ふりかえり一覧（全期間）用の領域 -->
-        <views:NotesView Grid.Row="1" Grid.RowSpan="2"
+        <views:NotesView Grid.Row="2"
                          Visibility="{Binding IsNotesMode, Converter={StaticResource BooleanToVisibilityConverter}}"/>
 
         <!-- 一時通知は作業領域を押し下げず、データ保全通知だけを継続表示する -->
-        <views:NotificationHost Grid.Row="1" Grid.RowSpan="2" Panel.ZIndex="80"/>
+        <views:NotificationHost Grid.Row="2" Panel.ZIndex="80"/>
 
         <!-- ToDo パネル (右スライドイン・オーバーレイ) -->
-        <views:TodoPanel Grid.Row="1" Grid.RowSpan="2"
+        <views:TodoPanel Grid.Row="2"
                          HorizontalAlignment="Right" Panel.ZIndex="90"/>
 
         <!-- 設定パネル (右スライドイン・オーバーレイ) -->
-        <views:SettingsPanel Grid.Row="1" Grid.RowSpan="2"
+        <views:SettingsPanel Grid.Row="2"
                              HorizontalAlignment="Right" Panel.ZIndex="100"/>
 
         <!-- 分類・定期予定・スプリントの管理パネル -->
-        <views:ManagementPanel Grid.Row="1" Grid.RowSpan="2"
+        <views:ManagementPanel Grid.Row="2"
                                HorizontalAlignment="Right" Panel.ZIndex="110"/>
 
     </Grid>

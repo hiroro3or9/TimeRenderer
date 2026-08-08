@@ -241,41 +241,6 @@ namespace TimeRenderer.Views
             }
         }
 
-        /// <summary>「あとで」の ▾：先送りする時間の一覧を出す</summary>
-        private void TodoSnoozeMenuButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (sender is not System.Windows.Controls.Button button) return;
-            if (button.ContextMenu is not { } menu) return;
-
-            menu.PlacementTarget = button;
-            menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
-            menu.IsOpen = true;
-        }
-
-        /// <summary>
-        /// 先送りの実行。
-        /// コンテキストメニューは視覚ツリーの外にあり、バインドで VM とバナーの ToDo に
-        /// 同時に辿り着けないため、対象をここで解決する。
-        /// </summary>
-        private void TodoSnoozeMenuItem_Click(object sender, RoutedEventArgs e)
-        {
-            if (sender is not System.Windows.Controls.MenuItem item) return;
-            if (item.Parent is not System.Windows.Controls.ContextMenu menu) return;
-            if (menu.PlacementTarget is not FrameworkElement target) return;
-            if (target.DataContext is not TodoItem todo) return;
-
-            if (item.Tag as string == "tomorrow")
-            {
-                ViewModel.SnoozeTodoReminderUntilTomorrow(todo);
-                return;
-            }
-
-            if (int.TryParse(item.Tag as string, out var minutes))
-            {
-                ViewModel.SnoozeTodoReminder(todo, TimeSpan.FromMinutes(minutes));
-            }
-        }
-
         /// <summary>トレイのバルーン通知（Windows 10/11 ではトースト通知として表示される）</summary>
         private void ShowTrayBalloon(string title, string text)
         {
