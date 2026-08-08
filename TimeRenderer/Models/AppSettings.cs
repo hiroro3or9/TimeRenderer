@@ -5,6 +5,8 @@ namespace TimeRenderer.Models;
 public class AppSettings
 {
     public bool IsSettingsPanelVisible { get; set; } = false;
+    /// <summary>分類・定期予定・スプリントの管理パネルを開いているか</summary>
+    public bool IsManagementPanelVisible { get; set; } = false;
     /// <summary>ToDo パネルを開いているか</summary>
     public bool IsTodoPanelVisible { get; set; } = false;
     /// <summary>ToDo 一覧に完了済みも表示するか</summary>
