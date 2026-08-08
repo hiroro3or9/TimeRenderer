@@ -170,6 +170,54 @@
         <Setter Property="Margin" Value="10,6"/>
     </Style>
 
+    <!-- メイン画面の常時表示ナビゲーション。RadioButton で現在位置を一つに保つ -->
+    <Style x:Key="ViewNavigationItemStyle" TargetType="RadioButton">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderBrush" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="FontWeight" Value="Medium"/>
+        <Setter Property="Padding" Value="10,4"/>
+        <Setter Property="Margin" Value="1,0"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <Border x:Name="NavBorder"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="5" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="NavBorder" Property="Background" Value="{DynamicResource HoverBackgroundBrush}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="NavBorder" Property="Background" Value="{DynamicResource PrimarySubtleBrush}"/>
+                            <Setter TargetName="NavBorder" Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
+                            <Setter Property="FontWeight" Value="SemiBold"/>
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="NavBorder" Property="BorderBrush" Value="{DynamicResource FocusVisualBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="ViewNavigationGroupLabelStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="9"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}"/>
+        <Setter Property="Margin" Value="3,0,3,2"/>
+    </Style>
+
     <!-- 画面右上に重ねる一時通知。メインコンテンツの高さを奪わないカード表示に揃える -->
     <Style x:Key="NotificationCardStyle" TargetType="Border">
         <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>

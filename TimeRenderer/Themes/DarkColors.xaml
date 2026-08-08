@@ -81,6 +81,8 @@
     <SolidColorBrush x:Key="PressedBackgroundBrush" Color="{StaticResource PressedBackgroundColor}"/>
     <Color x:Key="HoverBorderColor">#475569</Color> <!-- Slate 600 -->
     <SolidColorBrush x:Key="HoverBorderBrush" Color="{StaticResource HoverBorderColor}"/>
+    <Color x:Key="FocusVisualColor">#93C5FD</Color>
+    <SolidColorBrush x:Key="FocusVisualBrush" Color="{StaticResource FocusVisualColor}"/>
 
     <!-- ScrollBar Colors -->
     <Color x:Key="ScrollBarThumbColor">#40FFFFFF</Color> <!-- White with 25% opacity -->
