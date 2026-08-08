@@ -2,6 +2,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using WinForms = System.Windows.Forms;
 using Drawing = System.Drawing;
 using MenuItem = System.Windows.Controls.MenuItem;
@@ -23,6 +24,13 @@ namespace TimeRenderer.Views
         private MainViewModel ViewModel => (MainViewModel)DataContext;
         private WinForms.NotifyIcon _notifyIcon = null!;
         private Drawing.Icon _trayIcon = null!;
+        private Drawing.Icon _workingTrayIcon = null!;
+        private Drawing.Icon _recordingTrayIcon = null!;
+        private Drawing.Icon _workingRecordingTrayIcon = null!;
+        private ImageSource? _defaultWindowIcon;
+        private ImageSource? _workingWindowIcon;
+        private ImageSource? _recordingWindowIcon;
+        private ImageSource? _workingRecordingWindowIcon;
         private WinForms.ToolStripMenuItem _recordMenuItem = null!;
         private WinForms.ToolStripMenuItem _workDayMenuItem = null!;
         private bool _isExiting = false;
@@ -31,6 +39,7 @@ namespace TimeRenderer.Views
         public MainWindow()
         {
             InitializeComponent();
+            _defaultWindowIcon = Icon;
             var dialogService = new Services.DefaultDialogService(this);
             MainViewModel viewModel = new(dialogService);
             DataContext = viewModel;
@@ -43,6 +52,7 @@ namespace TimeRenderer.Views
 
             // 各ビュー（DayWeekView / TimelineView 等）は自身の Loaded で VM のイベントを購読する
             SetupNotifyIcon();
+            UpdateStatusIndicator();
 
             // 検索/フィルタのポップアップをトグルボタンの右端に揃えて表示する
             SearchFlyout.CustomPopupPlacementCallback = PlaceDropdownRightAligned;
@@ -114,6 +124,24 @@ namespace TimeRenderer.Views
         {
             // アプリ固有のアイコンを現在の DPI に合ったサイズで読み込む（失敗時はシステムアイコン）
             _trayIcon = Helpers.AppIconHelper.CreateTrayIcon();
+            _workingTrayIcon = Helpers.AppIconHelper.CreateStatusIcon(
+                _trayIcon, isWorking: true, isRecording: false);
+            _recordingTrayIcon = Helpers.AppIconHelper.CreateStatusIcon(
+                _trayIcon, isWorking: false, isRecording: true);
+            _workingRecordingTrayIcon = Helpers.AppIconHelper.CreateStatusIcon(
+                _trayIcon, isWorking: true, isRecording: true);
+
+            // タスクバー用は小さなトレイアイコンを拡大せず、専用サイズから状態表示を描画する
+            using Drawing.Icon windowBaseIcon = Helpers.AppIconHelper.CreateWindowIcon();
+            using Drawing.Icon workingWindowIcon = Helpers.AppIconHelper.CreateStatusIcon(
+                windowBaseIcon, isWorking: true, isRecording: false);
+            using Drawing.Icon recordingWindowIcon = Helpers.AppIconHelper.CreateStatusIcon(
+                windowBaseIcon, isWorking: false, isRecording: true);
+            using Drawing.Icon workingRecordingWindowIcon = Helpers.AppIconHelper.CreateStatusIcon(
+                windowBaseIcon, isWorking: true, isRecording: true);
+            _workingWindowIcon = Helpers.AppIconHelper.CreateImageSource(workingWindowIcon);
+            _recordingWindowIcon = Helpers.AppIconHelper.CreateImageSource(recordingWindowIcon);
+            _workingRecordingWindowIcon = Helpers.AppIconHelper.CreateImageSource(workingRecordingWindowIcon);
 
             _notifyIcon = new()
             {
@@ -182,6 +210,12 @@ namespace TimeRenderer.Views
                 || e.PropertyName == nameof(MainViewModel.RecordingDurationText)
                 || e.PropertyName == nameof(MainViewModel.IsWorking))
             {
+                if (e.PropertyName == nameof(MainViewModel.IsRecording)
+                    || e.PropertyName == nameof(MainViewModel.IsWorking))
+                {
+                    UpdateStatusIndicator();
+                }
+
                 UpdateContextMenu();
             }
             else if (e.PropertyName == nameof(MainViewModel.AutoStartNotice))
@@ -270,22 +304,52 @@ namespace TimeRenderer.Views
                     if (ViewModel.IsRecording)
                     {
                         _recordMenuItem.Text = "■ 停止" + hotkeySuffix;
+                        var workState = ViewModel.IsWorking ? "出勤中・記録中" : "勤務外・記録中";
                         if (ViewModel.IsCountdownMode && ViewModel.CountdownRemaining.HasValue)
                         {
-                            _notifyIcon.Text = $"TimeRenderer - 作業中 (残り {ViewModel.CountdownRemaining.Value:hh\\:mm\\:ss})"; 
+                            _notifyIcon.Text = $"TimeRenderer - {workState} (残り {ViewModel.CountdownRemaining.Value:hh\\:mm\\:ss})";
                         }
                         else
                         {
-                            _notifyIcon.Text = $"TimeRenderer - 素早く記録中 ({ViewModel.RecordingDuration:hh\\:mm\\:ss})"; 
+                            _notifyIcon.Text = $"TimeRenderer - {workState} ({ViewModel.RecordingDuration:hh\\:mm\\:ss})";
                         }
                     }
                     else
                     {
                         _recordMenuItem.Text = "● 記録開始" + hotkeySuffix;
-                        _notifyIcon.Text = "TimeRenderer";
+                        _notifyIcon.Text = ViewModel.IsWorking
+                            ? "TimeRenderer - 出勤中"
+                            : "TimeRenderer - 勤務外";
                     }
                 });
             }
+        }
+
+        /// <summary>
+        /// トレイとタスクバーのアイコンへ、出勤中は緑の外周、記録中は右下に赤のドットを表示する。
+        /// </summary>
+        private void UpdateStatusIndicator()
+        {
+            Dispatcher.Invoke(() =>
+            {
+                Drawing.Icon trayIcon = (ViewModel.IsWorking, ViewModel.IsRecording) switch
+                {
+                    (true, true) => _workingRecordingTrayIcon,
+                    (true, false) => _workingTrayIcon,
+                    (false, true) => _recordingTrayIcon,
+                    _ => _trayIcon
+                };
+                ImageSource? windowIcon = (ViewModel.IsWorking, ViewModel.IsRecording) switch
+                {
+                    (true, true) => _workingRecordingWindowIcon,
+                    (true, false) => _workingWindowIcon,
+                    (false, true) => _recordingWindowIcon,
+                    _ => _defaultWindowIcon
+                };
+
+                _notifyIcon.Icon = trayIcon;
+                Icon = windowIcon ?? _defaultWindowIcon;
+            });
         }
 
         private void ShowWindow()
@@ -336,6 +400,9 @@ namespace TimeRenderer.Views
 
             // NotifyIcon は Icon を破棄しないので自前で解放する
             _trayIcon?.Dispose();
+            _workingTrayIcon?.Dispose();
+            _recordingTrayIcon?.Dispose();
+            _workingRecordingTrayIcon?.Dispose();
 
             if (DataContext is MainViewModel vm)
             {
