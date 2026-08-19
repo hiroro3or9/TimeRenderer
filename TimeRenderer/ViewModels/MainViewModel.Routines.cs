@@ -535,7 +535,9 @@ public partial class MainViewModel
             EnsureRoutineOccurrences(now.Date);
         }
 
-        foreach (var item in ScheduleItems)
+        // 強制自動開始では、進行中の記録を停止して実績を ScheduleItems へ追加する場合がある。
+        // 元コレクションが変わっても次の MoveNext で例外にならないよう、スナップショットを走査する。
+        foreach (var item in ScheduleItems.ToList())
         {
             if (!item.IsPlanned || item.IsAllDay) continue;
             if (_remindedRoutineItems.Contains(item)) continue;
