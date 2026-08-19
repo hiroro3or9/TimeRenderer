@@ -17,7 +17,6 @@ namespace TimeRenderer.Views.Dialogs
         /// 色選択肢を表すヘルパークラス
         /// </summary>
         public record ColorOption(string Name, Brush Brush, string? CategoryId);
-        public record KindOption(string Label, ScheduleItemKind Kind);
         public record ProjectCodeOption(string DisplayName, string? ProjectCodeId);
 
         /// <summary>
@@ -27,11 +26,11 @@ namespace TimeRenderer.Views.Dialogs
 
         private readonly List<ColorOption> _colorOptions;
         private readonly List<ProjectCodeOption> _projectCodeOptions;
-        private readonly List<KindOption> _kindOptions =
-        [
-            new("予定", ScheduleItemKind.Planned),
-            new("実績", ScheduleItemKind.Recorded),
-        ];
+        private readonly bool _isEditMode;
+
+        private ScheduleItemKind SelectedKind => RecordedKindRadio?.IsChecked == true
+            ? ScheduleItemKind.Recorded
+            : ScheduleItemKind.Planned;
 
         // 編集前の時刻（5分丸め・秒消失を防ぐため、変更がなければ元の値をそのまま使う）
         private readonly DateTime? _originalStartTime;
@@ -76,11 +75,11 @@ namespace TimeRenderer.Views.Dialogs
             IReadOnlyList<ProjectCodeInfo>? projectCodes = null,
             ProjectCodeInfo? defaultProjectCode = null)
         {
+            _isEditMode = existingItem != null;
             InitializeComponent();
 
             // タイトル候補（手入力も可能な編集可能コンボボックス）
             TitleCombo.ItemsSource = titleSuggestions ?? [];
-            KindCombo.ItemsSource = _kindOptions;
 
             if (existingItem != null)
             {
@@ -145,11 +144,27 @@ namespace TimeRenderer.Views.Dialogs
                 ProjectCodeCombo.SelectedItem = _projectCodeOptions.FirstOrDefault(
                     p => p.ProjectCodeId == existingItem.ProjectCodeId) ?? _projectCodeOptions[0];
 
-                RemindCheckBox.IsChecked = existingItem.RemindAtStart;
-                AutoStartCheckBox.IsChecked = existingItem.AutoStartRecording;
+                if (existingItem.AutoStartRecording)
+                {
+                    AutoStartActionRadio.IsChecked = true;
+                }
+                else if (existingItem.RemindAtStart)
+                {
+                    RemindStartActionRadio.IsChecked = true;
+                }
+                else
+                {
+                    NoStartActionRadio.IsChecked = true;
+                }
                 ForceStartCheckBox.IsChecked = existingItem.ForceStartRecording;
-                KindCombo.SelectedItem = _kindOptions.First(k => k.Kind ==
-                    (existingItem.Kind == ScheduleItemKind.Recorded ? ScheduleItemKind.Recorded : ScheduleItemKind.Planned));
+                if (existingItem.Kind == ScheduleItemKind.Recorded)
+                {
+                    RecordedKindRadio.IsChecked = true;
+                }
+                else
+                {
+                    PlannedKindRadio.IsChecked = true;
+                }
             }
             else
             {
@@ -166,7 +181,8 @@ namespace TimeRenderer.Views.Dialogs
                 ColorCombo.SelectedItem = _colorOptions[0];
                 ProjectCodeCombo.SelectedItem = _projectCodeOptions.FirstOrDefault(
                     p => p.ProjectCodeId == defaultProjectCode?.Id) ?? _projectCodeOptions[0];
-                KindCombo.SelectedItem = _kindOptions[0];
+                PlannedKindRadio.IsChecked = true;
+                NoStartActionRadio.IsChecked = true;
             }
 
             UpdateTimePanelState();
@@ -225,12 +241,12 @@ namespace TimeRenderer.Views.Dialogs
             }
 
             var selectedColor = (ColorOption?)ColorCombo.SelectedItem;
-            var selectedKind = (KindOption?)KindCombo.SelectedItem ?? _kindOptions[0];
+            var selectedKind = SelectedKind;
             var selectedProjectCode = (ProjectCodeOption?)ProjectCodeCombo.SelectedItem;
 
             ResultItem = new ScheduleItem
             {
-                Kind = selectedKind.Kind,
+                Kind = selectedKind,
                 Title = TitleCombo.Text.Trim(),
                 Content = ContentTextBox.Text.Trim(),
                 StartTime = startTime,
@@ -240,9 +256,10 @@ namespace TimeRenderer.Views.Dialogs
                 CategoryId = selectedColor?.CategoryId,
                 ProjectCodeId = selectedProjectCode?.ProjectCodeId,
                 // 終日予定は時刻の概念がないためリマインダー対象外
-                RemindAtStart = selectedKind.Kind == ScheduleItemKind.Planned && !isAllDay && (RemindCheckBox.IsChecked ?? false),
-                AutoStartRecording = selectedKind.Kind == ScheduleItemKind.Planned && !isAllDay && (AutoStartCheckBox.IsChecked ?? false),
-                ForceStartRecording = selectedKind.Kind == ScheduleItemKind.Planned && !isAllDay && (AutoStartCheckBox.IsChecked ?? false) && (ForceStartCheckBox.IsChecked ?? false)
+                RemindAtStart = selectedKind == ScheduleItemKind.Planned && !isAllDay && RemindStartActionRadio.IsChecked == true,
+                AutoStartRecording = selectedKind == ScheduleItemKind.Planned && !isAllDay && AutoStartActionRadio.IsChecked == true,
+                ForceStartRecording = selectedKind == ScheduleItemKind.Planned && !isAllDay &&
+                    AutoStartActionRadio.IsChecked == true && ForceStartCheckBox.IsChecked == true
             };
 
             DialogResult = true;
@@ -253,17 +270,81 @@ namespace TimeRenderer.Views.Dialogs
 
         private void AllDayCheckBox_Changed(object sender, RoutedEventArgs e) => UpdateTimePanelState();
 
-        private void KindCombo_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e) => UpdateTimePanelState();
+        private void KindRadio_Changed(object sender, RoutedEventArgs e) => UpdateTimePanelState();
+
+        private void TimeCombo_SelectionChanged(
+            object sender,
+            System.Windows.Controls.SelectionChangedEventArgs e) => UpdateTimeSummary();
 
         private void UpdateTimePanelState()
         {
-            // チェックボックスの状態に応じて時刻入力パネルの有効/無効を切り替え
-            bool isTimeEnabled = !(AllDayCheckBox.IsChecked ?? false);
+            var selectedKind = SelectedKind;
+            var kindLabel = selectedKind == ScheduleItemKind.Recorded ? "実績" : "予定";
+            if (DialogHeadingText != null)
+            {
+                DialogHeadingText.Text = $"{kindLabel}を{(_isEditMode ? "編集" : "追加")}";
+            }
+
+            // 終日は時刻を持たず、実績と終日予定は開始時の動作を持たない。
+            bool isTimeEnabled = AllDayCheckBox?.IsChecked != true;
             StartTimePanel?.IsEnabled = isTimeEnabled;
             EndTimePanel?.IsEnabled = isTimeEnabled;
-            // 終日予定はリマインダー対象外のため入力も無効化する
-            var isPlan = (KindCombo?.SelectedItem as KindOption)?.Kind != ScheduleItemKind.Recorded;
-            ReminderPanel?.IsEnabled = isTimeEnabled && isPlan;
+            if (ReminderPanel != null)
+            {
+                ReminderPanel.Visibility = isTimeEnabled && selectedKind == ScheduleItemKind.Planned
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
+            }
+
+            UpdateTimeSummary();
+        }
+
+        private void UpdateTimeSummary()
+        {
+            if (DurationText == null || NextDayBadge == null)
+            {
+                return;
+            }
+
+            if (AllDayCheckBox?.IsChecked == true)
+            {
+                DurationText.Text = "終日";
+                NextDayBadge.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            if (StartHourCombo?.SelectedItem is not string startHourText ||
+                StartMinuteCombo?.SelectedItem is not string startMinuteText ||
+                EndHourCombo?.SelectedItem is not string endHourText ||
+                EndMinuteCombo?.SelectedItem is not string endMinuteText ||
+                !int.TryParse(startHourText, out var startHour) ||
+                !int.TryParse(startMinuteText, out var startMinute) ||
+                !int.TryParse(endHourText, out var endHour) ||
+                !int.TryParse(endMinuteText, out var endMinute))
+            {
+                DurationText.Text = "—";
+                NextDayBadge.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            var startTotalMinutes = startHour * 60 + startMinute;
+            var endTotalMinutes = endHour * 60 + endMinute;
+            var durationMinutes = endTotalMinutes - startTotalMinutes;
+            var endsNextDay = durationMinutes <= 0;
+            if (endsNextDay)
+            {
+                durationMinutes += 24 * 60;
+            }
+
+            var hours = durationMinutes / 60;
+            var minutes = durationMinutes % 60;
+            DurationText.Text = hours switch
+            {
+                > 0 when minutes > 0 => $"{hours}時間{minutes}分",
+                > 0 => $"{hours}時間",
+                _ => $"{minutes}分"
+            };
+            NextDayBadge.Visibility = endsNextDay ? Visibility.Visible : Visibility.Collapsed;
         }
     }
 }

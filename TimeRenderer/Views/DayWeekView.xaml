@@ -391,7 +391,7 @@
 
                                     左クリックは受け取らず背景へ透過させる（空白のドラッグ＝予定追加を
                                     邪魔しないため。この操作こそが穴埋めになる）。
-                                    右クリックだけは帯自身が受け、ToDo から埋める導線を出す。
+                                    右クリックだけは帯自身が受け、自由入力や候補から埋める導線を出す。
                                 -->
                                 <ItemsControl ItemsSource="{Binding DataContext.UnrecordedGaps, RelativeSource={RelativeSource AncestorType=Window}}">
                                     <ItemsControl.ItemsPanel>
@@ -456,6 +456,8 @@
                                                   ToolTip="{Binding ToolTipText}">
                                                 <Grid.ContextMenu>
                                                     <ContextMenu>
+                                                        <MenuItem Header="自由入力で埋める…" Click="FillGapManuallyMenuItem_Click"/>
+                                                        <Separator/>
                                                         <MenuItem Header="使用アプリから埋める…" Click="FillGapFromAppUsageMenuItem_Click"/>
                                                         <MenuItem Header="ToDo から埋める…" Click="FillGapMenuItem_Click"/>
                                                     </ContextMenu>

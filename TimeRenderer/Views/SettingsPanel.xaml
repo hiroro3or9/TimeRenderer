@@ -97,7 +97,7 @@
                 </Border>
                 
                 <!-- 一般設定。データ管理は ManagementPanel へ分離済み -->
-                <TabControl Grid.Row="2" Background="Transparent" BorderThickness="0">
+                <TabControl Grid.Row="2" Background="Transparent" BorderThickness="0" SelectedIndex="0">
                 <TabControl.Template>
                     <ControlTemplate TargetType="TabControl">
                         <ContentPresenter ContentSource="SelectedContent"/>
