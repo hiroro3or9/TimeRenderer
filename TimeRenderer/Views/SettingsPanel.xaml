@@ -227,6 +227,37 @@
                     </StackPanel>
                     </Expander>
 
+                    <!-- 記録中のミニバー -->
+                    <Expander x:Name="MiniBarSettingsSection" Style="{StaticResource SettingsExpanderStyle}">
+                        <Expander.Header>
+                            <TextBlock Text="記録中のミニバー" Style="{StaticResource SettingsSectionHeaderStyle}"/>
+                        </Expander.Header>
+                        <StackPanel>
+                            <TextBlock TextWrapping="Wrap" FontSize="11" Margin="0,0,0,12"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Text="記録を開始している間だけ、タイトルと経過時間を小さなバーで常に最前面に出します。他のアプリを使っている間も、何を記録中かが分かります。"/>
+
+                            <Grid Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" SharedSizeGroup="LabelG"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="記録中にミニバーを出す" Style="{StaticResource FieldLabelStyle}"
+                                           VerticalAlignment="Center" Margin="0,0,16,0"/>
+                                <CheckBox Grid.Column="1" IsChecked="{Binding IsMiniRecordingBarEnabled}"
+                                          VerticalAlignment="Center"/>
+                            </Grid>
+
+                            <TextBlock TextWrapping="Wrap" FontSize="11" Margin="0,0,0,4"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Text="バーはドラッグで好きな場所へ移せ、次回もその位置に出ます。クリックすると TimeRenderer を前面に出し、右の■ で記録を停止できます。"/>
+
+                            <TextBlock TextWrapping="Wrap" FontSize="11" Margin="0,0,0,4"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Text="バーをクリックしても、それまで作業していたアプリから入力先は移りません。Alt+Tab の一覧にも現れません。"/>
+                        </StackPanel>
+                    </Expander>
+
                     <!-- 離席・中断の検知 -->
                     <Expander x:Name="AwaySettingsSection" Style="{StaticResource SettingsExpanderStyle}">
                         <Expander.Header>

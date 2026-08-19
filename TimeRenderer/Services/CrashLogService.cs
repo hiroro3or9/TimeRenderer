@@ -11,7 +11,7 @@ namespace TimeRenderer.Services;
 /// </summary>
 public static class CrashLogService
 {
-    private static readonly object SyncRoot = new();
+    private static readonly Lock SyncRoot = new();
 
     /// <summary>ログ保存先 (%LOCALAPPDATA%\TimeRenderer\Logs)</summary>
     public static string LogDirectory { get; } = Path.Combine(

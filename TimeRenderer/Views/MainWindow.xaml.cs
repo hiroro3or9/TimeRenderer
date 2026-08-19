@@ -27,7 +27,7 @@ namespace TimeRenderer.Views
         private Drawing.Icon _workingTrayIcon = null!;
         private Drawing.Icon _recordingTrayIcon = null!;
         private Drawing.Icon _workingRecordingTrayIcon = null!;
-        private ImageSource? _defaultWindowIcon;
+        private readonly ImageSource? _defaultWindowIcon;
         private ImageSource? _workingWindowIcon;
         private ImageSource? _recordingWindowIcon;
         private ImageSource? _workingRecordingWindowIcon;
@@ -35,6 +35,13 @@ namespace TimeRenderer.Views
         private WinForms.ToolStripMenuItem _workDayMenuItem = null!;
         private bool _isExiting = false;
         private bool _isToolbarCompact;
+
+        /// <summary>
+        /// 記録中に出す常時最前面のミニバー。
+        /// 一度作ったら記録の開始・停止では作り直さず Show/Hide だけにする。
+        /// ドラッグした位置を、そのセッションのあいだ保つため。
+        /// </summary>
+        private MiniRecordingBar? _miniRecordingBar;
 
         public MainWindow()
         {
@@ -53,6 +60,7 @@ namespace TimeRenderer.Views
             // 各ビュー（DayWeekView / TimelineView 等）は自身の Loaded で VM のイベントを購読する
             SetupNotifyIcon();
             UpdateStatusIndicator();
+            UpdateMiniRecordingBar();
 
             // 検索/フィルタのポップアップをトグルボタンの右端に揃えて表示する
             SearchFlyout.CustomPopupPlacementCallback = PlaceDropdownRightAligned;
@@ -216,7 +224,16 @@ namespace TimeRenderer.Views
                     UpdateStatusIndicator();
                 }
 
+                if (e.PropertyName == nameof(MainViewModel.IsRecording))
+                {
+                    UpdateMiniRecordingBar();
+                }
+
                 UpdateContextMenu();
+            }
+            else if (e.PropertyName == nameof(MainViewModel.IsMiniRecordingBarEnabled))
+            {
+                UpdateMiniRecordingBar();
             }
             else if (e.PropertyName == nameof(MainViewModel.AutoStartNotice))
             {
@@ -352,6 +369,71 @@ namespace TimeRenderer.Views
             });
         }
 
+        /// <summary>
+        /// 記録状態と設定に合わせてミニバーを出し入れする。
+        ///
+        /// Owner は設定しない。メインウィンドウをトレイへ隠している間こそ出したいので、
+        /// 親子にすると本体を隠した時点で一緒に消えてしまう。
+        /// そのぶん、確実に閉じる責任はこちら側にある（<see cref="OnClosed"/>）。
+        /// </summary>
+        private void UpdateMiniRecordingBar()
+        {
+            if (DataContext is not MainViewModel vm) return;
+
+            bool shouldShow = vm.IsMiniRecordingBarEnabled && vm.IsRecording;
+
+            if (!shouldShow)
+            {
+                _miniRecordingBar?.Hide();
+                return;
+            }
+
+            if (_miniRecordingBar == null)
+            {
+                var bar = new MiniRecordingBar { DataContext = vm };
+                bar.SetSavedPosition(vm.MiniRecordingBarLeft, vm.MiniRecordingBarTop);
+                bar.MainWindowRequested += MiniRecordingBar_MainWindowRequested;
+                bar.PositionChanged += MiniRecordingBar_PositionChanged;
+                bar.DisableRequested += MiniRecordingBar_DisableRequested;
+                _miniRecordingBar = bar;
+            }
+
+            _miniRecordingBar.Show();
+        }
+
+        private void MiniRecordingBar_MainWindowRequested(object? sender, EventArgs e)
+        {
+            ShowWindow();
+        }
+
+        private void MiniRecordingBar_PositionChanged(object? sender, EventArgs e)
+        {
+            if (sender is not MiniRecordingBar bar) return;
+            if (DataContext is not MainViewModel vm) return;
+
+            vm.SaveMiniRecordingBarPosition(bar.Left, bar.Top);
+        }
+
+        private void MiniRecordingBar_DisableRequested(object? sender, EventArgs e)
+        {
+            if (DataContext is not MainViewModel vm) return;
+
+            // 設定を落とせば、PropertyChanged 経由で UpdateMiniRecordingBar が閉じる
+            vm.IsMiniRecordingBarEnabled = false;
+        }
+
+        /// <summary>ミニバーを購読ごと後始末する。閉じ忘れるとアプリが終了できなくなる</summary>
+        private void DisposeMiniRecordingBar()
+        {
+            if (_miniRecordingBar == null) return;
+
+            _miniRecordingBar.MainWindowRequested -= MiniRecordingBar_MainWindowRequested;
+            _miniRecordingBar.PositionChanged -= MiniRecordingBar_PositionChanged;
+            _miniRecordingBar.DisableRequested -= MiniRecordingBar_DisableRequested;
+            _miniRecordingBar.Close();
+            _miniRecordingBar = null;
+        }
+
         private void ShowWindow()
         {
             Show();
@@ -391,6 +473,7 @@ namespace TimeRenderer.Views
         protected override void OnClosed(EventArgs e)
         {
             UnregisterGlobalHotkey();
+            DisposeMiniRecordingBar();
 
             if (_notifyIcon != null)
             {

@@ -181,6 +181,7 @@ public partial class MainViewModel : INotifyPropertyChanged
             if (SetProperty(ref _countdownRemaining, value))
             {
                 OnPropertyChanged(nameof(RecordingDurationText));
+                OnPropertyChanged(nameof(RecordingElapsedText));
             }
         }
     }
@@ -194,6 +195,8 @@ public partial class MainViewModel : INotifyPropertyChanged
             if (SetProperty(ref _isRecording, value))
             {
                 OnPropertyChanged(nameof(RecordingDurationText));
+                OnPropertyChanged(nameof(RecordingElapsedText));
+                OnPropertyChanged(nameof(RecordingBrush));
                 OnPropertyChanged(nameof(ShowAwayBanner));
                 OnRecordingChangedForAppUsage(value);
                 RebuildUnrecordedGaps(); // 記録中の区間は「記録済み」として扱う
@@ -218,6 +221,7 @@ public partial class MainViewModel : INotifyPropertyChanged
             if (SetProperty(ref _recordingDuration, value))
             {
                 OnPropertyChanged(nameof(RecordingDurationText));
+                OnPropertyChanged(nameof(RecordingElapsedText));
             }
         }
     }
@@ -232,8 +236,40 @@ public partial class MainViewModel : INotifyPropertyChanged
     public string RecordingTitle
     {
         get => _recordingTitle;
-        set => SetProperty(ref _recordingTitle, value);
+        set
+        {
+            if (SetProperty(ref _recordingTitle, value))
+            {
+                OnPropertyChanged(nameof(RecordingDisplayTitle));
+            }
+        }
     }
+
+    /// <summary>
+    /// ミニバー用：経過時間だけの表示。
+    /// <see cref="RecordingDurationText"/> は停止ボタンの文言を兼ねていて記号が混ざるため、
+    /// 時間だけを見せたいところでは使えない。
+    /// </summary>
+    public string RecordingElapsedText => IsCountdownMode && CountdownRemaining.HasValue
+        ? $"残り {CountdownRemaining.Value:hh\\:mm\\:ss}"
+        : $"{RecordingDuration:hh\\:mm\\:ss}";
+
+    /// <summary>
+    /// ミニバー用：タイトルが空のときの表示。
+    /// 記録の停止時には既定のタイトルが入るが、記録中は空のままになりうる。
+    /// </summary>
+    public string RecordingDisplayTitle => string.IsNullOrWhiteSpace(RecordingTitle)
+        ? "（タイトル未入力）"
+        : RecordingTitle;
+
+    /// <summary>
+    /// ミニバー用：いま記録している内容の色。
+    /// 予定から始めた記録はその予定の色を引き継ぐので、日/週ビューの帯と同じ色になる。
+    /// </summary>
+    public System.Windows.Media.Brush RecordingBrush =>
+        _recordingColorCode is { Length: > 0 } code
+            ? Models.CategoryInfo.CreateBrush(code)
+            : RecordingCategory?.Brush ?? Models.CategoryInfo.CreateBrush("DarkOrange");
 
     private List<SprintInfo> _manualSprints = [];
     public List<SprintInfo> ManualSprints

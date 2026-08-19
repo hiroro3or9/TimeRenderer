@@ -58,6 +58,15 @@ public class AppSettings
     public bool IsWorkEndReviewEnabled { get; set; } = true;
     /// <summary>記録中に前面アプリを自動記録するか</summary>
     public bool IsAppUsageTrackingEnabled { get; set; } = true;
+    /// <summary>記録中に常時最前面のミニバーを出すか</summary>
+    public bool IsMiniRecordingBarEnabled { get; set; } = true;
+    /// <summary>
+    /// ミニバーの表示位置。null は「まだ動かしていない」で、既定位置（画面右下）に出す。
+    /// 保存した位置が今の画面構成の外だった場合は、表示時に画面内へ引き戻す。
+    /// </summary>
+    public double? MiniRecordingBarLeft { get; set; }
+    /// <summary>ミニバーの表示位置（上）。<see cref="MiniRecordingBarLeft"/> と対にして使う</summary>
+    public double? MiniRecordingBarTop { get; set; }
     /// <summary>ドラッグ操作で時刻を丸める単位（分）</summary>
     public int SnapMinutes { get; set; } = 15;
     public System.Collections.Generic.List<SprintInfo> ManualSprints { get; set; } = [];
