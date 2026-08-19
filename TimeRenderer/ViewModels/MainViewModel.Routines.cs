@@ -68,7 +68,8 @@ public partial class MainViewModel
     {
         AddRoutineCommand = new RelayCommand(_ =>
         {
-            var result = _dialogService.ShowRoutineEditDialog(null, [.. Categories], GetTitleSuggestions());
+            var result = _dialogService.ShowRoutineEditDialog(
+                null, [.. Categories], GetTitleSuggestions(), ActiveProjectCodes, DefaultProjectCode);
             if (result != null)
             {
                 var list = new List<RoutineScheduleItem>(Routines) { result };
@@ -81,7 +82,9 @@ public partial class MainViewModel
             {
                 if (param is RoutineScheduleItem routine)
                 {
-                    var result = _dialogService.ShowRoutineEditDialog(routine, [.. Categories], GetTitleSuggestions());
+                    var result = _dialogService.ShowRoutineEditDialog(
+                        routine, [.. Categories], GetTitleSuggestions(),
+                        GetSelectableProjectCodes(routine.ProjectCodeId), DefaultProjectCode);
                     if (result != null)
                     {
                         // 編集ダイアログは除外日を扱わないため、既存の除外日を引き継ぐ
@@ -187,7 +190,7 @@ public partial class MainViewModel
                     EndTime = date.Add(routine.EndTime),
                     ColorCode = categoryColor ?? routine.ColorCode,
                     CategoryId = routine.CategoryId,
-                    ProjectCodeId = DefaultProjectCode?.Id,
+                    ProjectCodeId = routine.ProjectCodeId ?? DefaultProjectCode?.Id,
                     RoutineId = routine.Id,
                     IsVirtual = true
                 });
@@ -452,7 +455,9 @@ public partial class MainViewModel
                 var routine = Routines.FirstOrDefault(r => r.Id == item.RoutineId);
                 if (routine == null) return;
 
-                var result = _dialogService.ShowRoutineEditDialog(routine, [.. Categories], GetTitleSuggestions());
+                var result = _dialogService.ShowRoutineEditDialog(
+                    routine, [.. Categories], GetTitleSuggestions(),
+                    GetSelectableProjectCodes(routine.ProjectCodeId), DefaultProjectCode);
                 if (result != null)
                 {
                     // 編集ダイアログは除外日を扱わないため、既存の除外日を引き継ぐ

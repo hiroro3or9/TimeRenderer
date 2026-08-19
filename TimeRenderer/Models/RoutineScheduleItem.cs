@@ -124,6 +124,12 @@ public class RoutineScheduleItem
     /// <summary>所属カテゴリのID（CategoryInfo.Id）。null の場合は ColorCode を使用する</summary>
     public string? CategoryId { get; set; }
 
+    /// <summary>
+    /// 生成する予定へ事前設定するプロジェクトコードのID（ProjectCodeInfo.Id）。
+    /// null の旧データは予定生成時の既定プロジェクトコードを使用する。
+    /// </summary>
+    public string? ProjectCodeId { get; set; }
+
     /// <summary>カテゴリ未設定時のフォールバック色</summary>
     public string ColorCode { get; set; } = Brushes.Lavender.ToString();
 

@@ -28,9 +28,15 @@ public class DefaultDialogService(Window owner) : IDialogService
         return null;
     }
 
-    public RoutineScheduleItem? ShowRoutineEditDialog(RoutineScheduleItem? initialRoutine = null, IReadOnlyList<CategoryInfo>? categories = null, IReadOnlyList<string>? titleSuggestions = null)
+    public RoutineScheduleItem? ShowRoutineEditDialog(
+        RoutineScheduleItem? initialRoutine = null,
+        IReadOnlyList<CategoryInfo>? categories = null,
+        IReadOnlyList<string>? titleSuggestions = null,
+        IReadOnlyList<ProjectCodeInfo>? projectCodes = null,
+        ProjectCodeInfo? defaultProjectCode = null)
     {
-        RoutineEditDialog dialog = new(initialRoutine, categories, titleSuggestions)
+        RoutineEditDialog dialog = new(
+            initialRoutine, categories, titleSuggestions, projectCodes, defaultProjectCode)
         {
             Owner = owner
         };
