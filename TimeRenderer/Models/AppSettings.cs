@@ -67,6 +67,13 @@ public class AppSettings
     public double? MiniRecordingBarLeft { get; set; }
     /// <summary>ミニバーの表示位置（上）。<see cref="MiniRecordingBarLeft"/> と対にして使う</summary>
     public double? MiniRecordingBarTop { get; set; }
+    /// <summary>コミット履歴を未記録の穴埋め・ふりかえりの手がかりに使うか</summary>
+    public bool IsGitCommitLookupEnabled { get; set; } = true;
+    /// <summary>
+    /// 手がかりに使うローカルリポジトリ。
+    /// 保存するのは場所と紐づけだけで、コミットそのものは持たない。
+    /// </summary>
+    public System.Collections.Generic.List<GitRepositoryInfo> GitRepositories { get; set; } = [];
     /// <summary>ドラッグ操作で時刻を丸める単位（分）</summary>
     public int SnapMinutes { get; set; } = 15;
     public System.Collections.Generic.List<SprintInfo> ManualSprints { get; set; } = [];

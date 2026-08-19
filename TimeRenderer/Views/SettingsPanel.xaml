@@ -348,6 +348,94 @@
                         </StackPanel>
                     </Expander>
 
+                    <!-- Git のコミット履歴 -->
+                    <Expander x:Name="GitSettingsSection" Style="{StaticResource SettingsExpanderStyle}">
+                        <Expander.Header>
+                            <TextBlock Text="Git のコミット履歴" Style="{StaticResource SettingsSectionHeaderStyle}"/>
+                        </Expander.Header>
+                        <StackPanel>
+                            <TextBlock TextWrapping="Wrap" FontSize="11" Margin="0,0,0,12"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Text="登録したリポジトリのコミットを、未記録の時間を埋めるときのタイトル候補と、退勤時のふりかえりの材料に使います。使用アプリは「どこで作業していたか」しか分かりませんが、コミットメッセージは「何をしていたか」を残しています。"/>
+
+                            <Grid Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" SharedSizeGroup="LabelG"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="コミット履歴を使う" Style="{StaticResource FieldLabelStyle}"
+                                           VerticalAlignment="Center" Margin="0,0,16,0"/>
+                                <CheckBox Grid.Column="1" IsChecked="{Binding IsGitCommitLookupEnabled}"
+                                          VerticalAlignment="Center"/>
+                            </Grid>
+
+                            <TextBlock Text="{Binding GitStatusText}" TextWrapping="Wrap" FontSize="11"
+                                       Margin="0,2,0,10"
+                                       Foreground="{DynamicResource TextMutedBrush}"/>
+
+                            <TextBlock Text="リポジトリ" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,6"/>
+
+                            <ItemsControl ItemsSource="{Binding GitRepositories}" Margin="0,0,0,8">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                                CornerRadius="4" Padding="8,6" Margin="0,0,0,6"
+                                                Background="{DynamicResource SurfaceBrush}">
+                                            <StackPanel>
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <CheckBox Grid.Column="0" IsChecked="{Binding IsEnabled}"
+                                                              VerticalAlignment="Center" Margin="0,0,8,0"
+                                                              Cursor="Hand" ToolTip="このリポジトリを見に行く"/>
+                                                    <TextBlock Grid.Column="1" Text="{Binding DisplayName}"
+                                                               FontSize="12" FontWeight="SemiBold"
+                                                               VerticalAlignment="Center"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                                    <Button Grid.Column="2" Content="✕" Width="22" Height="22"
+                                                            Style="{StaticResource IconButtonStyle}"
+                                                            Foreground="{DynamicResource TextSecondaryBrush}"
+                                                            ToolTip="このリポジトリを登録から外す"
+                                                            Command="{Binding DataContext.DeleteGitRepositoryCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                            CommandParameter="{Binding}"/>
+                                                </Grid>
+                                                <TextBlock Text="{Binding Path}" FontSize="10" Margin="0,3,0,0"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           ToolTip="{Binding Path}"
+                                                           Foreground="{DynamicResource TextMutedBrush}"/>
+                                                <ComboBox Margin="0,6,0,0" Height="26" FontSize="11"
+                                                          ItemsSource="{Binding DataContext.ActiveProjectCodes, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                          DisplayMemberPath="DisplayName"
+                                                          SelectedValuePath="Id"
+                                                          SelectedValue="{Binding ProjectCodeId}"
+                                                          ToolTip="このリポジトリの作業に割り当てるプロジェクトコード"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <Button Content="＋ リポジトリを追加" Command="{Binding AddGitRepositoryCommand}"
+                                    Style="{StaticResource BaseButtonStyle}" HorizontalAlignment="Stretch"/>
+
+                            <TextBlock TextWrapping="Wrap" FontSize="11" Margin="0,10,0,4"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Text="読むのは git log だけで、リポジトリには一切書き込みません。手元の git 操作と衝突することもありません。"/>
+
+                            <TextBlock TextWrapping="Wrap" FontSize="11" Margin="0,0,0,4"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Text="対象は自分（user.email）のコミットだけで、マージコミットは除きます。コミットそのものは保存せず、必要になったときに読み直します。"/>
+
+                            <TextBlock TextWrapping="Wrap" FontSize="11" Margin="0,0,0,4"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Text="プロジェクトコードを設定しておくと、そのリポジトリだけの時間帯を埋めるときに自動で選ばれます。"/>
+                        </StackPanel>
+                    </Expander>
+
                     <!-- ToDo -->
                     <Expander x:Name="TodoSettingsSection" Style="{StaticResource SettingsExpanderStyle}">
                         <Expander.Header>

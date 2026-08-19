@@ -122,6 +122,7 @@ public interface IDialogService
     /// <param name="recorded">その日に記録した時間の合計</param>
     /// <param name="completedCount">その日に完了した ToDo の件数</param>
     /// <param name="candidates">明日へ送る候補（既に選択状態を持つ）</param>
+    /// <param name="commits">その日のコミット（無ければ空。ふりかえりを書く材料に使う）</param>
     /// <param name="initialNote">既に書かれているふりかえり（無ければ空文字）</param>
     WorkEndReviewResult ShowWorkEndReviewDialog(
         DateTime date,
@@ -130,6 +131,7 @@ public interface IDialogService
         TimeSpan recorded,
         int completedCount,
         IReadOnlyList<WorkEndCarryOver> candidates,
+        IReadOnlyList<GitCommit> commits,
         string initialNote);
 
     /// <summary>
@@ -165,4 +167,11 @@ public interface IDialogService
         GapFillSuggestion suggestion,
         IReadOnlyList<CategoryInfo> categories,
         IReadOnlyList<ProjectCodeInfo> projectCodes);
+
+    /// <summary>
+    /// フォルダーを1つ選ぶダイアログを表示します。
+    /// キャンセルされた場合は null を返します。
+    /// </summary>
+    /// <param name="description">何を選ぶのかの説明</param>
+    string? ShowFolderPicker(string description);
 }

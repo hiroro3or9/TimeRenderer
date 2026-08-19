@@ -7,7 +7,7 @@ namespace TimeRenderer.ViewModels;
 /// <summary>
 /// 未記録の帯を埋めるときに、アプリ使用記録から組み立てた下書き。
 ///
-/// 「この時間、何をしていたか」を思い出す材料（<see cref="Stats"/>）と、
+/// 「この時間、何をしていたか」を思い出す材料（<see cref="Stats"/> と <see cref="Commits"/>）と、
 /// 過去に同じアプリを使っていた時間帯へ実際に付けていたタイトル・カテゴリ
 /// （<see cref="TitleSuggestions"/> / <see cref="Category"/>）をまとめて渡す。
 ///
@@ -15,16 +15,25 @@ namespace TimeRenderer.ViewModels;
 /// 外していたときに黙って間違った記録が残るのが、この機能で一番避けたい失敗のため。
 /// </summary>
 /// <param name="Stats">その時間帯のアプリ使用内訳（使用時間の長い順）</param>
+/// <param name="Commits">その時間帯に作られたコミット（新しい順・無ければ空）</param>
 /// <param name="Title">タイトル欄の初期値</param>
 /// <param name="TitleSuggestions">タイトル欄のドロップダウン候補</param>
 /// <param name="Category">カテゴリ欄の初期選択（推測できなければ null）</param>
 /// <param name="ProjectCode">記録へ付けるプロジェクトコードの初期選択</param>
 public sealed record GapFillSuggestion(
     IReadOnlyList<AppUsageStat> Stats,
+    IReadOnlyList<GitCommit> Commits,
     string Title,
     IReadOnlyList<string> TitleSuggestions,
     CategoryInfo? Category,
-    ProjectCodeInfo? ProjectCode);
+    ProjectCodeInfo? ProjectCode)
+{
+    /// <summary>アプリ使用の内訳があるか（証拠欄の出し分けに使う）</summary>
+    public bool HasStats => Stats.Count > 0;
+
+    /// <summary>コミットがあるか（証拠欄の出し分けに使う）</summary>
+    public bool HasCommits => Commits.Count > 0;
+}
 
 /// <summary>
 /// 未記録の帯を埋めるダイアログの結果。

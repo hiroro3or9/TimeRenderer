@@ -1,7 +1,7 @@
 ﻿<Window x:Class="TimeRenderer.Views.Dialogs.WorkEndReviewDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="今日のふりかえり" Height="620" Width="480"
+        Title="今日のふりかえり" Height="620" Width="480" MinHeight="420"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         Background="{DynamicResource BackgroundBrush}">
@@ -69,6 +69,56 @@
             ふりかえりの一言。空のままでも構わないので、フォーカスは既定ボタンに残す
             （Enter だけで確定できる流れを崩さないため）
         -->
+
+        <!--
+            今日のコミット。ふりかえりを書く前の材料として、一言の欄のすぐ上に置く。
+            白紙に向かって思い出すより、並んでいるものを見ながら書くほうがはるかに早い。
+            「貼る」で一言の欄へそのまま流し込めるようにしてあるのは、
+            結局そのまま書き写す日が多いため。
+        -->
+        <StackPanel x:Name="CommitPanel" Margin="0,0,0,12" Visibility="Collapsed">
+            <Grid Margin="0,0,0,4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" x:Name="CommitHeadText" FontSize="12" VerticalAlignment="Center"
+                           Foreground="{DynamicResource TextSecondaryBrush}"/>
+                <Button Grid.Column="1" x:Name="PasteCommitsButton" Content="ひとことへ貼る"
+                        Padding="8,3" FontSize="11" Cursor="Hand"
+                        Style="{StaticResource GhostButtonStyle}"
+                        Foreground="{DynamicResource TextSecondaryBrush}"
+                        Click="PasteCommitsButton_Click"/>
+            </Grid>
+            <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4"
+                    Background="{DynamicResource SurfaceBrush}" Padding="4" MaxHeight="120">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <ItemsControl x:Name="CommitList">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="8,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="{Binding TimeText}" FontSize="11"
+                                               MinWidth="38" Margin="0,0,8,0"
+                                               Foreground="{DynamicResource TextMutedBrush}"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding Subject}" FontSize="12"
+                                               TextTrimming="CharacterEllipsis"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <TextBlock Grid.Column="2" Text="{Binding RepositoryName}" FontSize="10"
+                                               Margin="8,1,0,0" MaxWidth="110" TextTrimming="CharacterEllipsis"
+                                               Foreground="{DynamicResource TextMutedBrush}"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Border>
+        </StackPanel>
+
         <TextBlock Text="今日のひとこと（任意）" FontSize="12" Margin="0,0,0,4"
                    Foreground="{DynamicResource TextSecondaryBrush}"/>
         <TextBox x:Name="NoteTextBox" Height="58" Padding="8,6" FontSize="13"

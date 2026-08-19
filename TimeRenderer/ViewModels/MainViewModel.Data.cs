@@ -207,6 +207,8 @@ public partial class MainViewModel
         IsMiniRecordingBarEnabled = IsMiniRecordingBarEnabled,
         MiniRecordingBarLeft = MiniRecordingBarLeft,
         MiniRecordingBarTop = MiniRecordingBarTop,
+        IsGitCommitLookupEnabled = IsGitCommitLookupEnabled,
+        GitRepositories = [.. GitRepositories],
         SnapMinutes = SnapMinutes,
         ManualSprints = ManualSprints,
         EnabledDaysOfWeek = EnabledDaysOfWeek,
@@ -350,6 +352,10 @@ public partial class MainViewModel
         _miniRecordingBarTop = settings.MiniRecordingBarTop;
         OnPropertyChanged(nameof(MiniRecordingBarLeft));
         OnPropertyChanged(nameof(MiniRecordingBarTop));
+
+        _isGitCommitLookupEnabled = settings.IsGitCommitLookupEnabled;
+        OnPropertyChanged(nameof(IsGitCommitLookupEnabled));
+        LoadGitRepositories(settings.GitRepositories);
 
         _snapMinutes = Math.Clamp(settings.SnapMinutes <= 0 ? 15 : settings.SnapMinutes, 1, 60);
         OnPropertyChanged(nameof(SnapMinutes));

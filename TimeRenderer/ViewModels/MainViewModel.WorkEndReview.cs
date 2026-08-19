@@ -22,6 +22,10 @@ namespace TimeRenderer.ViewModels;
 /// ふりかえりの一言（<see cref="WorkDayLog.Note"/>）もここで書く。
 /// 常設の入力欄を置いても書くきっかけが無く、書いたものを読み返す導線も生まれなかった。
 /// 1日の区切りに一度だけ聞き、統計から読み返せる形にしている。
+///
+/// 書く材料として、その日のコミットも並べる。
+/// 白紙の欄に向かって「今日どうだったか」を思い出すのは思ったより重く、
+/// 何をしたかが目の前に並んでいるだけで、書ける日がはっきり増える。
 /// </summary>
 public partial class MainViewModel
 {
@@ -56,14 +60,19 @@ public partial class MainViewModel
         var completed = Todos.Count(t => t.IsCompleted && t.CompletedAt?.Date == date);
         var candidates = BuildCarryOverCandidates(date);
 
-        // 実績も残りものも無い日は、ただ手を止めるだけになるので出さない
+        // 実績も残りものも無い日は、ただ手を止めるだけになるので出さない。
+        // コミットの有無はここでは見ない。git を読むのは出すと決めた後にする
+        // （出さない日にまで数百ミリ秒の待ちを入れる意味が無い）
         if (candidates.Count == 0 && completed == 0 && recorded == TimeSpan.Zero) return;
+
+        // 出勤前に打ったコミットも今日の作業なので、勤務開始ではなくその日の0時から見る
+        var commits = GetCommitsBetween(date, end);
 
         _isShowingWorkEndReview = true;
         try
         {
             var result = _dialogService.ShowWorkEndReviewDialog(
-                date, log.StartTime, end, recorded, completed, candidates, log.Note);
+                date, log.StartTime, end, recorded, completed, candidates, commits, log.Note);
 
             SetWorkDayNote(log, result.Note);
 

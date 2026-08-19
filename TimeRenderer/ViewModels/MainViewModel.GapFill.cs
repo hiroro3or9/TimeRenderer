@@ -8,11 +8,15 @@ using TimeRenderer.Models;
 namespace TimeRenderer.ViewModels;
 
 /// <summary>
-/// 未記録の帯を、アプリ使用記録から埋める。
+/// 未記録の帯を、その時間の手がかりから埋める。
 ///
 /// アプリは「14:00-14:45 に記録が無い」ことも「その時間 Visual Studio を使っていた」ことも
 /// 別々に知っていたが、繋がっていなかった。帯の右クリックから内訳を出し、
 /// 1回の操作で記録を作れるようにする。
+///
+/// 手がかりは2つある。<b>使っていたアプリ</b>と<b>作ったコミット</b>で、
+/// 前者は「どこで作業していたか」、後者は「何をしていたか」を語る。
+/// どちらか片方しか無くても出す。
 ///
 /// 方針:
 /// - <b>証拠を見せてから聞く</b>。離席の確認（AwayReviewDialog）と同じ形にしている。
@@ -57,39 +61,77 @@ public partial class MainViewModel
     public void FillGapFromAppUsage(UnrecordedGap gap)
     {
         var stats = GetAppUsageStats(gap.StartTime, gap.EndTime);
-        if (stats.Count == 0)
+
+        // コミットはアプリ使用と別の材料なので、片方だけでも出す価値がある。
+        // 収集が止まっていた時間帯でも、コミットが残っていれば埋められる
+        var commits = GetCommitsBetween(gap.StartTime, gap.EndTime);
+
+        if (stats.Count == 0 && commits.Count == 0)
         {
             _dialogService.ShowMessage(
-                "この時間帯のアプリ使用記録がありません。\n" +
-                "使用アプリは出勤から退勤までの間だけ収集されます（設定でオン/オフできます）。\n\n" +
+                "この時間帯の手がかりがありません。\n" +
+                "使用アプリは出勤から退勤までの間だけ収集されます（設定でオン/オフできます）。\n" +
+                "コミット履歴を使うには、設定でリポジトリを登録してください。\n\n" +
                 "右クリックの「ToDo から埋める」か、空白のドラッグで記録を作れます。",
-                "使用アプリから埋める");
+                "この時間の作業から埋める");
             return;
         }
 
-        var suggestion = BuildGapFillSuggestion(stats);
+        var suggestion = BuildGapFillSuggestion(stats, commits);
 
         var result = _dialogService.ShowGapFillDialog(
             gap.StartTime, gap.EndTime, suggestion, [.. Categories], ActiveProjectCodes);
 
         if (result == null) return;
 
-        CreateItemForGap(gap, result);
+        CreateItemForGap(gap, result, commits);
     }
 
-    /// <summary>アプリ使用内訳から、タイトルとカテゴリの下書きを組み立てる</summary>
-    private GapFillSuggestion BuildGapFillSuggestion(List<AppUsageStat> stats)
+    /// <summary>
+    /// アプリ使用内訳とコミットから、タイトル・カテゴリ・プロジェクトコードの下書きを組み立てる。
+    ///
+    /// タイトル候補は<b>コミットが先</b>。アプリ名から思い出すより、
+    /// そのとき自分が書いた一文のほうが具体的で、選ぶ手間も少ない。
+    /// ただし既定値まで入れ替えるのは、過去の実績から何も学べなかったときだけにする。
+    /// 学習結果（そのアプリを使っていた時間帯に実際に付けていたタイトル）は
+    /// 帯全体を言い表しているのに対し、コミット1件は帯の一部でしかない。
+    /// </summary>
+    private GapFillSuggestion BuildGapFillSuggestion(
+        List<AppUsageStat> stats, IReadOnlyList<GitCommit> commits)
     {
         // 一番長く使っていたアプリを基準にする。
         // 複数のアプリを行き来していても、何をしていたかは主役のアプリで決まることが多い
-        var dominant = stats[0];
-        var (titles, category) = LearnFromApp(dominant.ProcessName);
+        IReadOnlyList<string> titles = [];
+        CategoryInfo? category = null;
+        if (stats.Count > 0)
+        {
+            (titles, category) = LearnFromApp(stats[0].ProcessName);
+        }
 
-        // タイトルの既定値は「そのアプリを使っていたときに一番よく付けていたタイトル」。
-        // 一度も記録が無いアプリなら、せめてアプリ名を入れておく（空欄よりは手がかりになる）
-        var title = titles.Count > 0 ? titles[0] : dominant.AppName;
+        // 同じ内容のコミットが並ぶこと（分割コミット）はよくあるので、重複は落とす
+        var commitTitles = commits
+            .Select(c => c.Subject)
+            .Distinct(StringComparer.Ordinal)
+            .Take(MaxAppTitleSuggestions)
+            .ToList();
 
-        return new GapFillSuggestion(stats, title, titles, category, DefaultProjectCode);
+        var suggestions = new List<string>(commitTitles);
+        foreach (var title in titles)
+        {
+            if (!suggestions.Contains(title, StringComparer.Ordinal)) suggestions.Add(title);
+        }
+
+        // 既定値の優先順: 学習したタイトル → コミット → アプリ名 → 空欄
+        var defaultTitle = titles.Count > 0 ? titles[0]
+            : commitTitles.Count > 0 ? commitTitles[0]
+            : stats.Count > 0 ? stats[0].AppName
+            : string.Empty;
+
+        // リポジトリに紐づくプロジェクトコードが決まるなら、そちらを既定値にする。
+        // 決められない（複数リポジトリにまたがる）場合は普段の既定値のまま
+        var projectCode = GuessProjectCodeFromCommits(commits) ?? DefaultProjectCode;
+
+        return new GapFillSuggestion(stats, commits, defaultTitle, suggestions, category, projectCode);
     }
 
     /// <summary>
@@ -189,7 +231,8 @@ public partial class MainViewModel
     /// 帯の時間幅そのままで記録を作る。
     /// 埋めたことが後から分かるよう、内容にアプリの内訳を残しておく。
     /// </summary>
-    private void CreateItemForGap(UnrecordedGap gap, GapFillResult result)
+    private void CreateItemForGap(
+        UnrecordedGap gap, GapFillResult result, IReadOnlyList<GitCommit> commits)
     {
         var category = result.Category;
 
@@ -201,7 +244,7 @@ public partial class MainViewModel
             EndTime = gap.EndTime,
             CategoryId = category?.Id,
             ProjectCodeId = result.ProjectCode?.Id ?? DefaultProjectCode?.Id,
-            Content = BuildGapFillContent(gap),
+            Content = BuildGapFillContent(gap, commits),
         };
 
         if (category != null) item.ColorCode = category.ColorCode;
@@ -210,13 +253,30 @@ public partial class MainViewModel
         PushEdits([new AddItemEdit(item)], $"「{item.Title}」で記録漏れを埋める");
     }
 
-    /// <summary>埋めた根拠を内容欄に残す（あとで見て、実測なのか記憶なのか分かるように）</summary>
-    private string BuildGapFillContent(UnrecordedGap gap)
+    /// <summary>
+    /// 埋めた根拠を内容欄に残す（あとで見て、実測なのか記憶なのか分かるように）。
+    /// コミットはダイアログへ渡したものをそのまま使う。ここで読み直すと、
+    /// 確定を押した後にもう一度 git の起動を待たせることになる。
+    /// </summary>
+    private string BuildGapFillContent(UnrecordedGap gap, IReadOnlyList<GitCommit> commits)
     {
+        var lines = new List<string>();
+
         var stats = GetAppUsageStats(gap.StartTime, gap.EndTime)
             .Take(3)
-            .Select(s => $"{s.AppName} {s.DurationText}");
+            .Select(s => $"{s.AppName} {s.DurationText}")
+            .ToList();
 
-        return $"使用アプリから復元: {string.Join(" / ", stats)}";
+        if (stats.Count > 0) lines.Add($"使用アプリから復元: {string.Join(" / ", stats)}");
+
+        // コミットは件数が多くなりうるので、根拠として残すのは先頭の数件に絞る
+        if (commits.Count > 0)
+        {
+            var listed = commits.Take(3).Select(c => $"{c.TimeText} {c.Subject}");
+            var suffix = commits.Count > 3 ? $" ほか{commits.Count - 3}件" : string.Empty;
+            lines.Add($"コミット: {string.Join(" / ", listed)}{suffix}");
+        }
+
+        return string.Join("\n", lines);
     }
 }
