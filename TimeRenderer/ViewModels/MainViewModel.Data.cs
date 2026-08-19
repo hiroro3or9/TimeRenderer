@@ -204,6 +204,9 @@ public partial class MainViewModel
         WorkEndEarliestHour = WorkEndEarliestHour,
         IsWorkEndReviewEnabled = IsWorkEndReviewEnabled,
         IsAppUsageTrackingEnabled = IsAppUsageTrackingEnabled,
+        IsMiniRecordingBarEnabled = IsMiniRecordingBarEnabled,
+        MiniRecordingBarLeft = MiniRecordingBarLeft,
+        MiniRecordingBarTop = MiniRecordingBarTop,
         SnapMinutes = SnapMinutes,
         ManualSprints = ManualSprints,
         EnabledDaysOfWeek = EnabledDaysOfWeek,
@@ -339,6 +342,14 @@ public partial class MainViewModel
 
         _isAppUsageTrackingEnabled = settings.IsAppUsageTrackingEnabled;
         OnPropertyChanged(nameof(IsAppUsageTrackingEnabled));
+
+        _isMiniRecordingBarEnabled = settings.IsMiniRecordingBarEnabled;
+        OnPropertyChanged(nameof(IsMiniRecordingBarEnabled));
+
+        _miniRecordingBarLeft = settings.MiniRecordingBarLeft;
+        _miniRecordingBarTop = settings.MiniRecordingBarTop;
+        OnPropertyChanged(nameof(MiniRecordingBarLeft));
+        OnPropertyChanged(nameof(MiniRecordingBarTop));
 
         _snapMinutes = Math.Clamp(settings.SnapMinutes <= 0 ? 15 : settings.SnapMinutes, 1, 60);
         OnPropertyChanged(nameof(SnapMinutes));

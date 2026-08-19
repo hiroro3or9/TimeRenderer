@@ -28,6 +28,7 @@ namespace TimeRenderer.Views
 
             bool appearance = Matches(query, "外観", "ダーク", "テーマ", "配色");
             bool display = Matches(query, "表示", "時間", "時刻", "曜日", "刻み", "ドラッグ", "カレンダー");
+            bool miniBar = Matches(query, "ミニバー", "最前面", "記録中", "常時表示", "小窓", "バー");
             bool away = Matches(query, "離席", "中断", "無操作", "スリープ", "ロック", "除外");
             bool appUsage = Matches(query, "アプリ", "使用", "前面", "ウィンドウ", "記録", "プライバシー");
             bool todo = Matches(query, "todo", "通知", "先送り", "クイック", "期限", "まとめ", "完了", "アーカイブ");
@@ -35,13 +36,14 @@ namespace TimeRenderer.Views
 
             ApplySearchResult(AppearanceSettingsSection, appearance, searching);
             ApplySearchResult(DisplaySettingsSection, display, searching);
+            ApplySearchResult(MiniBarSettingsSection, miniBar, searching);
             ApplySearchResult(AwaySettingsSection, away, searching);
             ApplySearchResult(AppUsageSettingsSection, appUsage, searching);
             ApplySearchResult(TodoSettingsSection, todo, searching);
             ApplySearchResult(WorkSettingsSection, work, searching);
 
             NoSettingsResultsText.Visibility = searching
-                && !(appearance || display || away || appUsage || todo || work)
+                && !(appearance || display || miniBar || away || appUsage || todo || work)
                     ? System.Windows.Visibility.Visible
                     : System.Windows.Visibility.Collapsed;
         }

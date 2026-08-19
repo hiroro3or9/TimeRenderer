@@ -280,21 +280,15 @@ namespace TimeRenderer.Views.Dialogs
         {
             var selectedKind = SelectedKind;
             var kindLabel = selectedKind == ScheduleItemKind.Recorded ? "実績" : "予定";
-            if (DialogHeadingText != null)
-            {
-                DialogHeadingText.Text = $"{kindLabel}を{(_isEditMode ? "編集" : "追加")}";
-            }
+            DialogHeadingText?.Text = $"{kindLabel}を{(_isEditMode ? "編集" : "追加")}";
 
             // 終日は時刻を持たず、実績と終日予定は開始時の動作を持たない。
             bool isTimeEnabled = AllDayCheckBox?.IsChecked != true;
             StartTimePanel?.IsEnabled = isTimeEnabled;
             EndTimePanel?.IsEnabled = isTimeEnabled;
-            if (ReminderPanel != null)
-            {
-                ReminderPanel.Visibility = isTimeEnabled && selectedKind == ScheduleItemKind.Planned
+            ReminderPanel?.Visibility = isTimeEnabled && selectedKind == ScheduleItemKind.Planned
                     ? Visibility.Visible
                     : Visibility.Collapsed;
-            }
 
             UpdateTimeSummary();
         }
