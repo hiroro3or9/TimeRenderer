@@ -460,6 +460,7 @@ public partial class MainViewModel : INotifyPropertyChanged
         InitializeCommands();
         InitializeCategoryCommands();
         InitializeProjectCodeCommands();
+        InitializeGitCommands();
         InitializeStatsCommands();
         InitializeSearchCommands();
         InitializeTitleCommands();

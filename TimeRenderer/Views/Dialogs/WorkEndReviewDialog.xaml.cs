@@ -30,6 +30,7 @@ namespace TimeRenderer.Views.Dialogs
         public string Note { get; private set; } = string.Empty;
 
         private readonly List<WorkEndCarryOver> _candidates;
+        private readonly IReadOnlyList<GitCommit> _commits;
 
         public WorkEndReviewDialog(
             DateTime date,
@@ -38,11 +39,18 @@ namespace TimeRenderer.Views.Dialogs
             TimeSpan recorded,
             int completedCount,
             IReadOnlyList<WorkEndCarryOver> candidates,
+            IReadOnlyList<GitCommit> commits,
             string initialNote)
         {
             InitializeComponent();
 
             _candidates = [.. candidates];
+            _commits = commits;
+
+            // 高さは固定だが、コミットの枠が増えるぶんだけ画面に収まらなくなりうる。
+            // 作業領域からはみ出す前に上限で止める
+            MaxHeight = Math.Max(MinHeight, SystemParameters.WorkArea.Height - 24);
+            if (_commits.Count > 0) Height = Math.Min(Height + 150, MaxHeight);
 
             HeadlineText.Text = $"{date:M月d日 (ddd)} おつかれさまでした";
             NoteTextBox.Text = initialNote ?? string.Empty;
@@ -58,6 +66,13 @@ namespace TimeRenderer.Views.Dialogs
                 : string.Empty;
 
             CompletedText.Text = $"{completedCount} 件";
+
+            if (_commits.Count > 0)
+            {
+                CommitPanel.Visibility = Visibility.Visible;
+                CommitList.ItemsSource = _commits;
+                CommitHeadText.Text = $"今日のコミット {_commits.Count} 件";
+            }
 
             if (_candidates.Count == 0)
             {
@@ -88,6 +103,31 @@ namespace TimeRenderer.Views.Dialogs
         {
             Note = NoteTextBox.Text?.Trim() ?? string.Empty;
             base.OnClosing(e);
+        }
+
+        /// <summary>
+        /// コミットの一覧を一言の欄へ流し込む。
+        ///
+        /// 上書きせず末尾へ足すのは、先に何か書いていた場合にそれを消さないため。
+        /// 貼ってから消す・並べ替えるのは手でできるが、消えたものは戻せない。
+        /// </summary>
+        private void PasteCommitsButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_commits.Count == 0) return;
+
+            var lines = string.Join(
+                Environment.NewLine,
+                _commits.Reverse().Select(c => $"- {c.Subject}"));
+
+            var current = NoteTextBox.Text ?? string.Empty;
+            NoteTextBox.Text = current.Length == 0
+                ? lines
+                : current.TrimEnd() + Environment.NewLine + lines;
+
+            // 貼った直後は手直ししたくなるので、末尾へ寄せて入力できる状態にする
+            NoteTextBox.Focus();
+            NoteTextBox.CaretIndex = NoteTextBox.Text.Length;
+            NoteTextBox.ScrollToEnd();
         }
 
         private void CarryOverCheck_Changed(object sender, RoutedEventArgs e) => UpdateButtons();

@@ -1,7 +1,7 @@
 ﻿<Window x:Class="TimeRenderer.Views.Dialogs.GapFillDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="使用アプリから埋める" Height="630" Width="460" MinHeight="360"
+        Title="この時間の作業から埋める" Height="660" Width="470" MinHeight="360"
         WindowStartupLocation="CenterOwner"
         ResizeMode="CanResize"
         Background="{DynamicResource BackgroundBrush}">
@@ -28,6 +28,7 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
         <TextBlock Grid.Row="0" x:Name="HeadlineText" FontSize="15" FontWeight="Bold" TextWrapping="Wrap"
@@ -37,7 +38,8 @@
                    Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,10"/>
 
         <!-- この時間帯に使っていたアプリ -->
-        <Border Grid.Row="2" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4"
+        <Border Grid.Row="2" x:Name="UsagePanel"
+                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4"
                 Background="{DynamicResource SurfaceBrush}" Padding="4" MinHeight="120" MaxHeight="220">
             <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <ItemsControl x:Name="UsageList">
@@ -78,8 +80,46 @@
             </ScrollViewer>
         </Border>
 
-        <!-- タイトル：過去に同じアプリを使っていた時間帯へ付けていたものを候補に出す -->
-        <StackPanel Grid.Row="3" Margin="0,14,0,0">
+
+        <!--
+            この時間に作られたコミット。
+            アプリ名は「どこで作業していたか」しか語らないので、
+            開発の時間帯ではこちらのほうが手がかりとして強い。
+        -->
+        <StackPanel Grid.Row="3" x:Name="CommitPanel" Margin="0,10,0,0" Visibility="Collapsed">
+            <TextBlock x:Name="CommitHeadText" FontSize="12" Margin="0,0,0,4"
+                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+            <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4"
+                    Background="{DynamicResource SurfaceBrush}" Padding="4" MaxHeight="160">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <ItemsControl x:Name="CommitList">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="8,5">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="{Binding TimeText}" FontSize="11"
+                                               MinWidth="38" VerticalAlignment="Top" Margin="0,1,8,0"
+                                               Foreground="{DynamicResource TextMutedBrush}"/>
+                                    <StackPanel Grid.Column="1">
+                                        <TextBlock Text="{Binding Subject}" FontSize="12" TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="{Binding OriginText}" FontSize="10" Margin="0,2,0,0"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Foreground="{DynamicResource TextMutedBrush}"/>
+                                    </StackPanel>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Border>
+        </StackPanel>
+
+        <!-- タイトル：コミットと、過去に同じアプリを使っていた時間帯へ付けていたものを候補に出す -->
+        <StackPanel Grid.Row="4" Margin="0,14,0,0">
             <TextBlock Text="タイトル" Style="{StaticResource FieldLabelStyle}"/>
             <ComboBox x:Name="TitleCombo" IsEditable="True" FontSize="14" Padding="6,6"
                       IsTextSearchEnabled="False" MaxDropDownHeight="200"/>
@@ -88,7 +128,7 @@
         </StackPanel>
 
         <!-- カテゴリ -->
-        <StackPanel Grid.Row="4" Margin="0,12,0,0">
+        <StackPanel Grid.Row="5" Margin="0,12,0,0">
             <TextBlock Text="カテゴリ" Style="{StaticResource FieldLabelStyle}"/>
             <ComboBox x:Name="CategoryCombo" Width="220" HorizontalAlignment="Left" FontSize="14" Padding="6,6">
                 <ComboBox.ItemTemplate>
@@ -104,7 +144,7 @@
         </StackPanel>
 
         <!-- プロジェクトコード -->
-        <StackPanel Grid.Row="5" Margin="0,12,0,0">
+        <StackPanel Grid.Row="6" Margin="0,12,0,0">
             <TextBlock Text="プロジェクトコード" Style="{StaticResource FieldLabelStyle}"/>
             <ComboBox x:Name="ProjectCodeCombo" Width="280" HorizontalAlignment="Left"
                       FontSize="14" Padding="6,6" DisplayMemberPath="DisplayName"/>

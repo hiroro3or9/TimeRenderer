@@ -148,9 +148,11 @@ public class DefaultDialogService(Window owner) : IDialogService
         System.TimeSpan recorded,
         int completedCount,
         IReadOnlyList<WorkEndCarryOver> candidates,
+        IReadOnlyList<GitCommit> commits,
         string initialNote)
     {
-        WorkEndReviewDialog dialog = new(date, start, end, recorded, completedCount, candidates, initialNote)
+        WorkEndReviewDialog dialog = new(
+            date, start, end, recorded, completedCount, candidates, commits, initialNote)
         {
             Owner = owner
         };
@@ -211,5 +213,21 @@ public class DefaultDialogService(Window owner) : IDialogService
         if (!owner.IsVisible) owner.Show();
 
         return dialog.ShowDialog() == true ? dialog.Result : null;
+    }
+
+    public string? ShowFolderPicker(string description)
+    {
+        // WPF に相当するものが無いため WinForms のものを使う。
+        // csproj で UseWindowsForms を有効にしてあるので追加の参照は要らない
+        using var dialog = new System.Windows.Forms.FolderBrowserDialog
+        {
+            Description = description,
+            UseDescriptionForTitle = true,
+            ShowNewFolderButton = false,
+        };
+
+        return dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK
+            ? dialog.SelectedPath
+            : null;
     }
 }
