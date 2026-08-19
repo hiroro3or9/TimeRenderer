@@ -30,6 +30,27 @@ public partial class MainViewModel
     private const int MaxAppTitleSuggestions = 8;
 
     /// <summary>
+    /// アプリ使用記録や ToDo に紐づけず、帯の時間幅を初期値にして実績を手入力する。
+    /// 通常の編集ダイアログを使うため、タイトル・内容・カテゴリ・プロジェクトコードを自由に指定できる。
+    /// </summary>
+    public void FillGapManually(UnrecordedGap gap)
+    {
+        if (gap.EndTime <= gap.StartTime) return;
+
+        var category = RecordingCategory;
+        AddViaDialog(new ScheduleItem
+        {
+            Kind = ScheduleItemKind.Recorded,
+            StartTime = gap.StartTime,
+            EndTime = gap.EndTime,
+            Title = string.Empty,
+            ColorCode = category?.ColorCode ?? System.Windows.Media.Brushes.LightBlue.ToString(),
+            CategoryId = category?.Id,
+            ProjectCodeId = DefaultProjectCode?.Id,
+        });
+    }
+
+    /// <summary>
     /// 帯の右クリックから呼ばれる入口。
     /// 材料が無ければその旨だけ伝えて何もしない。
     /// </summary>

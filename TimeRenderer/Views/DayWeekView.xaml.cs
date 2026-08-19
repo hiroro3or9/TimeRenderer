@@ -199,6 +199,12 @@ namespace TimeRenderer.Views
 
         // ===== 記録漏れの帯 =====
 
+        /// <summary>帯を右クリック →「自由入力で埋める」：その時間幅を初期値に実績を作る</summary>
+        private void FillGapManuallyMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (TryGetGap(sender, out var gap)) ViewModel.FillGapManually(gap);
+        }
+
         /// <summary>帯を右クリック →「ToDo から埋める」：その時間幅の実績を ToDo から作る</summary>
         private void FillGapMenuItem_Click(object sender, RoutedEventArgs e)
         {
