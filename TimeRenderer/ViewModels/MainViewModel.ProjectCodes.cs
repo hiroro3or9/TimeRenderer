@@ -83,11 +83,12 @@ public partial class MainViewModel
                     ProjectCodes.Count <= 1 ||
                     (projectCode.IsActive && ProjectCodes.Count(p => p.IsActive) <= 1)) return;
 
-                if (ScheduleItems.Any(item => item.ProjectCodeId == projectCode.Id))
+                if (ScheduleItems.Any(item => item.ProjectCodeId == projectCode.Id) ||
+                    Routines.Any(routine => routine.ProjectCodeId == projectCode.Id))
                 {
                     _dialogService.ShowMessage(
-                        $"プロジェクトコード「{projectCode.DisplayName}」は予定または実績で使用中のため削除できません。\n" +
-                        "対象アイテムを別のプロジェクトコードへ変更してから削除してください。",
+                        $"プロジェクトコード「{projectCode.DisplayName}」は予定・実績・定期予定で使用中のため削除できません。\n" +
+                        "対象アイテムや定期予定を別のプロジェクトコードへ変更してから削除してください。",
                         "プロジェクトコードの削除");
                     return;
                 }

@@ -146,6 +146,16 @@
             </ComboBox>
         </StackPanel>
 
+        <!-- 生成する予定へあらかじめ設定するプロジェクトコード -->
+        <StackPanel Margin="0,0,0,14">
+            <TextBlock Text="プロジェクトコード" Style="{StaticResource FieldLabelStyle}"/>
+            <ComboBox x:Name="ProjectCodeCombo" Width="280" HorizontalAlignment="Left"
+                      FontSize="14" Padding="6,6" DisplayMemberPath="DisplayName"/>
+            <TextBlock Text="この定期予定から生成される予定と、その予定から始めた実績に引き継がれます"
+                       FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
+                       TextWrapping="Wrap" Margin="0,4,0,0"/>
+        </StackPanel>
+
         <!-- 記録開始の挙動 -->
         <StackPanel Margin="0,0,0,8">
             <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Margin="0,0,0,12"/>

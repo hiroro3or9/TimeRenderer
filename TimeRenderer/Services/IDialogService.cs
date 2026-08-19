@@ -36,8 +36,15 @@ public interface IDialogService
     /// <param name="initialRoutine">編集対象のルーティン。新規作成時はnull</param>
     /// <param name="categories">選択可能なカテゴリ一覧</param>
     /// <param name="titleSuggestions">タイトル入力欄のドロップダウン候補</param>
+    /// <param name="projectCodes">選択可能なプロジェクトコード一覧</param>
+    /// <param name="defaultProjectCode">新規作成時の既定プロジェクトコード</param>
     /// <returns>追加または更新されたRoutineScheduleItem。キャンセルされた場合はnull</returns>
-    RoutineScheduleItem? ShowRoutineEditDialog(RoutineScheduleItem? initialRoutine = null, IReadOnlyList<CategoryInfo>? categories = null, IReadOnlyList<string>? titleSuggestions = null);
+    RoutineScheduleItem? ShowRoutineEditDialog(
+        RoutineScheduleItem? initialRoutine = null,
+        IReadOnlyList<CategoryInfo>? categories = null,
+        IReadOnlyList<string>? titleSuggestions = null,
+        IReadOnlyList<ProjectCodeInfo>? projectCodes = null,
+        ProjectCodeInfo? defaultProjectCode = null);
 
     /// <summary>
     /// ToDo の編集ダイアログを開き、結果の ToDo を返します。

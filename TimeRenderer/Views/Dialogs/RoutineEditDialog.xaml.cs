@@ -49,7 +49,12 @@ namespace TimeRenderer.Views.Dialogs
         /// </summary>
         /// <param name="categories">選択可能なカテゴリ一覧（null/空の場合は既定値を使用）</param>
         /// <param name="titleSuggestions">タイトル入力欄のドロップダウン候補</param>
-        public RoutineEditDialog(RoutineScheduleItem? existingRoutine = null, IReadOnlyList<CategoryInfo>? categories = null, IReadOnlyList<string>? titleSuggestions = null)
+        public RoutineEditDialog(
+            RoutineScheduleItem? existingRoutine = null,
+            IReadOnlyList<CategoryInfo>? categories = null,
+            IReadOnlyList<string>? titleSuggestions = null,
+            IReadOnlyList<ProjectCodeInfo>? projectCodes = null,
+            ProjectCodeInfo? defaultProjectCode = null)
         {
             InitializeComponent();
 
@@ -63,6 +68,9 @@ namespace TimeRenderer.Views.Dialogs
                 : [.. categories];
             _colorOptions = [.. source.Select(c => new ColorOption(c.Name, c.Brush, c.Id))];
             ColorCombo.ItemsSource = _colorOptions;
+
+            var projectCodeOptions = projectCodes ?? [];
+            ProjectCodeCombo.ItemsSource = projectCodeOptions;
 
             // 繰り返し種別・間隔・日付の選択肢を初期化
             RecurrenceCombo.ItemsSource = new List<OptionItem>
@@ -133,6 +141,11 @@ namespace TimeRenderer.Views.Dialogs
                     ?? _colorOptions.FirstOrDefault(c => c.Brush.ToString() == existingRoutine.ColorCode);
                 ColorCombo.SelectedItem = matchingColor ?? _colorOptions[0];
 
+                ProjectCodeCombo.SelectedItem = projectCodeOptions.FirstOrDefault(
+                    p => p.Id == existingRoutine.ProjectCodeId)
+                    ?? defaultProjectCode
+                    ?? projectCodeOptions.FirstOrDefault();
+
                 AutoStartCheckBox.IsChecked = existingRoutine.IsAutoStart;
                 ForceStartCheckBox.IsChecked = existingRoutine.IsForceStart;
                 EnabledCheckBox.IsChecked = existingRoutine.IsEnabled;
@@ -157,6 +170,7 @@ namespace TimeRenderer.Views.Dialogs
                 EndHourCombo.SelectedItem = endHour.ToString("D2");
                 EndMinuteCombo.SelectedItem = (now.Minute / 5 * 5).ToString("D2");
                 ColorCombo.SelectedItem = _colorOptions[0];
+                ProjectCodeCombo.SelectedItem = defaultProjectCode ?? projectCodeOptions.FirstOrDefault();
                 EnabledCheckBox.IsChecked = true;
             }
 
@@ -346,6 +360,7 @@ namespace TimeRenderer.Views.Dialogs
                 EndTime = endTime,
                 ColorCode = selectedColor?.Brush.ToString() ?? Brushes.Lavender.ToString(),
                 CategoryId = selectedColor?.CategoryId,
+                ProjectCodeId = (ProjectCodeCombo.SelectedItem as ProjectCodeInfo)?.Id,
                 IsAutoStart = AutoStartCheckBox.IsChecked ?? false,
                 IsForceStart = (AutoStartCheckBox.IsChecked ?? false) && (ForceStartCheckBox.IsChecked ?? false),
                 IsEnabled = EnabledCheckBox.IsChecked ?? true
