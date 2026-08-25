@@ -32,24 +32,15 @@ namespace TimeRenderer.Views.Dialogs
             ? ScheduleItemKind.Recorded
             : ScheduleItemKind.Planned;
 
-        // 編集前の時刻（5分丸め・秒消失を防ぐため、変更がなければ元の値をそのまま使う）
+        // 編集前の時刻（秒消失を防ぐため、変更がなければ元の値をそのまま使う）
         private readonly DateTime? _originalStartTime;
         private readonly DateTime? _originalEndTime;
 
         /// <summary>
-        /// 5分刻みの分選択肢を生成する。既存アイテムの分が5分刻みでない場合はその値も追加する
-        /// （記録機能で作られた任意の分を編集時に勝手に丸めないため）。
+        /// 1分刻みの分選択肢を生成する。
         /// </summary>
-        private static List<string> BuildMinuteOptions(int? exactMinute = null)
-        {
-            var minutes = Enumerable.Range(0, 12).Select(m => m * 5).ToList();
-            if (exactMinute.HasValue && !minutes.Contains(exactMinute.Value))
-            {
-                minutes.Add(exactMinute.Value);
-                minutes.Sort();
-            }
-            return [.. minutes.Select(m => m.ToString("D2"))];
-        }
+        private static List<string> BuildMinuteOptions() =>
+            [.. Enumerable.Range(0, 60).Select(m => m.ToString("D2"))];
 
         /// <summary>
         /// 日付＋時＋分から時刻を組み立てる。時・分が編集前と同じ場合は元の値（秒を含む）を維持する。
@@ -114,11 +105,11 @@ namespace TimeRenderer.Views.Dialogs
             }
             ProjectCodeCombo.ItemsSource = _projectCodeOptions;
 
-            // 時間コンボボックスを初期化（0〜23時、0〜55分を5分刻み。編集時は元の分も選択肢に含める）
+            // 時間コンボボックスを初期化（0〜23時、0〜59分を1分刻み）
             StartHourCombo.ItemsSource = Enumerable.Range(0, 24).Select(h => h.ToString("D2")).ToList();
             EndHourCombo.ItemsSource = Enumerable.Range(0, 24).Select(h => h.ToString("D2")).ToList();
-            StartMinuteCombo.ItemsSource = BuildMinuteOptions(existingItem?.StartTime.Minute);
-            EndMinuteCombo.ItemsSource = BuildMinuteOptions(existingItem?.EndTime.Minute);
+            StartMinuteCombo.ItemsSource = BuildMinuteOptions();
+            EndMinuteCombo.ItemsSource = BuildMinuteOptions();
 
             if (existingItem != null)
             {
@@ -174,10 +165,10 @@ namespace TimeRenderer.Views.Dialogs
                 AllDayCheckBox.IsChecked = false;
                 
                 StartHourCombo.SelectedItem = now.Hour.ToString("D2");
-                StartMinuteCombo.SelectedItem = (now.Minute / 5 * 5).ToString("D2");
+                StartMinuteCombo.SelectedItem = now.Minute.ToString("D2");
                 var endHour = (now.Hour + 1) % 24;
                 EndHourCombo.SelectedItem = endHour.ToString("D2");
-                EndMinuteCombo.SelectedItem = (now.Minute / 5 * 5).ToString("D2");
+                EndMinuteCombo.SelectedItem = now.Minute.ToString("D2");
                 ColorCombo.SelectedItem = _colorOptions[0];
                 ProjectCodeCombo.SelectedItem = _projectCodeOptions.FirstOrDefault(
                     p => p.ProjectCodeId == defaultProjectCode?.Id) ?? _projectCodeOptions[0];
