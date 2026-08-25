@@ -8,6 +8,8 @@ using Cursors = System.Windows.Input.Cursors;
 using MouseEventArgs = System.Windows.Input.MouseEventArgs;
 using MouseButtonEventArgs = System.Windows.Input.MouseButtonEventArgs;
 using KeyEventArgs = System.Windows.Input.KeyEventArgs;
+using ContextMenu = System.Windows.Controls.ContextMenu;
+using MenuItem = System.Windows.Controls.MenuItem;
 
 using TimeRenderer.Models;
 
@@ -16,10 +18,12 @@ namespace TimeRenderer.Views
     /// <summary>
     /// 日/週ビューの操作をタイムラインと揃えるための処理。
     ///
-    /// - キーボード: ↑↓ 選択移動 / ←→ 日付移動 / Enter 編集 / Delete 削除 / Esc 選択解除
-    /// - 空き領域の縦ドラッグ: その時間帯で新規作成
+    /// - キーボード: ↑↓ 選択移動 / ←→ 日付移動 / Enter 編集 / F2 名称変更 / Delete 削除 / Esc 選択解除
+    /// - キーボード（Ctrl 併用）: Ctrl+D 複製 / Ctrl+C コピー / Ctrl+V 貼り付け
+    /// - 空き領域の縦ドラッグ: その時間帯で新規作成（バー上でそのままタイトルを入力する）
+    /// - 空き領域の右クリック: コピー済みの内容をその時刻へ貼り付け
     ///
-    /// 予定バーのドラッグ（移動・伸縮）は MainWindow.Drag.cs が担当する。
+    /// 予定バーのドラッグ（移動・伸縮・複製）は DayWeekView.Drag.cs が担当する。
     /// こちらは「何もない場所」を起点にした操作だけを扱う。
     /// </summary>
     public partial class DayWeekView
@@ -35,6 +39,9 @@ namespace TimeRenderer.Views
         private bool _rangeDragStarted;
         private double _rangeStartY;
         private DateTime _rangeAnchor;
+
+        /// <summary>右クリックした位置の時刻（「ここに貼り付け」の貼り付け先）</summary>
+        private DateTime? _contextMenuTime;
 
         private static void Execute(System.Windows.Input.ICommand command)
         {
@@ -53,9 +60,30 @@ namespace TimeRenderer.Views
             // （この ScrollViewer は他のビューに覆われても木構造には残るため）
             if (!ViewModel.IsDayMode && !ViewModel.IsWeekMode) return;
 
-            // テキスト入力中は横取りしない
+            // テキスト入力中は横取りしない（インライン入力中もここで抜ける）
             if (Keyboard.FocusedElement is System.Windows.Controls.Primitives.TextBoxBase) return;
-            if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control)) return;
+
+            if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+            {
+                // Ctrl+Z / Ctrl+Y はウィンドウ側で処理済み。ここでは複製・コピー系だけを見る
+                switch (e.Key)
+                {
+                    case Key.D:
+                        ViewModel.DuplicateItemCommand.Execute(null);
+                        break;
+                    case Key.C:
+                        ViewModel.CopyItemCommand.Execute(null);
+                        break;
+                    case Key.V:
+                        ViewModel.PasteItemCommand.Execute(GetPointerTime());
+                        break;
+                    default:
+                        return; // その他の Ctrl 併用キーは既存のショートカットへ渡す
+                }
+
+                e.Handled = true;
+                return;
+            }
 
             switch (e.Key)
             {
@@ -76,6 +104,11 @@ namespace TimeRenderer.Views
                 case Key.Enter:
                     ViewModel.EditSelectedCommand.Execute(null);
                     break;
+
+                case Key.F2:
+                    if (ViewModel.SelectedItem is { } selected) StartInlineRename(selected);
+                    break;
+
                 case Key.Delete:
                     ViewModel.DeleteSelectedCommand.Execute(null);
                     break;
@@ -94,11 +127,32 @@ namespace TimeRenderer.Views
             e.Handled = true;
         }
 
+        /// <summary>
+        /// マウスが描画面の上にあれば、その位置の時刻を返す（貼り付け先に使う）。
+        /// 外にあるときは null を返し、貼り付け先の判断は ViewModel に委ねる。
+        /// </summary>
+        private DateTime? GetPointerTime()
+        {
+            var surface = FindScheduleSurface();
+            if (surface == null || surface.ActualWidth <= 0) return null;
+
+            var pos = Mouse.GetPosition(surface);
+            if (pos.X < 0 || pos.Y < 0 || pos.X > surface.ActualWidth || pos.Y > surface.ActualHeight)
+            {
+                return null;
+            }
+
+            var date = ResolveDateFromX(surface, pos.X);
+            if (date == null) return null;
+
+            return date.Value.AddHours(SnapHours(pos.Y, 60.0 / RangeSnapMinutes));
+        }
+
         // ===== 空き領域の縦ドラッグで新規作成 =====
 
         /// <summary>
-        /// 背景の押下。ダブルクリックは従来どおり1時間の予定を作り、
-        /// 縦にドラッグした場合はその範囲で作る。
+        /// 背景の押下。ダブルクリックは1時間の予定を作り、
+        /// 縦にドラッグした場合はその範囲で作る。どちらもバー上でタイトルを直接入力する。
         /// </summary>
         private void ScheduleBackground_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
@@ -106,6 +160,9 @@ namespace TimeRenderer.Views
 
             // 予定バー上のクリックは対象外（バー側の編集・ドラッグを優先）
             if (e.OriginalSource is DependencyObject src && FindScheduleItemRoot(src) != null) return;
+
+            // インライン入力中なら、まず入力を確定させる
+            if (IsInlineEditing) CloseInlineEditor(commit: true);
 
             MainScrollViewer?.Focus();
 
@@ -119,10 +176,7 @@ namespace TimeRenderer.Views
 
                 // 刻み幅で丸めた開始時刻から、従来どおり1時間の予定を作る
                 var start = date.Value.AddHours(SnapHours(pos.Y, 60.0 / RangeSnapMinutes));
-                if (ViewModel.AddScheduleItemAtTimeCommand.CanExecute(start))
-                {
-                    ViewModel.AddScheduleItemAtTimeCommand.Execute(start);
-                }
+                StartInlineCreate(grid, start, start.AddHours(1));
                 e.Handled = true;
                 return;
             }
@@ -173,7 +227,7 @@ namespace TimeRenderer.Views
 
             if (!started || surface == null) return;
 
-            CommitRangeDrag(y);
+            CommitRangeDrag(surface, y);
         }
 
         private Border? _rangePreview;
@@ -244,7 +298,7 @@ namespace TimeRenderer.Views
             preview.Visibility = Visibility.Visible;
         }
 
-        private void CommitRangeDrag(double y)
+        private void CommitRangeDrag(Grid surface, double y)
         {
             // 日付はドラッグ開始時の列で固定する
             // （週ビューで縦にドラッグする間、横に少し動いても日が変わらないように）
@@ -257,11 +311,7 @@ namespace TimeRenderer.Views
 
             if (end <= start) end = start.AddMinutes(RangeSnapMinutes);
 
-            var range = (start, end);
-            if (ViewModel.AddScheduleItemInRangeCommand.CanExecute(range))
-            {
-                ViewModel.AddScheduleItemInRangeCommand.Execute(range);
-            }
+            StartInlineCreate(surface, start, end);
         }
 
         private void CancelRangeDrag()
@@ -281,6 +331,44 @@ namespace TimeRenderer.Views
             _rangeDragActive = false;
             _rangeDragStarted = false;
             _rangeSurface = null;
+        }
+
+        // ===== 空き領域の右クリック（貼り付け） =====
+
+        /// <summary>
+        /// 右クリックした時刻を控え、コピー済みの内容が無いときは項目を無効にする。
+        /// 描画面は DataTemplate の中にあり x:Name を付けられないため、
+        /// メニュー項目はここで辿って状態を変える。
+        /// </summary>
+        private void ScheduleBackground_ContextMenuOpening(object sender, ContextMenuEventArgs e)
+        {
+            if (sender is not Grid grid || grid.ActualWidth <= 0)
+            {
+                _contextMenuTime = null;
+                return;
+            }
+
+            var pos = Mouse.GetPosition(grid);
+            var date = ResolveDateFromX(grid, pos.X);
+            _contextMenuTime = date?.AddHours(SnapHours(pos.Y, 60.0 / RangeSnapMinutes));
+
+            if (grid.ContextMenu is ContextMenu menu)
+            {
+                foreach (var entry in menu.Items)
+                {
+                    if (entry is not MenuItem menuItem) continue;
+                    menuItem.IsEnabled = ViewModel.HasClipboardItem && _contextMenuTime != null;
+                    menuItem.Header = ViewModel.HasClipboardItem
+                        ? $"ここに貼り付け（{ViewModel.ClipboardItemTitle}）"
+                        : "ここに貼り付け";
+                }
+            }
+        }
+
+        private void PasteHereMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (_contextMenuTime is not { } at) return;
+            if (ViewModel.PasteItemCommand.CanExecute(at)) ViewModel.PasteItemCommand.Execute(at);
         }
 
         // ===== ToDo のドロップ（作業時間の確保） =====

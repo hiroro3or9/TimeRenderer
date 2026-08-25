@@ -240,6 +240,14 @@ public partial class MainViewModel
         private set => SetProperty(ref _hasStatsData, value);
     }
 
+    private bool _hasRecordedStatsData;
+    /// <summary>カテゴリ別・日別へ表示する実績があるか。</summary>
+    public bool HasRecordedStatsData
+    {
+        get => _hasRecordedStatsData;
+        private set => SetProperty(ref _hasRecordedStatsData, value);
+    }
+
     internal static string FormatHours(double hours)
     {
         var span = TimeSpan.FromHours(hours);
@@ -364,6 +372,13 @@ public partial class MainViewModel
             }
         }
 
+        AddUnrecordedTimeToProjectStats(
+            rangeStart,
+            rangeEnd,
+            projectCodeTotals,
+            dailyProjectCodeTotals,
+            projectCodeDisplayNames);
+
         // カテゴリ表示順：登録順 → 未分類（時間の多い順）
         var orderedKeys = Categories.Select(c => c.Id)
             .Where(categoryTotals.ContainsKey)
@@ -385,11 +400,12 @@ public partial class MainViewModel
             .Distinct()
             .ToList();
         var maxProjectHours = projectCodeTotals.Count > 0 ? projectCodeTotals.Values.Max() : 0;
+        var projectGrandTotal = projectCodeTotals.Values.Sum();
 
         StatsProjectCodeItems = [.. orderedProjectKeys.Select(key =>
         {
             var hours = projectCodeTotals[key];
-            var percent = grandTotal > 0 ? hours / grandTotal * 100 : 0;
+            var percent = projectGrandTotal > 0 ? hours / projectGrandTotal * 100 : 0;
             return new ProjectCodeStat(
                 projectCodeDisplayNames[key], hours, Math.Max(maxProjectHours, 0.001))
             {
@@ -528,8 +544,66 @@ public partial class MainViewModel
         StatsDailyItems = dailyStats;
         StatsNoteItems = BuildStatsNoteItems(rangeStart, rangeEnd);
 
-        HasStatsData = grandTotal > 0;
-        StatsSummaryText = $"合計 {FormatHours(grandTotal)} ／ {itemCount} 件";
+        HasRecordedStatsData = grandTotal > 0;
+        HasStatsData = grandTotal > 0 || projectGrandTotal > 0;
+        StatsSummaryText = projectGrandTotal > grandTotal + 0.000001
+            ? $"記録 {FormatHours(grandTotal)} ／ {itemCount} 件（プロジェクト集計 {FormatHours(projectGrandTotal)}）"
+            : $"合計 {FormatHours(grandTotal)} ／ {itemCount} 件";
+    }
+
+    /// <summary>
+    /// 勤務開始から退勤までのうち、実績で覆われていない時間を指定コードへ加算する。
+    /// 実績や勤務記録そのものは変更せず、プロジェクトコード別統計だけに反映する。
+    /// </summary>
+    private void AddUnrecordedTimeToProjectStats(
+        DateTime rangeStart,
+        DateTime rangeEnd,
+        Dictionary<string, double> projectCodeTotals,
+        Dictionary<DateTime, Dictionary<string, double>> dailyProjectCodeTotals,
+        Dictionary<string, string> projectCodeDisplayNames)
+    {
+        var projectCode = UnrecordedTimeProjectCode;
+        if (projectCode == null) return;
+
+        var now = DateTime.Now;
+        foreach (var log in _workDayLogs)
+        {
+            var workStart = log.StartTime < rangeStart ? rangeStart : log.StartTime;
+            var rawWorkEnd = log.EndTime ?? now;
+            if (rawWorkEnd > now) rawWorkEnd = now;
+            var workEnd = rawWorkEnd > rangeEnd ? rangeEnd : rawWorkEnd;
+            if (workEnd <= workStart) continue;
+
+            var gaps = UnrecordedGapHelper.Detect(
+                workStart,
+                workEnd,
+                CollectCoveredRanges(workStart, workEnd),
+                TimeSpan.Zero);
+
+            foreach (var gap in gaps)
+            {
+                projectCodeTotals[projectCode.Id] =
+                    projectCodeTotals.GetValueOrDefault(projectCode.Id) + gap.Duration.TotalHours;
+
+                foreach (var segment in UnrecordedGapHelper.SplitByDay(gap))
+                {
+                    var date = segment.StartTime.Date;
+                    if (!dailyProjectCodeTotals.TryGetValue(date, out var projectCodesPerDay))
+                    {
+                        projectCodesPerDay = [];
+                        dailyProjectCodeTotals[date] = projectCodesPerDay;
+                    }
+
+                    projectCodesPerDay[projectCode.Id] =
+                        projectCodesPerDay.GetValueOrDefault(projectCode.Id) + segment.Duration.TotalHours;
+                }
+            }
+        }
+
+        if (projectCodeTotals.ContainsKey(projectCode.Id))
+        {
+            projectCodeDisplayNames[projectCode.Id] = projectCode.DisplayName;
+        }
     }
 
     /// <summary>

@@ -125,9 +125,18 @@ public partial class MainViewModel
     /// </summary>
     private void UpdateUnrecordedGapTick(DateTime now)
     {
-        if (!IsDayOrWeekMode) return;
+        var refreshStats = IsStatsMode && IsUnrecordedTimeProjectAggregationEnabled;
+        if (!IsDayOrWeekMode && !refreshStats) return;
         if (now - _lastUnrecordedGapRefresh < UnrecordedGapRefreshInterval) return;
 
-        RebuildUnrecordedGaps();
+        if (IsDayOrWeekMode)
+        {
+            RebuildUnrecordedGaps();
+        }
+        else
+        {
+            _lastUnrecordedGapRefresh = now;
+            UpdateStats();
+        }
     }
 }

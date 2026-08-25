@@ -335,12 +335,23 @@
                                 Background=Transparent: 空白部分のクリック・ドラッグ（予定追加）をヒットテスト可能にする。
                                 AllowDrop: ToDo パネルから ToDo を落として作業時間を押さえられるようにする。
                             -->
-                            <Grid Background="Transparent" AllowDrop="True"
+                            <!--
+                                Tag: 描画面は DataTemplate の中にあり x:Name を付けても
+                                コードビハインドから参照できない。インライン入力欄と吸着ガイド線は
+                                実行時にこの Grid へ足すため、目印として Tag で見分ける。
+                            -->
+                            <Grid Background="Transparent" AllowDrop="True" Tag="ScheduleSurface"
                                   MouseLeftButtonDown="ScheduleBackground_MouseLeftButtonDown"
                                   MouseMove="ScheduleBackground_MouseMove"
                                   MouseLeftButtonUp="ScheduleBackground_MouseLeftButtonUp"
+                                  ContextMenuOpening="ScheduleBackground_ContextMenuOpening"
                                   DragOver="ScheduleBackground_DragOver"
                                   Drop="ScheduleBackground_Drop">
+                                <Grid.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="ここに貼り付け" Click="PasteHereMenuItem_Click"/>
+                                    </ContextMenu>
+                                </Grid.ContextMenu>
                                 <!-- 背景グリッド（縦：日付区切り） -->
                                 <ItemsControl>
                                     <ItemsControl.ItemsSource>
@@ -548,7 +559,12 @@
                                                 <Grid.ContextMenu>
                                                     <ContextMenu>
                                                         <MenuItem Header="編集" Click="EditMenuItem_Click"/>
-                                                    <MenuItem Header="この内容で記録開始" Click="ResumeRecordingMenuItem_Click"/>
+                                                        <MenuItem Header="名前の変更 (F2)" Click="RenameMenuItem_Click"/>
+                                                        <Separator/>
+                                                        <MenuItem Header="複製 (Ctrl+D)" Click="DuplicateMenuItem_Click"/>
+                                                        <MenuItem Header="コピー (Ctrl+C)" Click="CopyMenuItem_Click"/>
+                                                        <Separator/>
+                                                        <MenuItem Header="この内容で記録開始" Click="ResumeRecordingMenuItem_Click"/>
                                                         <MenuItem Header="この時間の使用アプリ" Click="AppUsageMenuItem_Click"/>
                                                         <MenuItem Header="削除" Click="DeleteMenuItem_Click"/>
                                                     </ContextMenu>
