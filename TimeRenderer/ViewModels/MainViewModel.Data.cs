@@ -210,12 +210,15 @@ public partial class MainViewModel
         IsGitCommitLookupEnabled = IsGitCommitLookupEnabled,
         GitRepositories = [.. GitRepositories],
         SnapMinutes = SnapMinutes,
+        IsMagnetSnapEnabled = IsMagnetSnapEnabled,
         ManualSprints = ManualSprints,
         EnabledDaysOfWeek = EnabledDaysOfWeek,
         Categories = [.. Categories],
         RecordingCategoryId = _recordingCategoryDefaultId,
         ProjectCodes = [.. ProjectCodes],
         DefaultProjectCodeId = _defaultProjectCodeId,
+        IsUnrecordedTimeProjectAggregationEnabled = IsUnrecordedTimeProjectAggregationEnabled,
+        UnrecordedTimeProjectCodeId = _unrecordedTimeProjectCodeId,
         PinnedTitles = [.. PinnedTitles.Select(t => t.Text)],
         RoutineSchedules = Routines
     };
@@ -360,6 +363,9 @@ public partial class MainViewModel
         _snapMinutes = Math.Clamp(settings.SnapMinutes <= 0 ? 15 : settings.SnapMinutes, 1, 60);
         OnPropertyChanged(nameof(SnapMinutes));
 
+        _isMagnetSnapEnabled = settings.IsMagnetSnapEnabled;
+        OnPropertyChanged(nameof(IsMagnetSnapEnabled));
+
         _manualSprints = settings.ManualSprints ?? [];
         OnPropertyChanged(nameof(ManualSprints));
 
@@ -367,6 +373,9 @@ public partial class MainViewModel
         LoadRecordingCategoryId(settings.RecordingCategoryId);
         LoadProjectCodes(settings.ProjectCodes);
         LoadDefaultProjectCodeId(settings.DefaultProjectCodeId);
+        LoadUnrecordedTimeProjectAggregation(
+            settings.IsUnrecordedTimeProjectAggregationEnabled,
+            settings.UnrecordedTimeProjectCodeId);
         LoadPinnedTitles(settings.PinnedTitles);
 
         _routines = settings.RoutineSchedules ?? [];

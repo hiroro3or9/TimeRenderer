@@ -1,4 +1,4 @@
-# 記録漏れ（未記録の帯）の検出と穴埋め
+﻿# 記録漏れ（未記録の帯）の検出と穴埋め
 
 > 設計案。未実装。
 
@@ -121,7 +121,9 @@ public static IReadOnlyList<UnrecordedGap> Detect(
 - 表示時間範囲（`DisplayStartHour` / `DisplayEndHour`）でクリップする
 - 設定でオフにできる（既定オン）
 
-統計ビューには `未記録 3時間20分` の1行を足す余地があるが、v1 では入れない。
+統計ビューでは設定を有効にすると、勤務時間内の未記録時間を指定したプロジェクトコードへ
+加算する。カテゴリ別・日別の実績集計には混ぜず、プロジェクトコード別集計と月次表だけに
+反映する。
 
 ## 穴埋めのフロー
 
@@ -223,6 +225,8 @@ public static IReadOnlyList<UnrecordedGap> Detect(
 |---|---|---|
 | `ShowUnrecordedGaps` | `true` | 未記録の帯を日/週ビューに表示するか |
 | `UnrecordedGapMinMinutes` | `15` | この長さ未満は無視（選択肢 5/10/15/30） |
+| `IsUnrecordedTimeProjectAggregationEnabled` | `false` | 勤務時間内の未記録時間をプロジェクトコード別統計へ加算するか |
+| `UnrecordedTimeProjectCodeId` | `null` | 未記録時間の加算先にするプロジェクトコードID |
 | `AppUsageScope` | `1` | アプリ使用の収集範囲（0: 記録中のみ / 1: 勤務中ずっと） |
 | `AskUnrecordedGapsOnWorkEnd` | — | v1.5。退勤時にまとめて確認するか |
 

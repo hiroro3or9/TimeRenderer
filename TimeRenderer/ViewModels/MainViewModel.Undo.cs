@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 
 using TimeRenderer.Helpers;
 using TimeRenderer.Models;
@@ -158,12 +158,38 @@ public partial class MainViewModel
     {
         _dragUndoItem = null;
         _dragUndoBefore = null;
+        _dragCopyClone = null;
     }
 
-    /// <summary>ドラッグ確定時に、開始前との差分を履歴へ積む</summary>
+    /// <summary>
+    /// ドラッグ確定時に、開始前との差分を履歴へ積む。
+    ///
+    /// Alt を押しながらの複製ドラッグでは「写しの追加」と「掴んだ側の移動」の
+    /// 2つの変更が生じるため、1回の操作として1件にまとめる。
+    /// </summary>
     private void CommitItemDragUndo()
     {
-        if (_dragUndoItem == null || _dragUndoBefore == null) return;
+        if (_dragUndoItem == null || _dragUndoBefore == null)
+        {
+            ClearItemDragUndo();
+            return;
+        }
+
+        if (_dragCopyClone is { } clone)
+        {
+            var item = _dragUndoItem;
+            var after = ItemSnapshot.Capture(item);
+
+            List<IUndoableEdit> edits = [new AddItemEdit(clone)];
+            if (!_dragUndoBefore.IsSameAs(after))
+            {
+                edits.Add(new ModifyItemEdit(item, _dragUndoBefore, after, "時間の変更"));
+            }
+
+            PushEdits(edits, $"「{AddItemEdit.Describe(item)}」の複製");
+            ClearItemDragUndo();
+            return;
+        }
 
         // 移動と伸縮のどちらでも通るので、両方に当てはまる言い方にする
         RecordModify(_dragUndoItem, _dragUndoBefore, "時間の変更");

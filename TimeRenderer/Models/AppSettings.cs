@@ -76,6 +76,9 @@ public class AppSettings
     public System.Collections.Generic.List<GitRepositoryInfo> GitRepositories { get; set; } = [];
     /// <summary>ドラッグ操作で時刻を丸める単位（分）</summary>
     public int SnapMinutes { get; set; } = 15;
+
+    /// <summary>ドラッグ中に隣接する予定の端・勤務時間・現在時刻へ吸い付けるか</summary>
+    public bool IsMagnetSnapEnabled { get; set; } = true;
     public System.Collections.Generic.List<SprintInfo> ManualSprints { get; set; } = [];
     /// <summary>作業カテゴリ一覧（空の場合は既定値を使用）</summary>
     public System.Collections.Generic.List<CategoryInfo> Categories { get; set; } = [];
@@ -85,6 +88,10 @@ public class AppSettings
     public System.Collections.Generic.List<ProjectCodeInfo> ProjectCodes { get; set; } = [];
     /// <summary>新しい予定・実績と記録開始時に使う既定プロジェクトコードのID</summary>
     public string? DefaultProjectCodeId { get; set; }
+    /// <summary>勤務時間内の未記録時間を、指定したプロジェクトコードの集計へ加算するか</summary>
+    public bool IsUnrecordedTimeProjectAggregationEnabled { get; set; } = false;
+    /// <summary>未記録時間の加算先にするプロジェクトコードのID</summary>
+    public string? UnrecordedTimeProjectCodeId { get; set; }
     /// <summary>タイトル入力欄に常に表示する定型タイトル（null は未設定＝既定値を使用）</summary>
     public System.Collections.Generic.List<string>? PinnedTitles { get; set; }
     /// <summary>定期予定（ルーティン）のテンプレート一覧</summary>

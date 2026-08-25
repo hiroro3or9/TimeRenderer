@@ -37,7 +37,7 @@
                     <!--
                         ふりかえり（退勤時に書いた一言）。
                         書きっぱなしにせず読み返せる場所がここ。記録が0時間の期間でも出したいので、
-                        カテゴリ別・日別（HasStatsData で出し分ける塊）とは別に置いている。
+                        実績のカテゴリ別・日別とは別に置いている。
                     -->
                     <StackPanel Visibility="{Binding HasStatsNotes, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <TextBlock Text="ふりかえり" FontWeight="SemiBold" FontSize="14"
@@ -277,6 +277,7 @@
                             </ScrollViewer>
                         </StackPanel>
 
+                        <StackPanel Visibility="{Binding HasRecordedStatsData, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <TextBlock Text="カテゴリ別作業時間" FontWeight="SemiBold" FontSize="14"
                                    Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,12"/>
                         <ItemsControl ItemsSource="{Binding StatsCategoryItems}" Margin="0,0,0,28">
@@ -358,6 +359,7 @@
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
                         </Border>
+                        </StackPanel>
                     </StackPanel>
                 </StackPanel>
             </ScrollViewer>

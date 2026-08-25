@@ -27,7 +27,7 @@ namespace TimeRenderer.Views
                 : System.Windows.Visibility.Collapsed;
 
             bool appearance = Matches(query, "外観", "ダーク", "テーマ", "配色");
-            bool display = Matches(query, "表示", "時間", "時刻", "曜日", "刻み", "ドラッグ", "カレンダー");
+            bool display = Matches(query, "表示", "時間", "時刻", "曜日", "刻み", "ドラッグ", "カレンダー", "吸着", "マグネット", "スナップ");
             bool miniBar = Matches(query, "ミニバー", "最前面", "記録中", "常時表示", "小窓", "バー");
             bool away = Matches(query, "離席", "中断", "無操作", "スリープ", "ロック", "除外");
             bool appUsage = Matches(query, "アプリ", "使用", "前面", "ウィンドウ", "記録", "プライバシー");

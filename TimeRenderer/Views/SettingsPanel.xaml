@@ -205,6 +205,25 @@
                         </StackPanel>
                     </Grid>
 
+                    <!-- 隣接する予定への吸着（マグネット） -->
+                    <Grid Margin="0,0,0,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="LabelG" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0" Text="隣の予定へ吸い付ける" Style="{StaticResource FieldLabelStyle}"
+                                   VerticalAlignment="Center" Margin="0,0,16,0" />
+
+                        <CheckBox Grid.Column="1" IsChecked="{Binding IsMagnetSnapEnabled}"
+                                  VerticalAlignment="Center"
+                                  ToolTip="ドラッグ中、隣の予定の端・出勤退勤の線・現在時刻に近づくと吸い付きます" />
+                    </Grid>
+
+                    <TextBlock TextWrapping="Wrap" FontSize="11" Margin="0,0,0,16"
+                               Foreground="{DynamicResource TextSecondaryBrush}"
+                               Text="吸い付いたときは細い線が出ます。Alt を押しながらドラッグすると、吸着も刻み幅も外れて1分単位で置けます。"/>
+
                     <!-- 表示曜日 -->
                     <Grid Margin="0,0,0,16" Visibility="{Binding IsDayOfWeekSettingsVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <Grid.ColumnDefinitions>

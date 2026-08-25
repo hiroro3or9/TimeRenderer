@@ -20,6 +20,8 @@ public partial class MainViewModel
     public ICommand ToggleProjectCodeActiveCommand { get; private set; } = null!;
 
     private string? _defaultProjectCodeId;
+    private string? _unrecordedTimeProjectCodeId;
+    private bool _isUnrecordedTimeProjectAggregationEnabled;
 
     /// <summary>新しい予定・実績と、通常の記録開始で使用する既定のプロジェクトコード。</summary>
     public ProjectCodeInfo? DefaultProjectCode =>
@@ -40,6 +42,44 @@ public partial class MainViewModel
             SaveSettings();
         }
     }
+
+    /// <summary>勤務時間内の未記録時間を、選択したコードの統計へ加算するか。</summary>
+    public bool IsUnrecordedTimeProjectAggregationEnabled
+    {
+        get => _isUnrecordedTimeProjectAggregationEnabled;
+        set
+        {
+            if (!SetProperty(ref _isUnrecordedTimeProjectAggregationEnabled, value)) return;
+
+            EnsureUnrecordedTimeProjectCode();
+            SaveSettings();
+            UpdateStats();
+        }
+    }
+
+    /// <summary>未記録時間の加算先を選ぶコンボボックス用。</summary>
+    public ProjectCodeInfo? SelectedUnrecordedTimeProjectCode
+    {
+        get => ResolveProjectCode(_unrecordedTimeProjectCodeId) is { IsActive: true } selected
+            ? selected
+            : DefaultProjectCode;
+        set
+        {
+            if (value is not { IsActive: true } || value.Id == _unrecordedTimeProjectCodeId) return;
+
+            _unrecordedTimeProjectCodeId = value.Id;
+            OnPropertyChanged();
+            SaveSettings();
+            UpdateStats();
+        }
+    }
+
+    /// <summary>統計へ実際に加算するコード。機能が無効なら null。</summary>
+    private ProjectCodeInfo? UnrecordedTimeProjectCode =>
+        IsUnrecordedTimeProjectAggregationEnabled &&
+        ResolveProjectCode(_unrecordedTimeProjectCodeId) is { IsActive: true } selected
+            ? selected
+            : null;
 
     private void InitializeProjectCodeCommands()
     {
@@ -105,6 +145,8 @@ public partial class MainViewModel
                     _defaultProjectCodeId = ProjectCodes.FirstOrDefault(p => p.IsActive)?.Id;
                 }
 
+                EnsureUnrecordedTimeProjectCode();
+
                 NotifyDefaultProjectCodeChanged();
                 SaveSettings();
                 UpdateStats();
@@ -141,6 +183,16 @@ public partial class MainViewModel
         NotifyProjectCodeChoicesChanged();
     }
 
+    private void LoadUnrecordedTimeProjectAggregation(bool isEnabled, string? projectCodeId)
+    {
+        _unrecordedTimeProjectCodeId = ResolveProjectCode(projectCodeId) is { IsActive: true } selected
+            ? selected.Id
+            : DefaultProjectCode?.Id;
+        _isUnrecordedTimeProjectAggregationEnabled = isEnabled && _unrecordedTimeProjectCodeId != null;
+        OnPropertyChanged(nameof(IsUnrecordedTimeProjectAggregationEnabled));
+        OnPropertyChanged(nameof(SelectedUnrecordedTimeProjectCode));
+    }
+
     private void AttachProjectCode(ProjectCodeInfo projectCode)
     {
         projectCode.PropertyChanged -= OnProjectCodePropertyChanged;
@@ -158,6 +210,7 @@ public partial class MainViewModel
             {
                 _defaultProjectCodeId = ProjectCodes.FirstOrDefault(p => p.IsActive)?.Id;
             }
+            EnsureUnrecordedTimeProjectCode();
             NotifyProjectCodeChoicesChanged();
             System.Windows.Input.CommandManager.InvalidateRequerySuggested();
         }
@@ -185,6 +238,15 @@ public partial class MainViewModel
     private void NotifyProjectCodeChoicesChanged()
     {
         OnPropertyChanged(nameof(ActiveProjectCodes));
+        OnPropertyChanged(nameof(SelectedUnrecordedTimeProjectCode));
         NotifyDefaultProjectCodeChanged();
+    }
+
+    private void EnsureUnrecordedTimeProjectCode()
+    {
+        if (ResolveProjectCode(_unrecordedTimeProjectCodeId) is { IsActive: true }) return;
+
+        _unrecordedTimeProjectCodeId = DefaultProjectCode?.Id;
+        OnPropertyChanged(nameof(SelectedUnrecordedTimeProjectCode));
     }
 }

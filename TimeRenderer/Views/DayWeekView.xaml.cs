@@ -11,8 +11,9 @@ namespace TimeRenderer.Views
     /// <summary>
     /// 日/週ビュー（曜日ヘッダー・終日イベント・時間グリッド）。
     ///
-    /// - 予定バーのドラッグ（移動・伸縮）: DayWeekView.Drag.cs
+    /// - 予定バーのドラッグ（移動・伸縮・複製）: DayWeekView.Drag.cs
     /// - キーボード操作・空き領域ドラッグでの新規作成: DayWeekView.Schedule.cs
+    /// - バー上でのタイトル直接入力: DayWeekView.InlineEdit.cs
     ///
     /// DataContext は MainWindow から継承した MainViewModel を前提にする。
     /// </summary>
@@ -38,6 +39,7 @@ namespace TimeRenderer.Views
             {
                 _subscribedViewModel = vm;
                 vm.ScrollToTimeRequested += OnScrollToTimeRequested;
+                vm.PropertyChanged += OnViewModelPropertyChanged;
             }
 
             // 起動時に現在時刻までスクロール
@@ -50,8 +52,31 @@ namespace TimeRenderer.Views
 
         private void OnUnloaded(object sender, RoutedEventArgs e)
         {
-            _subscribedViewModel?.ScrollToTimeRequested -= OnScrollToTimeRequested;
+            CloseInlineEditor(commit: true);
+
+            if (_subscribedViewModel != null)
+            {
+                _subscribedViewModel.ScrollToTimeRequested -= OnScrollToTimeRequested;
+                _subscribedViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+            }
             _subscribedViewModel = null;
+        }
+
+        /// <summary>
+        /// 表示中の日やビューが変わると描画面ごと作り直される。
+        /// インライン入力欄はその描画面に載っているため、先に確定させて畳む。
+        /// </summary>
+        private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            // 通知は頻繁に飛ぶので、入力中でなければ即座に抜ける
+            if (!IsInlineEditing) return;
+
+            if (e.PropertyName is nameof(MainViewModel.CurrentDate)
+                or nameof(MainViewModel.CurrentViewMode)
+                or nameof(MainViewModel.VisibleDays))
+            {
+                CloseInlineEditor(commit: true);
+            }
         }
 
         // ===== スクロール =====
@@ -245,5 +270,24 @@ namespace TimeRenderer.Views
 
         private void DeleteMenuItem_Click(object sender, RoutedEventArgs e) =>
             ScheduleItemMenu.ExecuteOnMenuTarget(sender, ViewModel.DeleteCommand);
+
+        private void DuplicateMenuItem_Click(object sender, RoutedEventArgs e) =>
+            ScheduleItemMenu.ExecuteOnMenuTarget(sender, ViewModel.DuplicateItemCommand);
+
+        private void CopyMenuItem_Click(object sender, RoutedEventArgs e) =>
+            ScheduleItemMenu.ExecuteOnMenuTarget(sender, ViewModel.CopyItemCommand);
+
+        /// <summary>メニューからのタイトル変更：ダイアログを開かずにバー上で書き換える</summary>
+        private void RenameMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is System.Windows.Controls.MenuItem menuItem &&
+                menuItem.Parent is System.Windows.Controls.ContextMenu contextMenu &&
+                contextMenu.PlacementTarget is FrameworkElement element &&
+                ScheduleItemMenu.ResolveScheduleItem(element.DataContext) is ScheduleItem item)
+            {
+                ViewModel.SelectedItem = item;
+                StartInlineRename(item);
+            }
+        }
     }
 }

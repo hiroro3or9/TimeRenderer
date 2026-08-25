@@ -184,6 +184,27 @@
                                     <ComboBox ItemsSource="{Binding ActiveProjectCodes}"
                                               SelectedItem="{Binding SelectedDefaultProjectCode}"
                                               DisplayMemberPath="DisplayName" Height="32"/>
+                                    <Grid Margin="0,14,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="未記録時間を集計に含める"
+                                                   Style="{StaticResource FieldLabelStyle}"
+                                                   VerticalAlignment="Center" Margin="0,0,16,0"/>
+                                        <CheckBox Grid.Column="1"
+                                                  IsChecked="{Binding IsUnrecordedTimeProjectAggregationEnabled}"
+                                                  VerticalAlignment="Center"/>
+                                    </Grid>
+                                    <TextBlock Text="未記録時間の加算先" Style="{StaticResource FieldLabelStyle}"
+                                               Margin="0,12,0,6"/>
+                                    <ComboBox ItemsSource="{Binding ActiveProjectCodes}"
+                                              SelectedItem="{Binding SelectedUnrecordedTimeProjectCode}"
+                                              DisplayMemberPath="DisplayName" Height="32"
+                                              IsEnabled="{Binding IsUnrecordedTimeProjectAggregationEnabled}"/>
+                                    <TextBlock Text="出勤から退勤までのうち、実績がない時間だけをプロジェクトコード別の統計と月次表へ加算します"
+                                               FontSize="10" TextWrapping="Wrap" Margin="0,6,0,0"
+                                               Foreground="{DynamicResource TextMutedBrush}"/>
                                 </StackPanel>
                             </Expander>
 

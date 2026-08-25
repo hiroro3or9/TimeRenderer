@@ -248,6 +248,20 @@ namespace TimeRenderer.Views
                 {
                     ZoomFromViewportCenter(1.0 / ZoomStepFactor);
                 }
+                else if (e.Key == Key.D)
+                {
+                    ViewModel.DuplicateItemCommand.Execute(null);
+                }
+                else if (e.Key == Key.C)
+                {
+                    ViewModel.CopyItemCommand.Execute(null);
+                }
+                else if (e.Key == Key.V)
+                {
+                    // タイムラインは横軸が広く、マウス位置を貼り付け先にすると狙いを外しやすい。
+                    // 貼り付け先は ViewModel の既定（表示中の日の同じ時間帯）に任せる
+                    ViewModel.PasteItemCommand.Execute(null);
+                }
                 else
                 {
                     return; // その他の Ctrl 併用キーは既存のショートカットへ渡す
