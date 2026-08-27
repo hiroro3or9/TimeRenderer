@@ -1,6 +1,7 @@
 ﻿using System.ComponentModel;
-using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
+
+using TimeRenderer.Infrastructure;
 
 namespace TimeRenderer.Models;
 
@@ -8,7 +9,7 @@ namespace TimeRenderer.Models;
 /// 記録を案件・プロジェクト単位で集計するためのプロジェクトコード。
 /// アイテム側には Code ではなく Id を保存し、コード名を変更しても紐付けを維持する。
 /// </summary>
-public sealed class ProjectCodeInfo : INotifyPropertyChanged
+public sealed class ProjectCodeInfo : ObservableObject
 {
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
 
@@ -73,16 +74,4 @@ public sealed class ProjectCodeInfo : INotifyPropertyChanged
         new() { Code = "GENERAL", Name = "共通" }
     ];
 
-    public event PropertyChangedEventHandler? PropertyChanged;
-
-    private void OnPropertyChanged([CallerMemberName] string? propertyName = null) =>
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-
-    private bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
-    {
-        if (EqualityComparer<T>.Default.Equals(field, value)) return false;
-        field = value;
-        OnPropertyChanged(propertyName);
-        return true;
-    }
 }

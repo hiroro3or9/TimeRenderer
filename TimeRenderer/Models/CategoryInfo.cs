@@ -1,16 +1,17 @@
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
+﻿using System.ComponentModel;
 using System.Text.Json.Serialization;
 using System.Windows.Media;
 using Brush = System.Windows.Media.Brush;
 using Brushes = System.Windows.Media.Brushes;
+
+using TimeRenderer.Infrastructure;
 
 namespace TimeRenderer.Models;
 
 /// <summary>
 /// 作業カテゴリ（名前付きの色）。ScheduleItem とは ColorCode で紐づく。
 /// </summary>
-public class CategoryInfo : INotifyPropertyChanged
+public class CategoryInfo : ObservableObject
 {
     /// <summary>
     /// カテゴリの一意ID。アイテムとの紐付けに使用する（色はIDではなく表示属性）。
@@ -85,17 +86,4 @@ public class CategoryInfo : INotifyPropertyChanged
         new() { Name = "記録", ColorCode = Brushes.DarkOrange.ToString() },
     ];
 
-    public event PropertyChangedEventHandler? PropertyChanged;
-    protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-    }
-
-    protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
-    {
-        if (System.Collections.Generic.EqualityComparer<T>.Default.Equals(field, value)) return false;
-        field = value;
-        OnPropertyChanged(propertyName);
-        return true;
-    }
 }

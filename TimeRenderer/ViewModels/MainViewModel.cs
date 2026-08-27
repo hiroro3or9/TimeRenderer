@@ -1,11 +1,11 @@
 ﻿using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using System.Windows.Threading;
 using System.Media;
 using TimeRenderer.Controls;
+using TimeRenderer.Infrastructure;
 
 using TimeRenderer.Models;
 using TimeRenderer.Helpers;
@@ -34,7 +34,7 @@ namespace TimeRenderer.ViewModels;
 /// 共有の enum / record（ViewMode, TimerOption, TimelineGroupMode, AwayHandlingMode など）は
 /// ViewModels/ 直下の独立ファイルにある。
 /// </summary>
-public partial class MainViewModel : INotifyPropertyChanged
+public partial class MainViewModel : ObservableObject
 {
     private readonly bool _isInitialized = false;
 
@@ -631,22 +631,11 @@ public partial class MainViewModel : INotifyPropertyChanged
         get
         {
             var headers = new List<DayHeaderInfo>();
-            var order = new[] { DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday, DayOfWeek.Friday, DayOfWeek.Saturday, DayOfWeek.Sunday };
-            foreach (var day in order)
+            foreach (var day in DayOfWeekHelper.WeekOrder)
             {
                 if (EnabledDaysOfWeek.Contains(day))
                 {
-                    var name = day switch
-                    {
-                        DayOfWeek.Monday => "月",
-                        DayOfWeek.Tuesday => "火",
-                        DayOfWeek.Wednesday => "水",
-                        DayOfWeek.Thursday => "木",
-                        DayOfWeek.Friday => "金",
-                        DayOfWeek.Saturday => "土",
-                        DayOfWeek.Sunday => "日",
-                        _ => ""
-                    };
+                    var name = DayOfWeekHelper.GetShortJapaneseName(day);
                     headers.Add(new DayHeaderInfo(name, day));
                 }
             }
@@ -654,18 +643,5 @@ public partial class MainViewModel : INotifyPropertyChanged
         }
     }
 
-    public event PropertyChangedEventHandler? PropertyChanged;
-    protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-    }
-
-    protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
-    {
-        if (System.Collections.Generic.EqualityComparer<T>.Default.Equals(field, value)) return false;
-        field = value;
-        OnPropertyChanged(propertyName);
-        return true;
-    }
 }
 

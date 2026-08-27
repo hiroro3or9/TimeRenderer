@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -99,48 +98,15 @@ public partial class MainViewModel
     /// <summary>カテゴリ別集計の1行分</summary>
     public record CategoryStat(string Name, Brush Brush, double Hours, double MaxHours)
     {
-        public string HoursText => FormatHours(Hours);
+        public string HoursText => StatsFormatting.FormatHours(Hours);
         public string PercentText { get; init; } = "";
     }
 
     /// <summary>プロジェクトコード別集計の1行分</summary>
     public record ProjectCodeStat(string DisplayName, double Hours, double MaxHours)
     {
-        public string HoursText => FormatHours(Hours);
+        public string HoursText => StatsFormatting.FormatHours(Hours);
         public string PercentText { get; init; } = "";
-    }
-
-    /// <summary>タイムシート用マトリクスの日付列。</summary>
-    public record TimesheetMatrixDateColumn(DateTime Date)
-    {
-        public string DateText => Date.Day.ToString(CultureInfo.InvariantCulture);
-        public string DayText => Date.ToString("ddd");
-        public bool IsToday => Date.Date == DateTime.Today;
-        public bool IsWeekend => Date.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday;
-    }
-
-    /// <summary>タイムシート用マトリクスの時間セル。</summary>
-    public record TimesheetMatrixCell(bool HasValue, double ActualHours, double RoundedHours)
-    {
-        public string ActualHoursText => FormatHours(ActualHours);
-        public string CopyValue => FormatDecimalHoursValue(RoundedHours);
-        public string RoundedHoursText => HasValue ? $"{CopyValue}h" : "";
-        public string ToolTipText => HasValue
-            ? $"実績 {ActualHoursText} → 15分単位 {RoundedHoursText}"
-            : "記録なし";
-    }
-
-    /// <summary>タイムシート用マトリクスのプロジェクトコード1行分。</summary>
-    public record TimesheetMatrixRow(
-        string ProjectKey,
-        string HeaderText,
-        string DetailText,
-        string CopyValue,
-        bool IsInactive,
-        bool IsWarning,
-        IReadOnlyList<TimesheetMatrixCell> Cells)
-    {
-        public string RoundedTotalText => FormatDecimalHours(Cells.Sum(cell => cell.RoundedHours));
     }
 
     /// <summary>日別チャートの1セグメント（1カテゴリ分の積み上げ要素）</summary>
@@ -149,7 +115,7 @@ public partial class MainViewModel
     /// <summary>日別チャートの1日分</summary>
     public record DailyStat(DateTime Date, string Label, bool IsToday, double TotalHours, IReadOnlyList<DailyStatSegment> Segments)
     {
-        public string TotalText => TotalHours > 0 ? FormatHours(TotalHours) : "";
+        public string TotalText => TotalHours > 0 ? StatsFormatting.FormatHours(TotalHours) : "";
     }
 
     private IReadOnlyList<CategoryStat> _statsCategoryItems = [];
@@ -248,24 +214,6 @@ public partial class MainViewModel
         private set => SetProperty(ref _hasRecordedStatsData, value);
     }
 
-    internal static string FormatHours(double hours)
-    {
-        var span = TimeSpan.FromHours(hours);
-        return $"{(int)span.TotalHours}:{span.Minutes:D2}";
-    }
-
-    /// <summary>時間を最寄りの15分単位へ丸める。</summary>
-    internal static double RoundHoursToQuarter(double hours)
-        => Math.Round(hours * 4, MidpointRounding.AwayFromZero) / 4;
-
-    /// <summary>タイムシートへ転記しやすい10進時間（例: 7.25h）に整形する。</summary>
-    internal static string FormatDecimalHours(double hours)
-        => $"{FormatDecimalHoursValue(hours)}h";
-
-    /// <summary>クリップボードへコピーする10進時間の数字部分を整形する。</summary>
-    internal static string FormatDecimalHoursValue(double hours)
-        => hours.ToString("0.##", CultureInfo.InvariantCulture);
-
     /// <summary>統計対象期間 [start, end) を取得する</summary>
     private (DateTime Start, DateTime End) GetStatsRange()
     {
@@ -309,68 +257,21 @@ public partial class MainViewModel
 
         var (rangeStart, rangeEnd) = GetStatsRange();
 
-        // 集計キー：カテゴリID（未分類は "color:<コード>"）
-        // キー -> 合計時間 / 日付 -> (キー -> 時間) / キー -> 表示情報
-        var categoryTotals = new Dictionary<string, double>();
-        var projectCodeTotals = new Dictionary<string, double>();
-        var dailyTotals = new Dictionary<DateTime, Dictionary<string, double>>();
-        var dailyProjectCodeTotals = new Dictionary<DateTime, Dictionary<string, double>>();
-        var displayInfo = new Dictionary<string, (string Name, Brush Brush)>();
-        var projectCodeDisplayNames = new Dictionary<string, string>();
-        const string unassignedProjectKey = "__unassigned_project__";
-        int itemCount = 0;
-
-        foreach (var item in ScheduleItems)
-        {
-            if (!item.IsRecorded || item.IsAllDay) continue;
-
-            // 期間でクリップ
-            var start = item.StartTime < rangeStart ? rangeStart : item.StartTime;
-            var end = item.EndTime > rangeEnd ? rangeEnd : item.EndTime;
-            if (end <= start) continue;
-
-            itemCount++;
-
-            var projectCode = ResolveProjectCode(item.ProjectCodeId);
-            var projectKey = item.ProjectCodeId ?? unassignedProjectKey;
-            projectCodeTotals[projectKey] = projectCodeTotals.GetValueOrDefault(projectKey) + (end - start).TotalHours;
-            projectCodeDisplayNames[projectKey] = projectCode?.DisplayName
-                ?? (item.ProjectCodeId == null ? "（未設定）" : "（不明なプロジェクトコード）");
-
-            var category = ResolveCategory(item);
-            var key = category?.Id ?? $"color:{item.ColorCode}";
-            if (!displayInfo.ContainsKey(key))
-            {
-                displayInfo[key] = category != null
-                    ? (category.Name, category.Brush)
-                    : ("未分類", CategoryInfo.CreateBrush(item.ColorCode));
-            }
-
-            // 日単位に分割して集計（日またぎ対応）
-            for (var d = start.Date; d < end; d = d.AddDays(1))
-            {
-                var segStart = d > start ? d : start;
-                var segEnd = end < d.AddDays(1) ? end : d.AddDays(1);
-                if (segEnd <= segStart) continue;
-
-                var hours = (segEnd - segStart).TotalHours;
-                categoryTotals[key] = categoryTotals.GetValueOrDefault(key) + hours;
-
-                if (!dailyTotals.TryGetValue(d, out var perDay))
-                {
-                    perDay = [];
-                    dailyTotals[d] = perDay;
-                }
-                perDay[key] = perDay.GetValueOrDefault(key) + hours;
-
-                if (!dailyProjectCodeTotals.TryGetValue(d, out var projectCodesPerDay))
-                {
-                    projectCodesPerDay = [];
-                    dailyProjectCodeTotals[d] = projectCodesPerDay;
-                }
-                projectCodesPerDay[projectKey] = projectCodesPerDay.GetValueOrDefault(projectKey) + hours;
-            }
-        }
+        var aggregation = StatsAggregationHelper.Aggregate(
+            ScheduleItems,
+            Categories,
+            ProjectCodes,
+            rangeStart,
+            rangeEnd);
+        var categoryTotals = aggregation.CategoryTotals;
+        var projectCodeTotals = aggregation.ProjectCodeTotals;
+        var dailyTotals = aggregation.DailyCategoryTotals;
+        var dailyProjectCodeTotals = aggregation.DailyProjectCodeTotals;
+        var projectCodeDisplayNames = aggregation.ProjectCodeDisplayNames;
+        var displayInfo = aggregation.CategoryDisplayInfo.ToDictionary(
+            pair => pair.Key,
+            pair => (pair.Value.Name, CategoryInfo.CreateBrush(pair.Value.ColorCode)));
+        var itemCount = aggregation.ItemCount;
 
         AddUnrecordedTimeToProjectStats(
             rangeStart,
@@ -417,80 +318,16 @@ public partial class MainViewModel
         // 個々の記録を先に丸めると、細切れの記録が多い日に誤差が積み上がるため合算後に行う。
         if (StatsPeriod == StatsPeriodMode.Month)
         {
-            // 横軸は記録の有無に関係なく月初から月末までを並べる。
-            var matrixColumns = Enumerable.Range(0, (rangeEnd - rangeStart).Days)
-                .Select(offset => new TimesheetMatrixDateColumn(rangeStart.AddDays(offset)))
-                .ToList();
-
-            // 縦軸はその月に実績があるプロジェクトコード。無効・未設定・不明も落とさない。
-            var matrixRows = orderedProjectKeys.Select(key =>
-            {
-                var projectCode = ResolveProjectCode(key);
-                string header;
-                string detail;
-                string copyValue;
-                bool isInactive;
-                bool isWarning;
-
-                if (projectCode != null)
-                {
-                    header = projectCode.Code.Length > 0
-                        ? projectCode.Code
-                        : projectCode.Name.Length > 0 ? projectCode.Name : "コード未入力";
-                    detail = projectCode.Name;
-                    if (!projectCode.IsActive)
-                        detail = detail.Length > 0 ? $"{detail}（無効）" : "無効";
-                    copyValue = projectCode.Code;
-                    isInactive = !projectCode.IsActive;
-                    isWarning = projectCode.Code.Length == 0;
-                }
-                else if (key == unassignedProjectKey)
-                {
-                    header = "未設定";
-                    detail = "コードなし";
-                    copyValue = "";
-                    isInactive = false;
-                    isWarning = true;
-                }
-                else
-                {
-                    header = "不明";
-                    detail = "マスターに存在しません";
-                    copyValue = "";
-                    isInactive = false;
-                    isWarning = true;
-                }
-
-                var cells = matrixColumns.Select(column =>
-                {
-                    if (!dailyProjectCodeTotals.TryGetValue(column.Date, out var projectCodesPerDay) ||
-                        !projectCodesPerDay.TryGetValue(key, out var hours))
-                    {
-                        return new TimesheetMatrixCell(false, 0, 0);
-                    }
-                    return new TimesheetMatrixCell(true, hours, RoundHoursToQuarter(hours));
-                }).ToList();
-
-                return new TimesheetMatrixRow(
-                    key, header, detail, copyValue, isInactive, isWarning, cells);
-            }).ToList();
-
-            var totalCells = Enumerable.Range(0, matrixColumns.Count)
-                .Select(index =>
-                {
-                    var cells = matrixRows.Select(row => row.Cells[index]).ToList();
-                    return new TimesheetMatrixCell(
-                        cells.Any(cell => cell.HasValue),
-                        cells.Sum(cell => cell.ActualHours),
-                        cells.Sum(cell => cell.RoundedHours));
-                })
-                .ToList();
-
-            StatsTimesheetMatrixColumns = matrixColumns;
-            StatsTimesheetMatrixRows = matrixRows;
-            StatsTimesheetMatrixTotalCells = totalCells;
-            StatsTimesheetMatrixGrandTotalText = FormatDecimalHours(
-                matrixRows.Sum(row => row.Cells.Sum(cell => cell.RoundedHours)));
+            var matrix = StatsTimesheetBuilder.Build(
+                rangeStart,
+                rangeEnd,
+                orderedProjectKeys,
+                dailyProjectCodeTotals,
+                ProjectCodes);
+            StatsTimesheetMatrixColumns = matrix.Columns;
+            StatsTimesheetMatrixRows = matrix.Rows;
+            StatsTimesheetMatrixTotalCells = matrix.TotalCells;
+            StatsTimesheetMatrixGrandTotalText = matrix.GrandTotalText;
         }
         else
         {
@@ -534,7 +371,7 @@ public partial class MainViewModel
                     segments.Add(new DailyStatSegment(
                         brush,
                         Math.Max(height, 2),
-                        $"{name}: {FormatHours(hours)}"));
+                        $"{name}: {StatsFormatting.FormatHours(hours)}"));
                 }
             }
 
@@ -547,8 +384,8 @@ public partial class MainViewModel
         HasRecordedStatsData = grandTotal > 0;
         HasStatsData = grandTotal > 0 || projectGrandTotal > 0;
         StatsSummaryText = projectGrandTotal > grandTotal + 0.000001
-            ? $"記録 {FormatHours(grandTotal)} ／ {itemCount} 件（プロジェクト集計 {FormatHours(projectGrandTotal)}）"
-            : $"合計 {FormatHours(grandTotal)} ／ {itemCount} 件";
+            ? $"記録 {StatsFormatting.FormatHours(grandTotal)} ／ {itemCount} 件（プロジェクト集計 {StatsFormatting.FormatHours(projectGrandTotal)}）"
+            : $"合計 {StatsFormatting.FormatHours(grandTotal)} ／ {itemCount} 件";
     }
 
     /// <summary>

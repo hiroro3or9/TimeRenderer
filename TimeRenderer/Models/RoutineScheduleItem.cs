@@ -5,6 +5,8 @@ using System.Text.Json.Serialization;
 using System.Windows.Media;
 using Brushes = System.Windows.Media.Brushes;
 
+using TimeRenderer.Helpers;
+
 namespace TimeRenderer.Models;
 
 /// <summary>
@@ -155,23 +157,6 @@ public class RoutineScheduleItem
     /// </summary>
     public List<DateTime> ExcludedDates { get; set; } = [];
 
-    private static readonly DayOfWeek[] WeekOrder =
-    [
-        DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday,
-        DayOfWeek.Friday, DayOfWeek.Saturday, DayOfWeek.Sunday
-    ];
-
-    private static readonly Dictionary<DayOfWeek, string> DayNames = new()
-    {
-        [DayOfWeek.Monday] = "月",
-        [DayOfWeek.Tuesday] = "火",
-        [DayOfWeek.Wednesday] = "水",
-        [DayOfWeek.Thursday] = "木",
-        [DayOfWeek.Friday] = "金",
-        [DayOfWeek.Saturday] = "土",
-        [DayOfWeek.Sunday] = "日",
-    };
-
     /// <summary>
     /// 繰り返しの設定が予定を生成できる状態か。
     /// 曜日が1つも選ばれていない Weekly / MonthlyByWeekday、週が1つも選ばれていない
@@ -265,7 +250,7 @@ public class RoutineScheduleItem
 
     private int OccurrenceIndexWeekly(DateTime day)
     {
-        var ordered = WeekOrder.Where(DaysOfWeek.Contains).ToList();
+        var ordered = DayOfWeekHelper.WeekOrder.Where(DaysOfWeek.Contains).ToList();
         if (ordered.Count == 0) return 0;
 
         var cycles = (StartOfWeek(day) - StartOfWeek(StartDate.Date)).Days / 7 / Interval;
@@ -406,7 +391,9 @@ public class RoutineScheduleItem
     private string DayNamesDisplay =>
         DaysOfWeek.Count == 7
             ? "毎日"
-            : string.Join("・", WeekOrder.Where(DaysOfWeek.Contains).Select(d => DayNames[d]));
+            : string.Join("・", DayOfWeekHelper.WeekOrder
+                .Where(DaysOfWeek.Contains)
+                .Select(DayOfWeekHelper.GetShortJapaneseName));
 
     /// <summary>一覧表示用：時刻範囲（例: "10:00-11:00"）</summary>
     [JsonIgnore]

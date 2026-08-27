@@ -186,6 +186,17 @@ VM が `AppSettings` インスタンスを直接保持する案は、単純な�
 
 一度に全 45 項目を移さず、対象機能の往復テストを追加してから段階移行する。
 
+### 2026-08-27 対応結果
+
+- 既定値、旧形式、不正な enum・範囲値、JSON 保存往復のテストを追加した
+- 補正処理を `Services/AppSettingsNormalizer.cs` へ分離した
+- 45項目の保存と復元を `MainViewModel.SettingsMapping.cs` の共通 binding 一覧へ統合した
+- `BuildSettings` と `ApplySettings` は同じ binding を順方向／逆方向に実行するだけにした
+- `AppSettingsMappingContractTests` で、全 public プロパティが重複なく登録されていることを検証する
+
+これにより、設定追加時の更新点は `AppSettings` と対応する binding になり、
+binding の追加を忘れた場合はテストと起動時検証の両方で検出される。
+
 ---
 
 ## C. SaveSettings は同期保存 — デバウンスの要否は実測して判断
@@ -221,6 +232,18 @@ VM が `AppSettings` インスタンスを直接保持する案は、単純な�
 変更時は「最後の設定が保存される」「連続変更が 1 回にまとまる」
 「トレイへ隠す／終了する前に確定する」のテストを用意する。
 現時点では小規模な最適化候補であり、B より優先しない。
+
+### 2026-08-27 実測結果
+
+現在の `appsettings.json` は 4,881 バイト。元ファイルを変更しない隔離コピーで、
+現行と同じ一時ファイル書き込み＋`File.Replace` を 250 回計測した結果は、
+平均 1.973ms、中央値 1.877ms、95%点 2.248ms、最大 12.752ms だった
+（JSON シリアライズ時間は含まない）。
+
+連続入力になりうるタイムラインのズームは、すでに 600ms の遅延保存を持つ。
+カテゴリ名とプロジェクトコード名は `UpdateSourceTrigger=LostFocus` で、その他の設定は
+主にチェック・選択・ボタン操作である。このため、現時点では全設定を対象にした
+デバウンスは追加しない。保存時間や呼び出し経路が増えたときに再計測する。
 
 ---
 
@@ -261,6 +284,15 @@ VM が `AppSettings` インスタンスを直接保持する案は、単純な�
 - **導入しない場合**: 最低限、共通の `ObservableObject` 基底クラスを 1 つ自作して
   7 箇所の同型実装を減らす。ViewModel 専用ではない中立的な基底型として置くか、
   継承を増やさず現状を維持するかは要検討
+
+### 2026-08-27 対応結果
+
+外部依存を増やさず、中立的な `Infrastructure/ObservableObject.cs` を追加した。
+`MainViewModel`、`ScheduleItem`、`TodoItem`、`CategoryInfo`、`GitRepositoryInfo`、
+`ProjectCodeInfo`、`TodoSubtask` の同型実装をこの基底クラスへ移した。
+同値代入では通知しないこと、呼び出し元のプロパティ名、既存の依存プロパティ通知を
+テストで固定している。`CommunityToolkit.Mvvm` は、ソース生成による削減効果と
+外部依存導入の釣り合いを改めて評価できる規模になるまで見送る。
 
 ### 補足 — Model が WPF に依存している
 

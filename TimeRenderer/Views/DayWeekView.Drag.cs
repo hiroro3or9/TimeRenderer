@@ -199,8 +199,7 @@ namespace TimeRenderer.Views
 
             DateTime newStart = _dragOrigStart;
             DateTime newEnd = _dragOrigEnd;
-            DateTime? guide = null;
-
+            DateTime? guide;
             switch (_dragMode)
             {
                 case DragMode.Move:
@@ -427,7 +426,7 @@ namespace TimeRenderer.Views
 
         private void HideMagnetGuide()
         {
-            if (_magnetGuide != null) _magnetGuide.Visibility = Visibility.Collapsed;
+            _magnetGuide?.Visibility = Visibility.Collapsed;
         }
 
         /// <summary>設定された刻み幅に丸める</summary>
