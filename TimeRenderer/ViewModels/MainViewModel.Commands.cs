@@ -241,6 +241,7 @@ public partial class MainViewModel
                 NewSprintEndDate = current.EndDate;
                 NewSprintName = "Sprint 1";
             }
+            NewSprintUnrecordedTimeProjectCode = InheritedProjectCode;
             IsAddSprintFormVisible = true;
         });
 
@@ -250,6 +251,7 @@ public partial class MainViewModel
             NewSprintName = string.Empty;
             NewSprintStartDate = null;
             NewSprintEndDate = null;
+            NewSprintUnrecordedTimeProjectCode = null;
             EditingSprint = null;
         });
 
@@ -299,7 +301,8 @@ public partial class MainViewModel
                             Name = NewSprintName,
                             StartDate = NewSprintStartDate.Value.Date,
                             EndDate = NewSprintEndDate.Value.Date,
-                            IsManual = true
+                            IsManual = true,
+                            UnrecordedTimeProjectCodeId = SelectedNewSprintProjectCodeId
                         };
                         ManualSprints = list;
                     }
@@ -312,7 +315,8 @@ public partial class MainViewModel
                         Name = NewSprintName,
                         StartDate = NewSprintStartDate.Value.Date,
                         EndDate = NewSprintEndDate.Value.Date,
-                        IsManual = true
+                        IsManual = true,
+                        UnrecordedTimeProjectCodeId = SelectedNewSprintProjectCodeId
                     };
 
                     var list = new List<SprintInfo>(ManualSprints) { sprint };
@@ -348,6 +352,8 @@ public partial class MainViewModel
                     NewSprintName = sprint.Name;
                     NewSprintStartDate = sprint.StartDate;
                     NewSprintEndDate = sprint.EndDate;
+                    NewSprintUnrecordedTimeProjectCode =
+                        ResolveProjectCode(sprint.UnrecordedTimeProjectCodeId) ?? InheritedProjectCode;
                     IsAddSprintFormVisible = true;
                 }
             },

@@ -552,8 +552,11 @@ public partial class MainViewModel
     }
 
     /// <summary>
-    /// 勤務開始から退勤までのうち、実績で覆われていない時間を指定コードへ加算する。
+    /// 勤務開始から退勤までのうち、実績で覆われていない時間を加算先コードへ振り分ける。
     /// 実績や勤務記録そのものは変更せず、プロジェクトコード別統計だけに反映する。
+    ///
+    /// 加算先はスプリントごとに変わりうるので、集計期間が複数スプリントにまたがっても
+    /// 正しく分かれるよう、未記録時間を日単位に割ってから日ごとに解決する。
     /// </summary>
     private void AddUnrecordedTimeToProjectStats(
         DateTime rangeStart,
@@ -562,8 +565,9 @@ public partial class MainViewModel
         Dictionary<DateTime, Dictionary<string, double>> dailyProjectCodeTotals,
         Dictionary<string, string> projectCodeDisplayNames)
     {
-        var projectCode = UnrecordedTimeProjectCode;
-        if (projectCode == null) return;
+        if (!IsUnrecordedTimeProjectAggregationEnabled) return;
+
+        var sprintSources = SprintHelper.GetUnrecordedTimeProjectCodeSources(ManualSprints);
 
         var now = DateTime.Now;
         foreach (var log in _workDayLogs)
@@ -582,12 +586,17 @@ public partial class MainViewModel
 
             foreach (var gap in gaps)
             {
-                projectCodeTotals[projectCode.Id] =
-                    projectCodeTotals.GetValueOrDefault(projectCode.Id) + gap.Duration.TotalHours;
-
                 foreach (var segment in UnrecordedGapHelper.SplitByDay(gap))
                 {
                     var date = segment.StartTime.Date;
+                    var projectCode = ResolveUnrecordedTimeProjectCode(sprintSources, date);
+                    if (projectCode == null) continue;
+
+                    var hours = segment.Duration.TotalHours;
+
+                    projectCodeTotals[projectCode.Id] =
+                        projectCodeTotals.GetValueOrDefault(projectCode.Id) + hours;
+
                     if (!dailyProjectCodeTotals.TryGetValue(date, out var projectCodesPerDay))
                     {
                         projectCodesPerDay = [];
@@ -595,14 +604,11 @@ public partial class MainViewModel
                     }
 
                     projectCodesPerDay[projectCode.Id] =
-                        projectCodesPerDay.GetValueOrDefault(projectCode.Id) + segment.Duration.TotalHours;
+                        projectCodesPerDay.GetValueOrDefault(projectCode.Id) + hours;
+
+                    projectCodeDisplayNames[projectCode.Id] = projectCode.DisplayName;
                 }
             }
-        }
-
-        if (projectCodeTotals.ContainsKey(projectCode.Id))
-        {
-            projectCodeDisplayNames[projectCode.Id] = projectCode.DisplayName;
         }
     }
 

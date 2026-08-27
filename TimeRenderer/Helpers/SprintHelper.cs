@@ -95,7 +95,9 @@ public static class SprintHelper
                         Name = string.IsNullOrWhiteSpace(manualSprint.Name) ? $"Sprint {autoSprintNumber++}" : manualSprint.Name,
                         StartDate = start,
                         EndDate = end,
-                        IsManual = true
+                        IsManual = true,
+                        UnrecordedTimeProjectCodeId = manualSprint.UnrecordedTimeProjectCodeId,
+                        UnrecordedTimeProjectCodeLabel = manualSprint.UnrecordedTimeProjectCodeLabel
                     });
 
                     currentPointer = end.AddDays(1);
@@ -193,4 +195,15 @@ public static class SprintHelper
             IsManual = false
         };
     }
+
+    /// <summary>
+    /// 未記録時間の加算先を持つ手動スプリントだけを開始日順に取り出します。
+    /// 自動生成スプリントは保存されないため、引き継ぎ元になるのは手動スプリントだけです。
+    /// </summary>
+    /// <param name="manualSprints">ユーザーが手動で定義したスプリントのリスト</param>
+    /// <returns>加算先が指定されたスプリント（開始日の昇順）</returns>
+    public static List<SprintInfo> GetUnrecordedTimeProjectCodeSources(IReadOnlyList<SprintInfo> manualSprints) =>
+        [.. manualSprints
+            .Where(x => x.IsManual && !string.IsNullOrEmpty(x.UnrecordedTimeProjectCodeId))
+            .OrderBy(x => x.StartDate.Date)];
 }

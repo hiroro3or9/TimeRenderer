@@ -15,6 +15,22 @@ public partial class MainViewModel
     /// <summary>新しい予定・実績で選択できるプロジェクトコード。</summary>
     public IReadOnlyList<ProjectCodeInfo> ActiveProjectCodes => [.. ProjectCodes.Where(p => p.IsActive)];
 
+    /// <summary>
+    /// スプリントの加算先コンボボックスで「指定しない」を表す番兵。
+    /// Id を空にしてあるので <see cref="ResolveProjectCode"/> は null を返し、引き継ぎ扱いになる。
+    /// 参照一致で選択状態を復元するため、使い回せる単一インスタンスにしている。
+    /// </summary>
+    public static readonly ProjectCodeInfo InheritedProjectCode =
+        new() { Id = string.Empty, Name = "（前のスプリントから引き継ぐ）" };
+
+    /// <summary>
+    /// スプリント編集フォームの加算先コンボボックス用。
+    /// 編集中のスプリントが無効なコードを指している場合はそれも残す
+    /// （選択肢に無いと ComboBox が選択を外し、保存で指定が消えてしまうため）。
+    /// </summary>
+    public IReadOnlyList<ProjectCodeInfo> SprintProjectCodeChoices =>
+        [InheritedProjectCode, .. GetSelectableProjectCodes(EditingSprint?.UnrecordedTimeProjectCodeId)];
+
     public ICommand AddProjectCodeCommand { get; private set; } = null!;
     public ICommand DeleteProjectCodeCommand { get; private set; } = null!;
     public ICommand ToggleProjectCodeActiveCommand { get; private set; } = null!;
@@ -57,7 +73,10 @@ public partial class MainViewModel
         }
     }
 
-    /// <summary>未記録時間の加算先を選ぶコンボボックス用。</summary>
+    /// <summary>
+    /// 未記録時間の加算先を選ぶコンボボックス用。
+    /// スプリント側の指定が優先で、これはどのスプリントからも引き継げないときのフォールバック。
+    /// </summary>
     public ProjectCodeInfo? SelectedUnrecordedTimeProjectCode
     {
         get => ResolveProjectCode(_unrecordedTimeProjectCodeId) is { IsActive: true } selected
@@ -74,12 +93,86 @@ public partial class MainViewModel
         }
     }
 
-    /// <summary>統計へ実際に加算するコード。機能が無効なら null。</summary>
-    private ProjectCodeInfo? UnrecordedTimeProjectCode =>
-        IsUnrecordedTimeProjectAggregationEnabled &&
-        ResolveProjectCode(_unrecordedTimeProjectCodeId) is { IsActive: true } selected
-            ? selected
+    /// <summary>
+    /// スプリント側で指定された加算先を、直近の過去へ遡って探す。
+    /// 指定されたコードが無効化・削除されている場合はさらに前のスプリントへ遡る
+    /// （全体設定へ落とすより、スプリントの連なりの中で解決したほうが意図に近いため）。
+    /// </summary>
+    /// <param name="orderedSources">
+    /// <see cref="SprintHelper.GetUnrecordedTimeProjectCodeSources"/> で並べ替え済みのスプリント一覧
+    /// </param>
+    /// <param name="date">基準日</param>
+    private ProjectCodeInfo? FindSprintUnrecordedTimeProjectCode(
+        IReadOnlyList<SprintInfo> orderedSources, DateTime date)
+    {
+        var target = date.Date;
+
+        for (var i = orderedSources.Count - 1; i >= 0; i--)
+        {
+            if (orderedSources[i].StartDate.Date > target) continue;
+
+            if (ResolveProjectCode(orderedSources[i].UnrecordedTimeProjectCodeId) is { IsActive: true } found)
+            {
+                return found;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>指定日の未記録時間を加算するコード。機能が無効なら null。</summary>
+    private ProjectCodeInfo? ResolveUnrecordedTimeProjectCode(
+        IReadOnlyList<SprintInfo> orderedSources, DateTime date)
+    {
+        if (!IsUnrecordedTimeProjectAggregationEnabled) return null;
+
+        if (FindSprintUnrecordedTimeProjectCode(orderedSources, date) is { } fromSprint) return fromSprint;
+
+        return ResolveProjectCode(_unrecordedTimeProjectCodeId) is { IsActive: true } fallback
+            ? fallback
             : null;
+    }
+
+    /// <summary>
+    /// スプリント一覧に出す加算先の表示を作り直す。
+    /// <see cref="SprintInfo"/> は変更通知を持たないので、一覧の差し替えとセットで呼ぶ。
+    /// </summary>
+    private void RefreshSprintProjectCodeLabels(IReadOnlyList<SprintInfo> sprints)
+    {
+        var sources = SprintHelper.GetUnrecordedTimeProjectCodeSources(sprints);
+
+        foreach (var sprint in sprints)
+        {
+            var effective = FindSprintUnrecordedTimeProjectCode(sources, sprint.StartDate);
+            if (effective == null)
+            {
+                sprint.UnrecordedTimeProjectCodeLabel = "全体設定に従う";
+                continue;
+            }
+
+            // 自分の指定がそのまま使われるときだけ「引き継ぎ」を付けない。
+            // 指定したコードを無効化した場合は前から引き継ぐので、表示もそちらに合わせる
+            var isOwn = sprint.UnrecordedTimeProjectCodeId == effective.Id;
+
+            sprint.UnrecordedTimeProjectCodeLabel = isOwn
+                ? effective.DisplayName
+                : $"引き継ぎ：{effective.DisplayName}";
+        }
+    }
+
+    /// <summary>削除されたコードを指していたスプリントの指定を解除する。</summary>
+    private void ClearSprintProjectCodeReferences(string projectCodeId)
+    {
+        var affected = ManualSprints.Where(s => s.UnrecordedTimeProjectCodeId == projectCodeId).ToList();
+        if (affected.Count == 0) return;
+
+        foreach (var sprint in affected)
+        {
+            sprint.UnrecordedTimeProjectCodeId = null;
+        }
+
+        ManualSprints = [.. ManualSprints];
+    }
 
     private void InitializeProjectCodeCommands()
     {
@@ -145,6 +238,7 @@ public partial class MainViewModel
                     _defaultProjectCodeId = ProjectCodes.FirstOrDefault(p => p.IsActive)?.Id;
                 }
 
+                ClearSprintProjectCodeReferences(projectCode.Id);
                 EnsureUnrecordedTimeProjectCode();
 
                 NotifyDefaultProjectCodeChanged();
@@ -238,8 +332,13 @@ public partial class MainViewModel
     private void NotifyProjectCodeChoicesChanged()
     {
         OnPropertyChanged(nameof(ActiveProjectCodes));
+        OnPropertyChanged(nameof(SprintProjectCodeChoices));
         OnPropertyChanged(nameof(SelectedUnrecordedTimeProjectCode));
         NotifyDefaultProjectCodeChanged();
+
+        // コード名の変更・無効化はスプリント一覧の表示にも効く
+        RefreshSprintProjectCodeLabels(ManualSprints);
+        OnPropertyChanged(nameof(ManualSprints));
     }
 
     private void EnsureUnrecordedTimeProjectCode()
