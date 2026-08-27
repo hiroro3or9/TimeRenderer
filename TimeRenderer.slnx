@@ -1,3 +1,4 @@
 <Solution>
   <Project Path="TimeRenderer/TimeRenderer.csproj" />
+  <Project Path="TimeRenderer.Tests/TimeRenderer.Tests.csproj" />
 </Solution>

@@ -1,0 +1,32 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- 本体と同じ TFM。ScheduleItem / CategoryInfo が System.Windows.Media.Brush を
+         状態として持つため、テスト側も WPF を参照する必要がある -->
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+
+    <!-- TUnit は Microsoft.Testing.Platform 上で動く。
+         テストプロジェクトは「普通の実行可能ファイル」なので Exe が必須。
+         WinExe にするとコンソール出力が出ず、実行結果が読めない -->
+    <OutputType>Exe</OutputType>
+
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+
+    <!-- 日本語のテスト名・メッセージを正しく出す -->
+    <InvariantGlobalization>false</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- TUnit は単一パッケージで完結する。
+         Microsoft.NET.Test.Sdk は入れてはいけない（MTP のテスト検出が壊れる） -->
+    <PackageReference Include="TUnit" Version="1.65.63" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TimeRenderer\TimeRenderer.csproj" />
+  </ItemGroup>
+
+</Project>
