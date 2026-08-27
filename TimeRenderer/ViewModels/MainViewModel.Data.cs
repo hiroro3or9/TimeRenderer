@@ -163,8 +163,8 @@ public partial class MainViewModel
 
     // ============================================================
     // 設定の保存と読込。
-    // 設定項目を追加するときは AppSettings / BuildSettings / ApplySettings
-    // の3箇所を必ずセットで更新すること（Build と Apply は対称になるよう並べている）。
+    // 設定項目を追加するときは AppSettings と SettingsMapping の binding を更新する。
+    // 保存と復元は同じ binding 一覧を通り、追加漏れは契約テストで検出する。
     // ============================================================
 
     private void SaveSettings()
@@ -173,55 +173,13 @@ public partial class MainViewModel
         Services.SettingsService.SaveSettings(BuildSettings());
     }
 
-    /// <summary>現在のVM状態から設定スナップショットを作る（ApplySettings と対称）</summary>
-    private AppSettings BuildSettings() => new()
+    /// <summary>現在のVM状態から、共通bindingを通して設定スナップショットを作る。</summary>
+    private AppSettings BuildSettings()
     {
-        IsSettingsPanelVisible = IsSettingsPanelVisible,
-        IsManagementPanelVisible = IsManagementPanelVisible,
-        IsTodoPanelVisible = IsTodoPanelVisible,
-        ShowCompletedTodos = ShowCompletedTodos,
-        TodoSortMode = (int)CurrentTodoSortMode,
-        IsTodoDigestEnabled = IsTodoDigestEnabled,
-        TodoDigestHour = TodoDigestHour,
-        LastTodoDigestDate = FormatTodoDigestDate(),
-        TodoArchiveRetentionDays = TodoArchiveRetentionDays,
-        IsTodoQuickSyntaxEnabled = IsTodoQuickSyntaxEnabled,
-        TodoDefaultRemindHour = TodoDefaultRemindHour,
-        IsTodoReminderSoundEnabled = IsTodoReminderSoundEnabled,
-        TodoSnoozeMinutes = TodoSnoozeMinutes,
-        ViewMode = (int)CurrentViewMode,
-        DisplayStartHour = DisplayStartHour,
-        DisplayEndHour = DisplayEndHour,
-        IsDarkMode = IsDarkMode,
-        TimelinePixelsPerDay = TimelinePixelsPerDay,
-        TimelineGroupMode = (int)CurrentTimelineGroupMode,
-        TimelineSprintCount = TimelineSprintCount,
-        IsAwayDetectionEnabled = IsAwayDetectionEnabled,
-        AwayThresholdMinutes = AwayThresholdMinutes,
-        AwayHandlingMode = (int)CurrentAwayHandlingMode,
-        IsWorkEndDetectionEnabled = IsWorkEndDetectionEnabled,
-        WorkEndThresholdMinutes = WorkEndThresholdMinutes,
-        WorkEndEarliestHour = WorkEndEarliestHour,
-        IsWorkEndReviewEnabled = IsWorkEndReviewEnabled,
-        IsAppUsageTrackingEnabled = IsAppUsageTrackingEnabled,
-        IsMiniRecordingBarEnabled = IsMiniRecordingBarEnabled,
-        MiniRecordingBarLeft = MiniRecordingBarLeft,
-        MiniRecordingBarTop = MiniRecordingBarTop,
-        IsGitCommitLookupEnabled = IsGitCommitLookupEnabled,
-        GitRepositories = [.. GitRepositories],
-        SnapMinutes = SnapMinutes,
-        IsMagnetSnapEnabled = IsMagnetSnapEnabled,
-        ManualSprints = ManualSprints,
-        EnabledDaysOfWeek = EnabledDaysOfWeek,
-        Categories = [.. Categories],
-        RecordingCategoryId = _recordingCategoryDefaultId,
-        ProjectCodes = [.. ProjectCodes],
-        DefaultProjectCodeId = _defaultProjectCodeId,
-        IsUnrecordedTimeProjectAggregationEnabled = IsUnrecordedTimeProjectAggregationEnabled,
-        UnrecordedTimeProjectCodeId = _unrecordedTimeProjectCodeId,
-        PinnedTitles = [.. PinnedTitles.Select(t => t.Text)],
-        RoutineSchedules = Routines
-    };
+        var settings = new AppSettings();
+        CaptureAppSettings(this, settings);
+        return settings;
+    }
 
     private void LoadSettings()
     {
@@ -232,180 +190,12 @@ public partial class MainViewModel
         }
     }
 
-    /// <summary>設定スナップショットをVMへ反映する（BuildSettings と対称）</summary>
+    /// <summary>設定スナップショットを、保存側と共通のbindingでVMへ反映する。</summary>
     private void ApplySettings(AppSettings settings)
     {
-        _isSettingsPanelVisible = settings.IsSettingsPanelVisible;
-        OnPropertyChanged(nameof(IsSettingsPanelVisible));
-
-        // 壊れた設定や旧バージョンで複数が開いていても、同じ位置のパネルを重ねない。
-        _isManagementPanelVisible = settings.IsManagementPanelVisible && !_isSettingsPanelVisible;
-        OnPropertyChanged(nameof(IsManagementPanelVisible));
-
-        _isTodoPanelVisible = settings.IsTodoPanelVisible
-                              && !_isSettingsPanelVisible
-                              && !_isManagementPanelVisible;
-        OnPropertyChanged(nameof(IsTodoPanelVisible));
-
-        _showCompletedTodos = settings.ShowCompletedTodos;
-        OnPropertyChanged(nameof(ShowCompletedTodos));
-
-        // 並べ替えも壊れた設定ファイルで不正な enum 値にならないよう検証する
-        _todoSortMode = Enum.IsDefined(typeof(TodoSortMode), settings.TodoSortMode)
-            ? (TodoSortMode)settings.TodoSortMode
-            : TodoSortMode.DueDate;
-        OnPropertyChanged(nameof(CurrentTodoSortMode));
-        OnPropertyChanged(nameof(SelectedTodoSortOption));
-
-        _isTodoDigestEnabled = settings.IsTodoDigestEnabled;
-        _todoDigestHour = Math.Clamp(settings.TodoDigestHour, 0, 23);
-        ParseTodoDigestDate(settings.LastTodoDigestDate);
-        _todoArchiveRetentionDays = Math.Clamp(
-            settings.TodoArchiveRetentionDays <= 0 ? 90 : settings.TodoArchiveRetentionDays, 7, 3650);
-        OnPropertyChanged(nameof(IsTodoDigestEnabled));
-        OnPropertyChanged(nameof(TodoDigestHour));
-        OnPropertyChanged(nameof(TodoArchiveRetentionDays));
-
-        _isTodoQuickSyntaxEnabled = settings.IsTodoQuickSyntaxEnabled;
-        _todoDefaultRemindHour = Math.Clamp(settings.TodoDefaultRemindHour, 0, 23);
-        _isTodoReminderSoundEnabled = settings.IsTodoReminderSoundEnabled;
-        _todoSnoozeMinutes = TodoSnoozeOptions.Contains(settings.TodoSnoozeMinutes)
-            ? settings.TodoSnoozeMinutes
-            : 10;
-        // 既定の通知時刻はモデルとパーサーが直接参照するため、読み込みのたびに配り直す
-        ApplyDefaultRemindHour();
-        OnPropertyChanged(nameof(IsTodoQuickSyntaxEnabled));
-        OnPropertyChanged(nameof(TodoDefaultRemindHour));
-        OnPropertyChanged(nameof(IsTodoReminderSoundEnabled));
-        OnPropertyChanged(nameof(TodoSnoozeMinutes));
-        OnPropertyChanged(nameof(TodoSnoozeLabel));
-
-        // 設定ファイルが壊れていても不正な enum 値にならないよう検証する
-        _currentViewMode = Enum.IsDefined(typeof(ViewMode), settings.ViewMode)
-            ? (ViewMode)settings.ViewMode
-            : ViewMode.Today;
-        OnPropertyChanged(nameof(CurrentViewMode));
-        NotifyViewModeDependents();
-
-        _displayStartHour = Math.Clamp(settings.DisplayStartHour, 0, 23);
-        _displayEndHour = Math.Clamp(settings.DisplayEndHour, _displayStartHour + 1, 24);
-        OnPropertyChanged(nameof(DisplayStartHour));
-        OnPropertyChanged(nameof(DisplayEndHour));
-        OnPropertyChanged(nameof(ScheduleGridHeight));
-        InitializeTimeLabels();
-
-        _isDarkMode = settings.IsDarkMode;
-        App.ApplyTheme(_isDarkMode);
-        OnPropertyChanged(nameof(IsDarkMode));
-
-        // 設定ファイルが壊れていても極端な倍率にならないようクランプする
-        _timelinePixelsPerDay = Math.Clamp(
-            settings.TimelinePixelsPerDay <= 0 ? Helpers.TimelineScale.DefaultPixelsPerDay : settings.TimelinePixelsPerDay,
-            Helpers.TimelineScale.MinPixelsPerDay,
-            Helpers.TimelineScale.MaxPixelsPerDay);
-        OnPropertyChanged(nameof(TimelinePixelsPerDay));
-        OnPropertyChanged(nameof(TimelineZoomText));
-
-        _timelineGroupMode = Enum.IsDefined(typeof(TimelineGroupMode), settings.TimelineGroupMode)
-            ? (TimelineGroupMode)settings.TimelineGroupMode
-            : TimelineGroupMode.Packed;
-        OnPropertyChanged(nameof(CurrentTimelineGroupMode));
-        OnPropertyChanged(nameof(SelectedTimelineGroupModeOption));
-        OnPropertyChanged(nameof(IsTimelineCategoryMode));
-        OnPropertyChanged(nameof(TimelineLabelColumnWidth));
-
-        _timelineSprintCount = Math.Clamp(
-            settings.TimelineSprintCount <= 0 ? 5 : settings.TimelineSprintCount, 1, 25);
-        OnPropertyChanged(nameof(TimelineSprintCount));
-        OnPropertyChanged(nameof(SelectedTimelineSpanOption));
-
-        _isAwayDetectionEnabled = settings.IsAwayDetectionEnabled;
-        _awayThresholdMinutes = Math.Clamp(
-            settings.AwayThresholdMinutes <= 0 ? 10 : settings.AwayThresholdMinutes, 1, 240);
-        OnPropertyChanged(nameof(IsAwayDetectionEnabled));
-        OnPropertyChanged(nameof(AwayThresholdMinutes));
-
-        _awayHandlingMode = Enum.IsDefined(typeof(AwayHandlingMode), settings.AwayHandlingMode)
-            ? (AwayHandlingMode)settings.AwayHandlingMode
-            : AwayHandlingMode.Ask;
-        OnPropertyChanged(nameof(CurrentAwayHandlingMode));
-        OnPropertyChanged(nameof(SelectedAwayHandlingOption));
-
-        _isWorkEndDetectionEnabled = settings.IsWorkEndDetectionEnabled;
-        _workEndThresholdMinutes = Math.Clamp(
-            settings.WorkEndThresholdMinutes <= 0 ? 30 : settings.WorkEndThresholdMinutes, 5, 480);
-        _workEndEarliestHour = Math.Clamp(settings.WorkEndEarliestHour, 0, 23);
-        OnPropertyChanged(nameof(IsWorkEndDetectionEnabled));
-        OnPropertyChanged(nameof(WorkEndThresholdMinutes));
-        OnPropertyChanged(nameof(WorkEndEarliestHour));
-        OnPropertyChanged(nameof(SelectedWorkEndEarliestOption));
-
-        _isWorkEndReviewEnabled = settings.IsWorkEndReviewEnabled;
-        OnPropertyChanged(nameof(IsWorkEndReviewEnabled));
-
-        ApplyAwaySettings();
-
-        _isAppUsageTrackingEnabled = settings.IsAppUsageTrackingEnabled;
-        OnPropertyChanged(nameof(IsAppUsageTrackingEnabled));
-
-        _isMiniRecordingBarEnabled = settings.IsMiniRecordingBarEnabled;
-        OnPropertyChanged(nameof(IsMiniRecordingBarEnabled));
-
-        _miniRecordingBarLeft = settings.MiniRecordingBarLeft;
-        _miniRecordingBarTop = settings.MiniRecordingBarTop;
-        OnPropertyChanged(nameof(MiniRecordingBarLeft));
-        OnPropertyChanged(nameof(MiniRecordingBarTop));
-
-        _isGitCommitLookupEnabled = settings.IsGitCommitLookupEnabled;
-        OnPropertyChanged(nameof(IsGitCommitLookupEnabled));
-        LoadGitRepositories(settings.GitRepositories);
-
-        _snapMinutes = Math.Clamp(settings.SnapMinutes <= 0 ? 15 : settings.SnapMinutes, 1, 60);
-        OnPropertyChanged(nameof(SnapMinutes));
-
-        _isMagnetSnapEnabled = settings.IsMagnetSnapEnabled;
-        OnPropertyChanged(nameof(IsMagnetSnapEnabled));
-
-        _manualSprints = settings.ManualSprints ?? [];
-
-        LoadCategories(settings.Categories);
-        LoadRecordingCategoryId(settings.RecordingCategoryId);
-        LoadProjectCodes(settings.ProjectCodes);
-        LoadDefaultProjectCodeId(settings.DefaultProjectCodeId);
-        LoadUnrecordedTimeProjectAggregation(
-            settings.IsUnrecordedTimeProjectAggregationEnabled,
-            settings.UnrecordedTimeProjectCodeId);
-
-        // 加算先の表示はコードのマスターに依存するので、読み込みが済んでから作る
-        RefreshSprintProjectCodeLabels(_manualSprints);
-        OnPropertyChanged(nameof(ManualSprints));
-        LoadPinnedTitles(settings.PinnedTitles);
-
-        _routines = settings.RoutineSchedules ?? [];
-        OnPropertyChanged(nameof(Routines));
-
-        _enabledDaysOfWeek = (settings.EnabledDaysOfWeek is { Count: > 0 } days)
-            ? days
-            :
-            [
-                DayOfWeek.Monday,
-                DayOfWeek.Tuesday,
-                DayOfWeek.Wednesday,
-                DayOfWeek.Thursday,
-                DayOfWeek.Friday,
-                DayOfWeek.Saturday,
-                DayOfWeek.Sunday
-            ];
-        NotifyShowDaysProperties();
-        OnPropertyChanged(nameof(EnabledDaysCount));
-        OnPropertyChanged(nameof(EnabledDayHeaders));
-
-        UpdateVisibleDays();
-        // 開始日を持たない旧データの定期予定に当日を設定する（起動時に1回）
-        MigrateRoutineStartDates();
-        // 旧方式で保存された未来の未編集アイテムを仮想表示へ置き換える（起動時に1回）
-        MigrateGeneratedRoutineItems();
-        EnsureRoutineOccurrences(CurrentDate);
+        Services.AppSettingsNormalizer.Normalize(settings);
+        ApplyAppSettings(this, settings);
+        FinalizeAppSettingsApplication();
     }
 
 

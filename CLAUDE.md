@@ -113,7 +113,8 @@ feature/commit-convention
 - MainViewModel は責務ごとの partial 分割（一覧は MainViewModel.cs の冒頭コメント参照）
 - ビューは UserControl 単位（DayWeekView / TimelineView / StatsView / MemoPanel / SettingsPanel）
 - 日/週ビューの縦スケールは `Helpers/LayoutConstants.PixelsPerHour`（1時間=60px）に集約
-- 設定項目の追加時は AppSettings / BuildSettings / ApplySettings の3箇所をセットで更新
+- 設定項目の追加時は `AppSettings` と `MainViewModel.SettingsMapping.cs` の共通 binding を更新する。
+  `AppSettingsMappingContractTests` が未登録・重複を検出するため、設定追加後は全テストを実行する
 - データ保存はデバウンス＋アトミック書き込み＋バックアップ世代管理（JsonFileRepository）を壊さない
 - P/Invoke は `LibraryImport` に統一する（`DllImport` と SYSLIB1054 の抑制は使わない）。
   コールバックはデリゲートではなく `delegate* unmanaged[Stdcall]` ＋ `[UnmanagedCallersOnly]`

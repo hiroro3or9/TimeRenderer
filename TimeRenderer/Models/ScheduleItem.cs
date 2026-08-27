@@ -1,10 +1,10 @@
 ﻿using System;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
 using System.Windows.Media;
 using Brush = System.Windows.Media.Brush;
 using Brushes = System.Windows.Media.Brushes;
 using System.Text.Json.Serialization;
+
+using TimeRenderer.Infrastructure;
 
 namespace TimeRenderer.Models;
 
@@ -12,7 +12,7 @@ namespace TimeRenderer.Models;
 /// スケジュールの1件分のデータを表すモデルクラス。
 /// プロパティ変更通知によりUIへのリアルタイム反映をサポートする。
 /// </summary>
-public class ScheduleItem : INotifyPropertyChanged
+public class ScheduleItem : ObservableObject
 {
     /// <summary>予定と実績を結び付けるための永続ID。</summary>
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
@@ -312,17 +312,4 @@ public class ScheduleItem : INotifyPropertyChanged
         return string.Join("\n", lines);
     }
 
-    public event PropertyChangedEventHandler? PropertyChanged;
-    protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-    }
-
-    protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
-    {
-        if (System.Collections.Generic.EqualityComparer<T>.Default.Equals(field, value)) return false;
-        field = value;
-        OnPropertyChanged(propertyName);
-        return true;
-    }
 }

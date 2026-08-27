@@ -110,8 +110,6 @@ public static partial class TodoQuickParser
     [GeneratedRegex(@"[ \t　]{2,}")]
     private static partial Regex SpaceRegex();
 
-    private static readonly string[] DayNames = ["日", "月", "火", "水", "木", "金", "土"];
-
     /// <summary>入力欄の下に常時出すヒント（記法を忘れても思い出せるようにする）</summary>
     public const string SyntaxHint = "@明日 ｜ !高 ｜ #カテゴリ ｜ ~30m ｜ *9:00";
 
@@ -301,10 +299,9 @@ public static partial class TodoQuickParser
     /// <summary>次に来るその曜日（今日と同じ曜日なら来週）</summary>
     private static DateTime? NextDayOfWeek(DateTime today, string name)
     {
-        var index = Array.IndexOf(DayNames, name);
-        if (index < 0) return null;
+        if (!DayOfWeekHelper.TryParseShortJapaneseName(name, out var day)) return null;
 
-        var diff = ((index - (int)today.DayOfWeek) + 7) % 7;
+        var diff = (((int)day - (int)today.DayOfWeek) + 7) % 7;
         return today.AddDays(diff == 0 ? 7 : diff);
     }
 
@@ -475,7 +472,8 @@ public static partial class TodoQuickParser
 
     // ===== 表示 =====
 
-    private static string FormatDate(DateTime date) => $"{date:M/d}({DayNames[(int)date.DayOfWeek]})";
+    private static string FormatDate(DateTime date) =>
+        $"{date:M/d}({DayOfWeekHelper.GetShortJapaneseName(date.DayOfWeek)})";
 
     private static string FormatMinutes(int minutes) => minutes switch
     {

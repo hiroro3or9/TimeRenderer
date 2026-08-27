@@ -1,7 +1,7 @@
 ﻿using System;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
+
+using TimeRenderer.Infrastructure;
 
 namespace TimeRenderer.Models;
 
@@ -16,7 +16,7 @@ namespace TimeRenderer.Models;
 /// 「このリポジトリの作業はこの案件」という対応が実務ではほぼ固定だから。
 /// 未記録の穴埋めでプロジェクトコードまで埋まると、選ぶ操作が1つ減る。
 /// </summary>
-public sealed class GitRepositoryInfo : INotifyPropertyChanged
+public sealed class GitRepositoryInfo : ObservableObject
 {
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
 
@@ -93,16 +93,4 @@ public sealed class GitRepositoryInfo : INotifyPropertyChanged
     [JsonIgnore]
     public string DisplayName => _name.Length > 0 ? _name : FolderName;
 
-    public event PropertyChangedEventHandler? PropertyChanged;
-
-    private void OnPropertyChanged([CallerMemberName] string? propertyName = null) =>
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-
-    private bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
-    {
-        if (EqualityComparer<T>.Default.Equals(field, value)) return false;
-        field = value;
-        OnPropertyChanged(propertyName);
-        return true;
-    }
 }

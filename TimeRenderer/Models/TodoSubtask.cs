@@ -1,6 +1,6 @@
 ﻿using System;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
+
+using TimeRenderer.Infrastructure;
 
 namespace TimeRenderer.Models;
 
@@ -12,7 +12,7 @@ namespace TimeRenderer.Models;
 /// 一覧・終日行のチップ・検索・まとめ通知といった既存の処理は
 /// サブタスクの存在を意識しなくてよい。
 /// </summary>
-public sealed class TodoSubtask : INotifyPropertyChanged
+public sealed class TodoSubtask : ObservableObject
 {
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
 
@@ -46,16 +46,4 @@ public sealed class TodoSubtask : INotifyPropertyChanged
     public bool IsSameAs(TodoSubtask other) =>
         Id == other.Id && Title == other.Title && IsCompleted == other.IsCompleted;
 
-    public event PropertyChangedEventHandler? PropertyChanged;
-
-    private void OnPropertyChanged([CallerMemberName] string? propertyName = null) =>
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-
-    private bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
-    {
-        if (System.Collections.Generic.EqualityComparer<T>.Default.Equals(field, value)) return false;
-        field = value;
-        OnPropertyChanged(propertyName);
-        return true;
-    }
 }

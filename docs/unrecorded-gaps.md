@@ -219,7 +219,8 @@ public static IReadOnlyList<UnrecordedGap> Detect(
 
 ## 設定項目
 
-`AppSettings` / `BuildSettings` / `ApplySettings` の3箇所をセットで更新する。
+`AppSettings` と `MainViewModel.SettingsMapping.cs` の共通 binding をセットで更新する。
+未登録・重複は `AppSettingsMappingContractTests` で検出する。
 
 | キー | 既定 | 内容 |
 |---|---|---|
@@ -254,7 +255,7 @@ public static IReadOnlyList<UnrecordedGap> Detect(
 4. `MainViewModel.AppUsage.cs` / `MainViewModel.WorkDay.cs` / `MainViewModel.Away.cs`
    — 収集範囲を勤務中へ拡大、離席との連動、保持日数と書き出し間隔
 5. `Views/Dialogs/GapFillDialog.xaml(.cs)` + `IDialogService` / `DefaultDialogService`
-6. `Views/SettingsPanel.xaml` + 設定3箇所、`docs/away-detection.md` の追記
+6. `Views/SettingsPanel.xaml` + `AppSettings` / 設定 binding、`docs/away-detection.md` の追記
 
 3 まで入れれば「気付ける」ようにはなる。
 4 は独立して価値がある（既存の「使用アプリ」表示の中身が濃くなる）ので、

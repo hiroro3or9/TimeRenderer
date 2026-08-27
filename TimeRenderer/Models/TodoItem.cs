@@ -1,10 +1,11 @@
 ﻿using System;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 using System.Windows.Media;
 using Brush = System.Windows.Media.Brush;
 using Brushes = System.Windows.Media.Brushes;
+
+using TimeRenderer.Helpers;
+using TimeRenderer.Infrastructure;
 
 namespace TimeRenderer.Models;
 
@@ -39,7 +40,7 @@ public enum TodoRecurrenceUnit
 /// 「いつやるか決めていないが忘れたくないこと」を置く場所が無くなる。
 /// 期限日（DueDate）を持つものだけが日/週ビューの終日行にチップとして並ぶ。
 /// </summary>
-public class TodoItem : INotifyPropertyChanged
+public class TodoItem : ObservableObject
 {
     /// <summary>識別子。記録との紐付けや並べ替えの安定化に使う</summary>
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
@@ -564,23 +565,6 @@ public class TodoItem : INotifyPropertyChanged
     public bool HasRecurrenceDays =>
         Recurrence == TodoRecurrenceUnit.Week && RecurrenceDaysOfWeek.Count > 0;
 
-    private static readonly DayOfWeek[] WeekOrder =
-    [
-        DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday,
-        DayOfWeek.Friday, DayOfWeek.Saturday, DayOfWeek.Sunday
-    ];
-
-    private static readonly Dictionary<DayOfWeek, string> DayNames = new()
-    {
-        [DayOfWeek.Monday] = "月",
-        [DayOfWeek.Tuesday] = "火",
-        [DayOfWeek.Wednesday] = "水",
-        [DayOfWeek.Thursday] = "木",
-        [DayOfWeek.Friday] = "金",
-        [DayOfWeek.Saturday] = "土",
-        [DayOfWeek.Sunday] = "日",
-    };
-
     /// <summary>
     /// 一覧表示用：繰り返し
     /// （例: "毎週" / "隔週" / "3日ごと" / "毎週 月・水・金" / "毎月（完了日から）"）
@@ -610,7 +594,9 @@ public class TodoItem : INotifyPropertyChanged
             {
                 var days = RecurrenceDaysOfWeek.Count == 7
                     ? "毎日"
-                    : string.Join("・", WeekOrder.Where(RecurrenceDaysOfWeek.Contains).Select(d => DayNames[d]));
+                    : string.Join("・", DayOfWeekHelper.WeekOrder
+                        .Where(RecurrenceDaysOfWeek.Contains)
+                        .Select(DayOfWeekHelper.GetShortJapaneseName));
                 head = $"{head} {days}";
             }
 
@@ -809,17 +795,4 @@ public class TodoItem : INotifyPropertyChanged
         OnPropertyChanged(nameof(ToolTipText));
     }
 
-    public event PropertyChangedEventHandler? PropertyChanged;
-    protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-    }
-
-    protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
-    {
-        if (System.Collections.Generic.EqualityComparer<T>.Default.Equals(field, value)) return false;
-        field = value;
-        OnPropertyChanged(propertyName);
-        return true;
-    }
 }

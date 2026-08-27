@@ -1,5 +1,7 @@
 ﻿using System;
 
+using TimeRenderer.Helpers;
+
 namespace TimeRenderer.Converters;
 
 internal static class DateTimeHelper
@@ -14,14 +16,6 @@ internal static class DateTimeHelper
     }
 
     /// <summary>曜日の1文字表記（月・火・…）。タイムラインの目盛りなど幅の狭い場所で使う</summary>
-    public static string GetShortDayOfWeek(DateTime date) => date.DayOfWeek switch
-    {
-        DayOfWeek.Monday => "月",
-        DayOfWeek.Tuesday => "火",
-        DayOfWeek.Wednesday => "水",
-        DayOfWeek.Thursday => "木",
-        DayOfWeek.Friday => "金",
-        DayOfWeek.Saturday => "土",
-        _ => "日"
-    };
+    public static string GetShortDayOfWeek(DateTime date) =>
+        DayOfWeekHelper.GetShortJapaneseName(date.DayOfWeek);
 }
