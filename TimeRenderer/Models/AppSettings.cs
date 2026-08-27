@@ -79,6 +79,7 @@ public class AppSettings
 
     /// <summary>ドラッグ中に隣接する予定の端・勤務時間・現在時刻へ吸い付けるか</summary>
     public bool IsMagnetSnapEnabled { get; set; } = true;
+    /// <summary>手動で登録したスプリント（期間ごとの未記録時間の加算先もここに持つ）</summary>
     public System.Collections.Generic.List<SprintInfo> ManualSprints { get; set; } = [];
     /// <summary>作業カテゴリ一覧（空の場合は既定値を使用）</summary>
     public System.Collections.Generic.List<CategoryInfo> Categories { get; set; } = [];
@@ -90,7 +91,10 @@ public class AppSettings
     public string? DefaultProjectCodeId { get; set; }
     /// <summary>勤務時間内の未記録時間を、指定したプロジェクトコードの集計へ加算するか</summary>
     public bool IsUnrecordedTimeProjectAggregationEnabled { get; set; } = false;
-    /// <summary>未記録時間の加算先にするプロジェクトコードのID</summary>
+    /// <summary>
+    /// 未記録時間の加算先にするプロジェクトコードのID。
+    /// スプリント側の指定が優先で、これはどのスプリントからも引き継げないときのフォールバック
+    /// </summary>
     public string? UnrecordedTimeProjectCodeId { get; set; }
     /// <summary>タイトル入力欄に常に表示する定型タイトル（null は未設定＝既定値を使用）</summary>
     public System.Collections.Generic.List<string>? PinnedTitles { get; set; }

@@ -367,7 +367,6 @@ public partial class MainViewModel
         OnPropertyChanged(nameof(IsMagnetSnapEnabled));
 
         _manualSprints = settings.ManualSprints ?? [];
-        OnPropertyChanged(nameof(ManualSprints));
 
         LoadCategories(settings.Categories);
         LoadRecordingCategoryId(settings.RecordingCategoryId);
@@ -376,6 +375,10 @@ public partial class MainViewModel
         LoadUnrecordedTimeProjectAggregation(
             settings.IsUnrecordedTimeProjectAggregationEnabled,
             settings.UnrecordedTimeProjectCodeId);
+
+        // 加算先の表示はコードのマスターに依存するので、読み込みが済んでから作る
+        RefreshSprintProjectCodeLabels(_manualSprints);
+        OnPropertyChanged(nameof(ManualSprints));
         LoadPinnedTitles(settings.PinnedTitles);
 
         _routines = settings.RoutineSchedules ?? [];

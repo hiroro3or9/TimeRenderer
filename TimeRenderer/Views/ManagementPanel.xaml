@@ -196,13 +196,13 @@
                                                   IsChecked="{Binding IsUnrecordedTimeProjectAggregationEnabled}"
                                                   VerticalAlignment="Center"/>
                                     </Grid>
-                                    <TextBlock Text="未記録時間の加算先" Style="{StaticResource FieldLabelStyle}"
+                                    <TextBlock Text="未記録時間の加算先（既定）" Style="{StaticResource FieldLabelStyle}"
                                                Margin="0,12,0,6"/>
                                     <ComboBox ItemsSource="{Binding ActiveProjectCodes}"
                                               SelectedItem="{Binding SelectedUnrecordedTimeProjectCode}"
                                               DisplayMemberPath="DisplayName" Height="32"
                                               IsEnabled="{Binding IsUnrecordedTimeProjectAggregationEnabled}"/>
-                                    <TextBlock Text="出勤から退勤までのうち、実績がない時間だけをプロジェクトコード別の統計と月次表へ加算します"
+                                    <TextBlock Text="出勤から退勤までのうち、実績がない時間だけをプロジェクトコード別の統計と月次表へ加算します。スプリント側で加算先を指定した期間はそちらが優先され、ここはどのスプリントからも引き継げないときに使われます"
                                                FontSize="10" TextWrapping="Wrap" Margin="0,6,0,0"
                                                Foreground="{DynamicResource TextMutedBrush}"/>
                                 </StackPanel>
@@ -302,7 +302,7 @@
                 <TabItem Header="スプリント" Style="{StaticResource SettingsTabItemStyle}">
                     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                         <StackPanel Margin="20,16,20,24">
-                            <TextBlock Text="手動で期間を区切り、カレンダーとタイムラインの表示範囲に使います"
+                            <TextBlock Text="手動で期間を区切り、カレンダーとタイムラインの表示範囲に使います。未記録時間の加算先も期間ごとに切り替えられます"
                                        FontSize="11" TextWrapping="Wrap" Margin="0,0,0,12"
                                        Foreground="{DynamicResource TextSecondaryBrush}"/>
                             <ItemsControl ItemsSource="{Binding ManualSprints}" Margin="0,0,0,10">
@@ -323,6 +323,11 @@
                                                         <Run Text="{Binding StartDate, StringFormat='yyyy/MM/dd', Mode=OneWay}"/>
                                                         <Run Text=" - "/>
                                                         <Run Text="{Binding EndDate, StringFormat='yyyy/MM/dd', Mode=OneWay}"/>
+                                                    </TextBlock>
+                                                    <TextBlock FontSize="10" Margin="0,3,0,0" TextWrapping="Wrap"
+                                                               Foreground="{DynamicResource TextMutedBrush}">
+                                                        <Run Text="未記録時間の加算先："/>
+                                                        <Run Text="{Binding UnrecordedTimeProjectCodeLabel, Mode=OneWay}"/>
                                                     </TextBlock>
                                                 </StackPanel>
                                                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
@@ -371,6 +376,13 @@
                                             <DatePicker SelectedDate="{Binding NewSprintEndDate, UpdateSourceTrigger=PropertyChanged}"/>
                                         </StackPanel>
                                     </Grid>
+                                    <TextBlock Text="未記録時間の加算先" Style="{StaticResource FieldLabelStyle}"/>
+                                    <ComboBox ItemsSource="{Binding SprintProjectCodeChoices}"
+                                              SelectedItem="{Binding NewSprintUnrecordedTimeProjectCode}"
+                                              DisplayMemberPath="DisplayName" Height="32" Margin="0,0,0,6"/>
+                                    <TextBlock Text="この期間の未記録時間をどのコードへ加算するかを決めます。引き継ぐ場合は、これより前で最後に指定したスプリントの加算先を使います（プロジェクトコード設定の「未記録時間を集計に含める」が有効なときに効きます）"
+                                               FontSize="10" TextWrapping="Wrap" Margin="0,0,0,14"
+                                               Foreground="{DynamicResource TextMutedBrush}"/>
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
