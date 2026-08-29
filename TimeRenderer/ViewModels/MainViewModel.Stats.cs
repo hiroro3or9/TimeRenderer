@@ -392,7 +392,7 @@ public partial class MainViewModel
     /// 勤務開始から退勤までのうち、実績で覆われていない時間を加算先コードへ振り分ける。
     /// 実績や勤務記録そのものは変更せず、プロジェクトコード別統計だけに反映する。
     ///
-    /// 加算先はスプリントごとに変わりうるので、集計期間が複数スプリントにまたがっても
+    /// 加算先は期間割り当てで変わりうるので、集計期間が複数の割り当てにまたがっても
     /// 正しく分かれるよう、未記録時間を日単位に割ってから日ごとに解決する。
     /// </summary>
     private void AddUnrecordedTimeToProjectStats(
@@ -403,8 +403,6 @@ public partial class MainViewModel
         Dictionary<string, string> projectCodeDisplayNames)
     {
         if (!IsUnrecordedTimeProjectAggregationEnabled) return;
-
-        var sprintSources = SprintHelper.GetUnrecordedTimeProjectCodeSources(ManualSprints);
 
         var now = DateTime.Now;
         foreach (var log in _workDayLogs)
@@ -426,7 +424,7 @@ public partial class MainViewModel
                 foreach (var segment in UnrecordedGapHelper.SplitByDay(gap))
                 {
                     var date = segment.StartTime.Date;
-                    var projectCode = ResolveUnrecordedTimeProjectCode(sprintSources, date);
+                    var projectCode = ResolveUnrecordedTimeProjectCode(date);
                     if (projectCode == null) continue;
 
                     var hours = segment.Duration.TotalHours;

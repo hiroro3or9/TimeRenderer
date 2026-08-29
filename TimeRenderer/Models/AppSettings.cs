@@ -93,9 +93,15 @@ public class AppSettings
     public bool IsUnrecordedTimeProjectAggregationEnabled { get; set; } = false;
     /// <summary>
     /// 未記録時間の加算先にするプロジェクトコードのID。
-    /// スプリント側の指定が優先で、これはどのスプリントからも引き継げないときのフォールバック
+    /// 期間割り当ての最初の行より前の日に使う
     /// </summary>
     public string? UnrecordedTimeProjectCodeId { get; set; }
+    /// <summary>
+    /// 未記録時間の加算先を期間で切り替える割り当て（開始日の昇順）。
+    /// null は「まだ移行していない」印で、旧形式のスプリント側の指定を取り込む。
+    /// 空リストはユーザーが全部消した状態なので取り込みは行わない
+    /// </summary>
+    public System.Collections.Generic.List<UnrecordedTimeProjectAssignment>? UnrecordedTimeProjectAssignments { get; set; }
     /// <summary>タイトル入力欄に常に表示する定型タイトル（null は未設定＝既定値を使用）</summary>
     public System.Collections.Generic.List<string>? PinnedTitles { get; set; }
     /// <summary>定期予定（ルーティン）のテンプレート一覧</summary>

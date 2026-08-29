@@ -277,14 +277,10 @@ public partial class MainViewModel : ObservableObject
         get => _manualSprints;
         set
         {
-            // 一覧の表示ラベルは通知より先に入れ直す（SprintInfo に変更通知が無いため）
-            RefreshSprintProjectCodeLabels(value);
-
             if (SetProperty(ref _manualSprints, value))
             {
                 UpdateVisibleDays();
                 SaveSettings();
-                UpdateStats();
             }
         }
     }
@@ -324,21 +320,6 @@ public partial class MainViewModel : ObservableObject
         set => SetProperty(ref _newSprintEndDate, value);
     }
 
-    private ProjectCodeInfo? _newSprintUnrecordedTimeProjectCode;
-    /// <summary>スプリント編集フォームの加算先。番兵 InheritedProjectCode なら引き継ぎ。</summary>
-    public ProjectCodeInfo? NewSprintUnrecordedTimeProjectCode
-    {
-        get => _newSprintUnrecordedTimeProjectCode;
-        set => SetProperty(ref _newSprintUnrecordedTimeProjectCode, value);
-    }
-
-    /// <summary>
-    /// スプリント編集フォームの選択を保存値へ変換する。
-    /// 番兵（Id が空）と未選択は「指定しない」＝ null にする。
-    /// </summary>
-    private string? SelectedNewSprintProjectCodeId =>
-        NewSprintUnrecordedTimeProjectCode is { Id.Length: > 0 } selected ? selected.Id : null;
-
     private SprintInfo? _editingSprint;
     public SprintInfo? EditingSprint
     {
@@ -348,7 +329,6 @@ public partial class MainViewModel : ObservableObject
             if (SetProperty(ref _editingSprint, value))
             {
                 OnPropertyChanged(nameof(FormTitle));
-                OnPropertyChanged(nameof(SprintProjectCodeChoices));
             }
         }
     }

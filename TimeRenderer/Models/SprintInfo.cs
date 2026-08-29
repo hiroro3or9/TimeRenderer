@@ -1,5 +1,4 @@
 using System;
-using System.Text.Json.Serialization;
 
 namespace TimeRenderer.Models;
 
@@ -24,15 +23,9 @@ public class SprintInfo
     public bool IsManual { get; set; }
 
     /// <summary>
-    /// この期間の未記録時間を加算するプロジェクトコードの Id。
-    /// null・空なら、それより前で最後に指定されたスプリントの値を引き継ぐ。
+    /// 旧形式：この期間の未記録時間を加算するプロジェクトコードの Id。
+    /// 加算先は AppSettings.UnrecordedTimeProjectAssignments へ移したため、
+    /// 保存済みの設定を一度だけ取り込むためだけに残している。新規に書き込むことはない。
     /// </summary>
     public string? UnrecordedTimeProjectCodeId { get; set; }
-
-    /// <summary>
-    /// スプリント一覧に出す加算先の表示文字列。
-    /// SprintInfo は変更通知を持たないため、一覧を作り直す側 (MainViewModel) が入れ直す。
-    /// </summary>
-    [JsonIgnore]
-    public string UnrecordedTimeProjectCodeLabel { get; set; } = string.Empty;
 }

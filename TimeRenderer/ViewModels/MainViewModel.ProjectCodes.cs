@@ -16,20 +16,14 @@ public partial class MainViewModel
     public IReadOnlyList<ProjectCodeInfo> ActiveProjectCodes => [.. ProjectCodes.Where(p => p.IsActive)];
 
     /// <summary>
-    /// スプリントの加算先コンボボックスで「指定しない」を表す番兵。
-    /// Id を空にしてあるので <see cref="ResolveProjectCode"/> は null を返し、引き継ぎ扱いになる。
-    /// 参照一致で選択状態を復元するため、使い回せる単一インスタンスにしている。
+    /// 期間割り当ての行で選べるコード。
+    /// 既に割り当てで使われている無効なコードも残す（選択肢に無いと
+    /// ComboBox が選択を外し、触っただけで指定が消えてしまうため）。
     /// </summary>
-    public static readonly ProjectCodeInfo InheritedProjectCode =
-        new() { Id = string.Empty, Name = "（前のスプリントから引き継ぐ）" };
-
-    /// <summary>
-    /// スプリント編集フォームの加算先コンボボックス用。
-    /// 編集中のスプリントが無効なコードを指している場合はそれも残す
-    /// （選択肢に無いと ComboBox が選択を外し、保存で指定が消えてしまうため）。
-    /// </summary>
-    public IReadOnlyList<ProjectCodeInfo> SprintProjectCodeChoices =>
-        [InheritedProjectCode, .. GetSelectableProjectCodes(EditingSprint?.UnrecordedTimeProjectCodeId)];
+    public IReadOnlyList<ProjectCodeInfo> AssignmentProjectCodeChoices =>
+        [.. ProjectCodes.Where(p =>
+            p.IsActive ||
+            UnrecordedTimeAssignments.Any(a => a.ProjectCodeId == p.Id))];
 
     public ICommand AddProjectCodeCommand { get; private set; } = null!;
     public ICommand DeleteProjectCodeCommand { get; private set; } = null!;
@@ -38,6 +32,13 @@ public partial class MainViewModel
     private string? _defaultProjectCodeId;
     private string? _unrecordedTimeProjectCodeId;
     private bool _isUnrecordedTimeProjectAggregationEnabled;
+
+    /// <summary>
+    /// 設定から読んだ割り当ての一時置き場。
+    /// プロジェクトコードと手動スプリントが揃うまで反映できないため、
+    /// binding では受け取るだけにして FinalizeAppSettingsApplication で取り込む。
+    /// </summary>
+    private List<UnrecordedTimeProjectAssignment>? _loadedUnrecordedTimeAssignments;
 
     /// <summary>新しい予定・実績と、通常の記録開始で使用する既定のプロジェクトコード。</summary>
     public ProjectCodeInfo? DefaultProjectCode =>
@@ -94,39 +95,20 @@ public partial class MainViewModel
     }
 
     /// <summary>
-    /// スプリント側で指定された加算先を、直近の過去へ遡って探す。
-    /// 指定されたコードが無効化・削除されている場合はさらに前のスプリントへ遡る
-    /// （全体設定へ落とすより、スプリントの連なりの中で解決したほうが意図に近いため）。
+    /// 指定日の未記録時間を加算するコード。機能が無効なら null。
+    /// 割り当ては開始日の昇順に整えてあるので、その日以前で最後の行を採る。
+    /// どの行にも掛からない（最初の行より前の）日は既定コードを使う。
     /// </summary>
-    /// <param name="orderedSources">
-    /// <see cref="SprintHelper.GetUnrecordedTimeProjectCodeSources"/> で並べ替え済みのスプリント一覧
-    /// </param>
-    /// <param name="date">基準日</param>
-    private ProjectCodeInfo? FindSprintUnrecordedTimeProjectCode(
-        IReadOnlyList<SprintInfo> orderedSources, DateTime date)
-    {
-        var target = date.Date;
-
-        for (var i = orderedSources.Count - 1; i >= 0; i--)
-        {
-            if (orderedSources[i].StartDate.Date > target) continue;
-
-            if (ResolveProjectCode(orderedSources[i].UnrecordedTimeProjectCodeId) is { IsActive: true } found)
-            {
-                return found;
-            }
-        }
-
-        return null;
-    }
-
-    /// <summary>指定日の未記録時間を加算するコード。機能が無効なら null。</summary>
-    private ProjectCodeInfo? ResolveUnrecordedTimeProjectCode(
-        IReadOnlyList<SprintInfo> orderedSources, DateTime date)
+    private ProjectCodeInfo? ResolveUnrecordedTimeProjectCode(DateTime date)
     {
         if (!IsUnrecordedTimeProjectAggregationEnabled) return null;
 
-        if (FindSprintUnrecordedTimeProjectCode(orderedSources, date) is { } fromSprint) return fromSprint;
+        if (UnrecordedTimeAssignmentHelper.Resolve(UnrecordedTimeAssignments, date) is { } assignment)
+        {
+            // 割り当てで明示された期間は、そのコードが無効化されていてもそのまま使う
+            // （過去の集計先が勝手に別のコードへ移らないようにする）
+            return ResolveProjectCode(assignment.ProjectCodeId);
+        }
 
         return ResolveProjectCode(_unrecordedTimeProjectCodeId) is { IsActive: true } fallback
             ? fallback
@@ -134,48 +116,151 @@ public partial class MainViewModel
     }
 
     /// <summary>
-    /// スプリント一覧に出す加算先の表示を作り直す。
-    /// <see cref="SprintInfo"/> は変更通知を持たないので、一覧の差し替えとセットで呼ぶ。
+    /// 期間割り当ての一覧（開始日の昇順に保つ）。
+    /// 行を足す・日付を変える・コードを変えるたびに並べ替えて表示を作り直す。
     /// </summary>
-    private void RefreshSprintProjectCodeLabels(IReadOnlyList<SprintInfo> sprints)
+    public ObservableCollection<UnrecordedTimeProjectAssignment> UnrecordedTimeAssignments { get; } = [];
+
+    public ICommand AddUnrecordedTimeAssignmentCommand { get; private set; } = null!;
+    public ICommand DeleteUnrecordedTimeAssignmentCommand { get; private set; } = null!;
+
+    private void InitializeUnrecordedTimeAssignmentCommands()
     {
-        var sources = SprintHelper.GetUnrecordedTimeProjectCodeSources(sprints);
-
-        foreach (var sprint in sprints)
+        AddUnrecordedTimeAssignmentCommand = new RelayCommand(_ =>
         {
-            var effective = FindSprintUnrecordedTimeProjectCode(sources, sprint.StartDate);
-            if (effective == null)
+            // 「今日から案件が変わる」が一番多いので今日を既定にし、
+            // 未来の行が既にあるときだけその翌日へずらして重複を避ける
+            var last = UnrecordedTimeAssignments.LastOrDefault();
+            var start = last == null || last.StartDate < DateTime.Today
+                ? DateTime.Today
+                : last.StartDate.AddDays(1);
+
+            var assignment = new UnrecordedTimeProjectAssignment
             {
-                sprint.UnrecordedTimeProjectCodeLabel = "全体設定に従う";
-                continue;
-            }
+                StartDate = start,
+                ProjectCodeId = last?.ProjectCodeId ?? DefaultProjectCode?.Id
+            };
 
-            // 自分の指定がそのまま使われるときだけ「引き継ぎ」を付けない。
-            // 指定したコードを無効化した場合は前から引き継ぐので、表示もそちらに合わせる
-            var isOwn = sprint.UnrecordedTimeProjectCodeId == effective.Id;
+            AttachUnrecordedTimeAssignment(assignment);
+            UnrecordedTimeAssignments.Add(assignment);
+            OnUnrecordedTimeAssignmentsChanged();
+        });
 
-            sprint.UnrecordedTimeProjectCodeLabel = isOwn
-                ? effective.DisplayName
-                : $"引き継ぎ：{effective.DisplayName}";
+        DeleteUnrecordedTimeAssignmentCommand = new RelayCommand(
+            param =>
+            {
+                if (param is not UnrecordedTimeProjectAssignment assignment) return;
+
+                assignment.PropertyChanged -= OnUnrecordedTimeAssignmentPropertyChanged;
+                UnrecordedTimeAssignments.Remove(assignment);
+                OnUnrecordedTimeAssignmentsChanged();
+            },
+            param => param is UnrecordedTimeProjectAssignment);
+    }
+
+    private void LoadUnrecordedTimeAssignments(
+        List<UnrecordedTimeProjectAssignment>? loaded, IReadOnlyList<SprintInfo> manualSprints)
+    {
+        foreach (var old in UnrecordedTimeAssignments)
+        {
+            old.PropertyChanged -= OnUnrecordedTimeAssignmentPropertyChanged;
+        }
+
+        UnrecordedTimeAssignments.Clear();
+
+        // null は旧形式。スプリント側に入れていた指定をここで一度だけ引き取る
+        var source = loaded ?? MigrateSprintUnrecordedTimeProjectCodes(manualSprints);
+
+        foreach (var assignment in UnrecordedTimeAssignmentHelper.Order(source))
+        {
+            AttachUnrecordedTimeAssignment(assignment);
+            UnrecordedTimeAssignments.Add(assignment);
+        }
+
+        RefreshUnrecordedTimeAssignmentRanges();
+        OnPropertyChanged(nameof(AssignmentProjectCodeChoices));
+    }
+
+    /// <summary>旧形式：スプリントに持たせていた加算先を割り当て行へ移す。</summary>
+    private static List<UnrecordedTimeProjectAssignment> MigrateSprintUnrecordedTimeProjectCodes(
+        IReadOnlyList<SprintInfo> manualSprints) =>
+    [
+        .. manualSprints
+            .Where(s => s.IsManual && !string.IsNullOrEmpty(s.UnrecordedTimeProjectCodeId))
+            .OrderBy(s => s.StartDate.Date)
+            .Select(s => new UnrecordedTimeProjectAssignment
+            {
+                StartDate = s.StartDate.Date,
+                ProjectCodeId = s.UnrecordedTimeProjectCodeId
+            })
+    ];
+
+    private void AttachUnrecordedTimeAssignment(UnrecordedTimeProjectAssignment assignment)
+    {
+        assignment.PropertyChanged -= OnUnrecordedTimeAssignmentPropertyChanged;
+        assignment.PropertyChanged += OnUnrecordedTimeAssignmentPropertyChanged;
+    }
+
+    private void OnUnrecordedTimeAssignmentPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        // RangeText はこちらが書き込む表示用なので、跳ね返って無限に呼ばれないよう弾く
+        if (e.PropertyName == nameof(UnrecordedTimeProjectAssignment.RangeText)) return;
+
+        OnUnrecordedTimeAssignmentsChanged();
+    }
+
+    private void OnUnrecordedTimeAssignmentsChanged()
+    {
+        if (_isLoadingData) return;
+
+        SortUnrecordedTimeAssignments();
+        RefreshUnrecordedTimeAssignmentRanges();
+        OnPropertyChanged(nameof(AssignmentProjectCodeChoices));
+        SaveSettings();
+        UpdateStats();
+    }
+
+    /// <summary>開始日の昇順へ整える（解決も表示も並び順に依存するため）。</summary>
+    private void SortUnrecordedTimeAssignments()
+    {
+        var sorted = UnrecordedTimeAssignmentHelper.Order(UnrecordedTimeAssignments);
+
+        for (var i = 0; i < sorted.Count; i++)
+        {
+            var current = UnrecordedTimeAssignments.IndexOf(sorted[i]);
+            if (current != i) UnrecordedTimeAssignments.Move(current, i);
         }
     }
 
-    /// <summary>削除されたコードを指していたスプリントの指定を解除する。</summary>
-    private void ClearSprintProjectCodeReferences(string projectCodeId)
+    /// <summary>終了日は次の行の開始日から導出して、期間の文字列を作り直す。</summary>
+    private void RefreshUnrecordedTimeAssignmentRanges()
     {
-        var affected = ManualSprints.Where(s => s.UnrecordedTimeProjectCodeId == projectCodeId).ToList();
+        for (var i = 0; i < UnrecordedTimeAssignments.Count; i++)
+        {
+            UnrecordedTimeAssignments[i].RangeText =
+                UnrecordedTimeAssignmentHelper.BuildRangeText(UnrecordedTimeAssignments, i);
+        }
+    }
+
+    /// <summary>削除されたコードを使っていた割り当て行を取り除く。</summary>
+    private void ClearAssignmentProjectCodeReferences(string projectCodeId)
+    {
+        var affected = UnrecordedTimeAssignments.Where(a => a.ProjectCodeId == projectCodeId).ToList();
         if (affected.Count == 0) return;
 
-        foreach (var sprint in affected)
+        foreach (var assignment in affected)
         {
-            sprint.UnrecordedTimeProjectCodeId = null;
+            assignment.PropertyChanged -= OnUnrecordedTimeAssignmentPropertyChanged;
+            UnrecordedTimeAssignments.Remove(assignment);
         }
 
-        ManualSprints = [.. ManualSprints];
+        RefreshUnrecordedTimeAssignmentRanges();
     }
 
     private void InitializeProjectCodeCommands()
     {
+        InitializeUnrecordedTimeAssignmentCommands();
+
         ProjectCodes.CollectionChanged += (_, _) =>
         {
             NotifyProjectCodeChoicesChanged();
@@ -238,7 +323,7 @@ public partial class MainViewModel
                     _defaultProjectCodeId = ProjectCodes.FirstOrDefault(p => p.IsActive)?.Id;
                 }
 
-                ClearSprintProjectCodeReferences(projectCode.Id);
+                ClearAssignmentProjectCodeReferences(projectCode.Id);
                 EnsureUnrecordedTimeProjectCode();
 
                 NotifyDefaultProjectCodeChanged();
@@ -332,13 +417,9 @@ public partial class MainViewModel
     private void NotifyProjectCodeChoicesChanged()
     {
         OnPropertyChanged(nameof(ActiveProjectCodes));
-        OnPropertyChanged(nameof(SprintProjectCodeChoices));
+        OnPropertyChanged(nameof(AssignmentProjectCodeChoices));
         OnPropertyChanged(nameof(SelectedUnrecordedTimeProjectCode));
         NotifyDefaultProjectCodeChanged();
-
-        // コード名の変更・無効化はスプリント一覧の表示にも効く
-        RefreshSprintProjectCodeLabels(ManualSprints);
-        OnPropertyChanged(nameof(ManualSprints));
     }
 
     private void EnsureUnrecordedTimeProjectCode()

@@ -25,7 +25,7 @@ public class SprintHelperTests
     private static readonly List<SprintInfo> NoManualSprints = [];
 
     private static SprintInfo Manual(
-        string name, DateTime start, DateTime end, string? id = null, string? projectCodeId = null) =>
+        string name, DateTime start, DateTime end, string? id = null) =>
         new()
         {
             Id = id ?? Guid.NewGuid().ToString(),
@@ -33,7 +33,6 @@ public class SprintHelperTests
             StartDate = start,
             EndDate = end,
             IsManual = true,
-            UnrecordedTimeProjectCodeId = projectCodeId,
         };
 
     // ============================================================
@@ -344,68 +343,5 @@ public class SprintHelperTests
 
             await Assert.That(target >= sprint.StartDate && target <= sprint.EndDate).IsTrue();
         }
-    }
-
-    // ============================================================
-    // 未記録時間の加算先
-    // ============================================================
-
-    [Test]
-    public async Task 加算先を持つ手動スプリントだけを開始日順に取り出す()
-    {
-        List<SprintInfo> manuals =
-        [
-            Manual("後", new DateTime(2026, 3, 2), new DateTime(2026, 3, 15), projectCodeId: "P2"),
-            Manual("先", new DateTime(2026, 2, 2), new DateTime(2026, 2, 15), projectCodeId: "P1"),
-            Manual("加算先なし", new DateTime(2026, 1, 5), new DateTime(2026, 1, 18)),
-        ];
-
-        var sources = SprintHelper.GetUnrecordedTimeProjectCodeSources(manuals);
-
-        await Assert.That(sources.Count).IsEqualTo(2);
-        await Assert.That(sources[0].Name).IsEqualTo("先");
-        await Assert.That(sources[1].Name).IsEqualTo("後");
-    }
-
-    [Test]
-    public async Task 加算先が空文字のスプリントは取り出さない()
-    {
-        List<SprintInfo> manuals =
-        [
-            Manual("空文字", new DateTime(2026, 2, 2), new DateTime(2026, 2, 15), projectCodeId: string.Empty),
-        ];
-
-        var sources = SprintHelper.GetUnrecordedTimeProjectCodeSources(manuals);
-
-        await Assert.That(sources.Count).IsEqualTo(0);
-    }
-
-    [Test]
-    public async Task 自動生成のスプリントは加算先を持っていても取り出さない()
-    {
-        // 自動生成分は保存されないため、引き継ぎ元になれない
-        List<SprintInfo> sprints =
-        [
-            new()
-            {
-                Name = "自動",
-                StartDate = new DateTime(2026, 2, 2),
-                EndDate = new DateTime(2026, 2, 15),
-                IsManual = false,
-                UnrecordedTimeProjectCodeId = "P1",
-            },
-        ];
-
-        var sources = SprintHelper.GetUnrecordedTimeProjectCodeSources(sprints);
-
-        await Assert.That(sources.Count).IsEqualTo(0);
-    }
-
-    [Test]
-    public async Task 手動スプリントが空でも落ちない()
-    {
-        var sources = SprintHelper.GetUnrecordedTimeProjectCodeSources(NoManualSprints);
-
-        await Assert.That(sources.Count).IsEqualTo(0);
     }
 }
