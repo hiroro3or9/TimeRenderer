@@ -227,23 +227,29 @@ public static IReadOnlyList<UnrecordedGap> Detect(
 | `ShowUnrecordedGaps` | `true` | 未記録の帯を日/週ビューに表示するか |
 | `UnrecordedGapMinMinutes` | `15` | この長さ未満は無視（選択肢 5/10/15/30） |
 | `IsUnrecordedTimeProjectAggregationEnabled` | `false` | 勤務時間内の未記録時間をプロジェクトコード別統計へ加算するか |
-| `UnrecordedTimeProjectCodeId` | `null` | 未記録時間の加算先の既定。どのスプリントからも引き継げないときに使う |
-| `ManualSprints[].UnrecordedTimeProjectCodeId` | `null` | その期間の未記録時間の加算先。未指定なら前のスプリントから引き継ぐ |
+| `UnrecordedTimeProjectCodeId` | `null` | 未記録時間の加算先の既定。最初の割り当てより前の日に使う |
+| `UnrecordedTimeProjectAssignments` | `null` | 期間ごとの加算先。`null` は旧形式からの移行待ち、`[]` は割り当て無し |
 | `AppUsageScope` | `1` | アプリ使用の収集範囲（0: 記録中のみ / 1: 勤務中ずっと） |
 | `AskUnrecordedGapsOnWorkEnd` | — | v1.5。退勤時にまとめて確認するか |
 
 ### 加算先の決め方
 
-案件は期間で変わるので、加算先はスプリント単位で切り替えられる。
+案件は期間で変わるので、加算先は期間の割り当てで切り替える。
+割り当ては「この日からこのコード」だけを持ち、期間の終わりは次の行の開始日から導出する
+（終了日を持たせないので、隙間や重複が原理的に起きない）。
+
 ある日の加算先は次の順で決まる。
 
-1. その日を含むスプリントの `UnrecordedTimeProjectCodeId`
-2. 無指定なら、それより前で最後に指定された手動スプリントの値（自動生成スプリントの
-   期間もここで埋まる）。指定されたコードが無効化・削除されていれば、さらに前へ遡る
-3. どこからも引き継げなければ `AppSettings.UnrecordedTimeProjectCodeId`
+1. その日以前で最後の割り当て（`UnrecordedTimeAssignmentHelper.Resolve`）。
+   割り当てたコードが無効化されていてもそのまま使う（過去の集計先を勝手に動かさない）
+2. 最初の割り当てより前の日は `AppSettings.UnrecordedTimeProjectCodeId`
 
-集計期間が複数スプリントにまたがっても分かれるよう、未記録時間は日単位に割ってから
-日ごとに 1〜3 を解決する（`MainViewModel.Stats.AddUnrecordedTimeToProjectStats`）。
+集計期間が複数の割り当てにまたがっても分かれるよう、未記録時間は日単位に割ってから
+日ごとに 1〜2 を解決する（`MainViewModel.Stats.AddUnrecordedTimeToProjectStats`）。
+
+当初はスプリントに紐づけていたが、手動登録したスプリントにしか設定できず、
+どの期間がどのコードかも見渡せなかったため、スプリントから切り離した。
+`SprintInfo.UnrecordedTimeProjectCodeId` は保存済みの設定を一度だけ取り込むためだけに残している。
 
 ## 実装の順序
 

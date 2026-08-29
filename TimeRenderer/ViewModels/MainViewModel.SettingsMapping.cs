@@ -338,6 +338,15 @@ public partial class MainViewModel
             settings => settings.UnrecordedTimeProjectCodeId,
             (vm, value) => vm._unrecordedTimeProjectCodeId = value),
 
+        // 取り込みはプロジェクトコードと手動スプリントが揃ってからでないと行えないので、
+        // ここでは受け取るだけにして FinalizeAppSettingsApplication で反映する
+        Bind<List<UnrecordedTimeProjectAssignment>?>(
+            nameof(AppSettings.UnrecordedTimeProjectAssignments),
+            vm => [.. vm.UnrecordedTimeAssignments],
+            (settings, value) => settings.UnrecordedTimeProjectAssignments = value,
+            settings => settings.UnrecordedTimeProjectAssignments,
+            (vm, value) => vm._loadedUnrecordedTimeAssignments = value),
+
         Bind(nameof(AppSettings.PinnedTitles),
             vm => [.. vm.PinnedTitles.Select(title => title.Text)],
             (settings, value) => settings.PinnedTitles = value,
@@ -420,7 +429,7 @@ public partial class MainViewModel
         LoadUnrecordedTimeProjectAggregation(
             _isUnrecordedTimeProjectAggregationEnabled,
             _unrecordedTimeProjectCodeId);
-        RefreshSprintProjectCodeLabels(_manualSprints);
+        LoadUnrecordedTimeAssignments(_loadedUnrecordedTimeAssignments, _manualSprints);
         OnPropertyChanged(nameof(ManualSprints));
 
         NotifyShowDaysProperties();

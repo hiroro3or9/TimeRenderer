@@ -202,7 +202,59 @@
                                               SelectedItem="{Binding SelectedUnrecordedTimeProjectCode}"
                                               DisplayMemberPath="DisplayName" Height="32"
                                               IsEnabled="{Binding IsUnrecordedTimeProjectAggregationEnabled}"/>
-                                    <TextBlock Text="出勤から退勤までのうち、実績がない時間だけをプロジェクトコード別の統計と月次表へ加算します。スプリント側で加算先を指定した期間はそちらが優先され、ここはどのスプリントからも引き継げないときに使われます"
+                                    <TextBlock Text="出勤から退勤までのうち、実績がない時間だけをプロジェクトコード別の統計と月次表へ加算します"
+                                               FontSize="10" TextWrapping="Wrap" Margin="0,6,0,0"
+                                               Foreground="{DynamicResource TextMutedBrush}"/>
+                                    <TextBlock Text="期間ごとの加算先" Style="{StaticResource FieldLabelStyle}"
+                                               Margin="0,14,0,6"/>
+                                    <ItemsControl ItemsSource="{Binding UnrecordedTimeAssignments}"
+                                                  IsEnabled="{Binding IsUnrecordedTimeProjectAggregationEnabled}"
+                                                  Margin="0,0,0,8">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                                        CornerRadius="6" Padding="8" Margin="0,0,0,6">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <StackPanel>
+                                                            <TextBlock Text="{Binding RangeText, Mode=OneWay}"
+                                                                       FontSize="11" Margin="0,0,0,5"
+                                                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                                            <Grid>
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="Auto"/>
+                                                                    <ColumnDefinition Width="8"/>
+                                                                    <ColumnDefinition Width="*"/>
+                                                                </Grid.ColumnDefinitions>
+                                                                <DatePicker SelectedDate="{Binding StartDate}"
+                                                                            VerticalAlignment="Center"/>
+                                                                <ComboBox Grid.Column="2" Height="30"
+                                                                          VerticalAlignment="Center"
+                                                                          ItemsSource="{Binding DataContext.AssignmentProjectCodeChoices, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                          SelectedValue="{Binding ProjectCodeId}"
+                                                                          SelectedValuePath="Id"
+                                                                          DisplayMemberPath="DisplayName"/>
+                                                            </Grid>
+                                                        </StackPanel>
+                                                        <Button Grid.Column="1" Content="✕" Margin="6,0,0,0"
+                                                                Width="24" Height="24" VerticalAlignment="Center"
+                                                                Style="{StaticResource IconButtonStyle}"
+                                                                Foreground="{DynamicResource TextSecondaryBrush}"
+                                                                Command="{Binding DataContext.DeleteUnrecordedTimeAssignmentCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                CommandParameter="{Binding}"/>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <Button Content="＋ 期間を追加"
+                                            Command="{Binding AddUnrecordedTimeAssignmentCommand}"
+                                            IsEnabled="{Binding IsUnrecordedTimeProjectAggregationEnabled}"
+                                            Style="{StaticResource BaseButtonStyle}" HorizontalAlignment="Stretch"/>
+                                    <TextBlock Text="案件が変わる日を足していくと、その日から次の行の前日までがそのコードになります。行が無い期間と最初の行より前は、上の既定を使います"
                                                FontSize="10" TextWrapping="Wrap" Margin="0,6,0,0"
                                                Foreground="{DynamicResource TextMutedBrush}"/>
                                 </StackPanel>
@@ -302,7 +354,7 @@
                 <TabItem Header="スプリント" Style="{StaticResource SettingsTabItemStyle}">
                     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                         <StackPanel Margin="20,16,20,24">
-                            <TextBlock Text="手動で期間を区切り、カレンダーとタイムラインの表示範囲に使います。未記録時間の加算先も期間ごとに切り替えられます"
+                            <TextBlock Text="手動で期間を区切り、カレンダーとタイムラインの表示範囲に使います"
                                        FontSize="11" TextWrapping="Wrap" Margin="0,0,0,12"
                                        Foreground="{DynamicResource TextSecondaryBrush}"/>
                             <ItemsControl ItemsSource="{Binding ManualSprints}" Margin="0,0,0,10">
@@ -323,11 +375,6 @@
                                                         <Run Text="{Binding StartDate, StringFormat='yyyy/MM/dd', Mode=OneWay}"/>
                                                         <Run Text=" - "/>
                                                         <Run Text="{Binding EndDate, StringFormat='yyyy/MM/dd', Mode=OneWay}"/>
-                                                    </TextBlock>
-                                                    <TextBlock FontSize="10" Margin="0,3,0,0" TextWrapping="Wrap"
-                                                               Foreground="{DynamicResource TextMutedBrush}">
-                                                        <Run Text="未記録時間の加算先："/>
-                                                        <Run Text="{Binding UnrecordedTimeProjectCodeLabel, Mode=OneWay}"/>
                                                     </TextBlock>
                                                 </StackPanel>
                                                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
@@ -376,13 +423,6 @@
                                             <DatePicker SelectedDate="{Binding NewSprintEndDate, UpdateSourceTrigger=PropertyChanged}"/>
                                         </StackPanel>
                                     </Grid>
-                                    <TextBlock Text="未記録時間の加算先" Style="{StaticResource FieldLabelStyle}"/>
-                                    <ComboBox ItemsSource="{Binding SprintProjectCodeChoices}"
-                                              SelectedItem="{Binding NewSprintUnrecordedTimeProjectCode}"
-                                              DisplayMemberPath="DisplayName" Height="32" Margin="0,0,0,6"/>
-                                    <TextBlock Text="この期間の未記録時間をどのコードへ加算するかを決めます。引き継ぐ場合は、これより前で最後に指定したスプリントの加算先を使います（プロジェクトコード設定の「未記録時間を集計に含める」が有効なときに効きます）"
-                                               FontSize="10" TextWrapping="Wrap" Margin="0,0,0,14"
-                                               Foreground="{DynamicResource TextMutedBrush}"/>
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
