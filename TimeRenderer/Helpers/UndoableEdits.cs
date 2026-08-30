@@ -152,6 +152,25 @@ public sealed class ModifyTodoEdit(TodoItem todo, TodoSnapshot before, TodoSnaps
 }
 
 /// <summary>
+/// ToDoへ積算した実績時間の変更。
+/// 通常のTodoSnapshotは記録時間を含めないため、記録の追加と同じUndo単位へ明示的に加える。
+/// </summary>
+public sealed class ChangeTodoRecordedTimeEdit(
+    TodoItem todo,
+    long beforeTicks,
+    long afterTicks,
+    string label) : IUndoableEdit
+{
+    private readonly TodoItem _todo = todo;
+
+    public string Description => $"ToDo「{AddTodoEdit.Describe(_todo)}」の{label}";
+
+    public void Undo(UndoContext context) => _todo.RecordedTicks = beforeTicks;
+
+    public void Redo(UndoContext context) => _todo.RecordedTicks = afterTicks;
+}
+
+/// <summary>
 /// ToDo の手動並べ替え。
 /// 1回のドラッグで多くの ToDo の並び順が動くため、まとめて1件として扱う。
 /// </summary>
