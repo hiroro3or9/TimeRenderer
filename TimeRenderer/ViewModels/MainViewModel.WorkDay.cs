@@ -135,7 +135,7 @@ public partial class MainViewModel
                 return $"出勤 {_activeWorkLog.StartTime:H:mm} ・ {_activeWorkLog.DurationText}";
             }
 
-            var todays = FindLogByDate(DateTime.Today);
+            var todays = FindLogByDate(LocalToday);
             if (todays is { EndTime: not null })
             {
                 return $"{todays.StartTime:H:mm} - {todays.EndTime.Value:H:mm} ・ {todays.DurationText}";
@@ -305,7 +305,7 @@ public partial class MainViewModel
         _activeWorkLog = open.LastOrDefault();
         _workDaysLoaded = true;
 
-        CloseStaleWorkLog(DateTime.Now);
+        CloseStaleWorkLog(LocalNow);
         NotifyWorkDayChanged();
         RebuildNoteGroups(); // 統計側は初回レイアウトで作られるので、ここは一覧だけでよい
     }
@@ -318,10 +318,11 @@ public partial class MainViewModel
     /// </summary>
     private void CloseStaleWorkLog(DateTime now)
     {
-        if (_activeWorkLog == null) return;
-        if (_activeWorkLog.StartTime.Date >= now.Date) return;
+        // 記録中のセッションはまだ ScheduleItems に確定していない。
+        // 先に締めると活動が無かった扱いになるため、停止して実績化されるまで保留する。
+        if (!WorkDayPolicy.ShouldAutoClose(_activeWorkLog, now, IsRecording)) return;
 
-        var log = _activeWorkLog;
+        var log = _activeWorkLog!;
         CloseWithLastActivity(log);
         _activeWorkLog = null;
         SaveWorkDays();
@@ -338,15 +339,7 @@ public partial class MainViewModel
     /// </summary>
     private void CloseWithLastActivity(WorkDayLog log)
     {
-        var dayEnd = log.StartTime.Date.AddDays(1);
-
-        var lastActivity = ScheduleItems
-            .Where(i => i.IsRecorded && !i.IsAllDay && i.EndTime > log.StartTime && i.EndTime < dayEnd)
-            .Select(i => i.EndTime)
-            .DefaultIfEmpty(log.StartTime)
-            .Max();
-
-        log.EndTime = lastActivity < log.StartTime ? log.StartTime : lastActivity;
+        log.EndTime = WorkDayPolicy.FindLastActivityEnd(log, ScheduleItems);
         log.EndSource = WorkEndSource.AutoClosed;
     }
 
@@ -358,7 +351,7 @@ public partial class MainViewModel
     {
         if (IsWorking) return false;
 
-        var now = at ?? DateTime.Now;
+        var now = at ?? LocalNow;
 
         // 同じ日に一度退勤していて、また働き始めた場合は前の記録を伸ばす。
         // 1日に何本もマーカーが並ぶと「いつからいつまで働いたか」が読みにくくなるため
@@ -394,8 +387,7 @@ public partial class MainViewModel
         var log = _activeWorkLog;
         if (log == null) return false;
 
-        var end = at ?? DateTime.Now;
-        if (end < log.StartTime) end = log.StartTime;
+        var end = WorkDayPolicy.ClampEnd(log, at ?? LocalNow);
 
         log.EndTime = end;
         log.EndSource = source;
@@ -434,7 +426,7 @@ public partial class MainViewModel
     }
 
     /// <summary>時計から定期的に呼ぶ：経過時間の表示更新と、日付またぎの自動締め</summary>
-    private void UpdateWorkDayTick(DateTime now)
+    internal void UpdateWorkDayTick(DateTime now)
     {
         CloseStaleWorkLog(now);
         if (IsWorking)
@@ -504,20 +496,8 @@ public partial class MainViewModel
         var log = _activeWorkLog;
         if (log == null) return;
 
-        // 出勤より前の離席（前日から続くスリープなど）は対象外
-        if (period.Start <= log.StartTime) return;
-        if (period.Duration < TimeSpan.FromMinutes(_workEndThresholdMinutes)) return;
-
-        // 日中の会議・外出・昼休みのたびに聞かれると煩わしいので、
-        // 設定時刻より前に始まった離席は退勤候補にしない。
-        // ただし日付をまたいで復帰した場合は「そのまま帰った」可能性が高いため、
-        // 時刻に関係なく確認する（復帰時刻 period.End が翌日以降になる）
-        if (_workEndEarliestHour > 0 &&
-            period.Start.Hour < _workEndEarliestHour &&
-            period.End.Date == period.Start.Date)
-        {
-            return;
-        }
+        if (!WorkDayPolicy.ShouldPromptForAwayEnd(
+                log, period, _workEndThresholdMinutes, _workEndEarliestHour)) return;
 
         var proposedEnd = period.Start;
 

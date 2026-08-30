@@ -184,7 +184,7 @@ public partial class MainViewModel
             return;
         }
 
-        var parsed = Helpers.TodoQuickParser.Parse(_newTodoTitle, [.. Categories], DateTime.Now);
+        var parsed = Helpers.TodoQuickParser.Parse(_newTodoTitle, [.. Categories], LocalNow);
         if (!parsed.HasAttributes)
         {
             TodoQuickAddPreview = null;
@@ -359,11 +359,11 @@ public partial class MainViewModel
         );
 
         SetTodoDueTodayCommand = new RelayCommand(
-            param => SetTodoDue(param as TodoItem, DateTime.Today),
+            param => SetTodoDue(param as TodoItem, LocalToday),
             param => param is TodoItem);
 
         SetTodoDueTomorrowCommand = new RelayCommand(
-            param => SetTodoDue(param as TodoItem, DateTime.Today.AddDays(1)),
+            param => SetTodoDue(param as TodoItem, LocalToday.AddDays(1)),
             param => param is TodoItem);
 
         ClearTodoDueCommand = new RelayCommand(
@@ -376,8 +376,9 @@ public partial class MainViewModel
                 if (param is not TodoItem todo) return;
 
                 var before = TodoSnapshot.Capture(todo);
-                todo.PlannedOn = todo.IsPlannedToday ? null : DateTime.Today;
-                RecordTodoModify(todo, before, todo.IsPlannedToday ? "今日やる" : "今日やるの取り消し");
+                var wasPlannedToday = todo.PlannedOn?.Date == LocalToday;
+                todo.PlannedOn = wasPlannedToday ? null : LocalToday;
+                RecordTodoModify(todo, before, wasPlannedToday ? "今日やるの取り消し" : "今日やる");
             },
             param => param is TodoItem);
 
@@ -490,7 +491,7 @@ public partial class MainViewModel
             };
         }
 
-        var parsed = Helpers.TodoQuickParser.Parse(input, [.. Categories], DateTime.Now);
+        var parsed = Helpers.TodoQuickParser.Parse(input, [.. Categories], LocalNow);
         if (parsed.Title.Length == 0) return null;
 
         var category = parsed.Category ?? Categories.FirstOrDefault();
@@ -683,7 +684,7 @@ public partial class MainViewModel
     /// </summary>
     private TodoItem? SpawnNextOccurrence(TodoItem completed)
     {
-        var next = completed.CreateNextOccurrence(completed.CompletedAt ?? DateTime.Now);
+        var next = completed.CreateNextOccurrence(completed.CompletedAt ?? LocalNow);
         if (next == null) return null;
 
         // 次回分は繰り返しを引き継ぐので、完了した方の繰り返しは解除する。

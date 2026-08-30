@@ -154,48 +154,12 @@ public partial class MainViewModel
     {
         if (Routines.Count == 0) return;
 
-        var windowStart = aroundDate.Date.AddDays(-7);
-        var rangeEnd = aroundDate.Date.AddDays(60);
-
-        var existingKeys = ScheduleItems
-            .Where(i => i.IsPlanned && i.RoutineId != null)
-            .Select(i => (i.RoutineId, i.StartTime.Date))
-            .ToHashSet();
-
-        var toAdd = new List<ScheduleItem>();
-        foreach (var routine in Routines)
-        {
-            if (!routine.IsEnabled || !routine.IsValidRecurrence) continue;
-
-            var categoryColor = routine.CategoryId != null
-                ? Categories.FirstOrDefault(c => c.Id == routine.CategoryId)?.ColorCode
-                : null;
-            var excluded = routine.ExcludedDates.Select(d => d.Date).ToHashSet();
-
-            // 開始日より前には生成しない（定期予定を作る前の過去に予定が現れないようにする）
-            var rangeStart = routine.StartDate > windowStart ? routine.StartDate.Date : windowStart;
-
-            for (var date = rangeStart; date <= rangeEnd; date = date.AddDays(1))
-            {
-                if (!routine.OccursOn(date)) continue;
-                if (excluded.Contains(date)) continue;
-                if (existingKeys.Contains((routine.Id, date))) continue;
-
-                toAdd.Add(new ScheduleItem
-                {
-                    Id = $"routine:{routine.Id}:{date:yyyyMMdd}",
-                    Kind = ScheduleItemKind.Planned,
-                    Title = routine.Title,
-                    StartTime = date.Add(routine.StartTime),
-                    EndTime = date.Add(routine.EndTime),
-                    ColorCode = categoryColor ?? routine.ColorCode,
-                    CategoryId = routine.CategoryId,
-                    ProjectCodeId = routine.ProjectCodeId ?? DefaultProjectCode?.Id,
-                    RoutineId = routine.Id,
-                    IsVirtual = true
-                });
-            }
-        }
+        var toAdd = RoutineOccurrencePlanner.BuildVirtualItems(
+            Routines,
+            ScheduleItems,
+            Categories,
+            DefaultProjectCode?.Id,
+            aroundDate);
 
         if (toAdd.Count == 0) return;
 
@@ -256,7 +220,7 @@ public partial class MainViewModel
         var targets = Routines.Where(r => r.StartDate == default).ToList();
         if (targets.Count == 0) return;
 
-        var today = DateTime.Today;
+        var today = LocalToday;
         foreach (var routine in targets)
         {
             routine.StartDate = today;
@@ -274,7 +238,7 @@ public partial class MainViewModel
     {
         if (Routines.Count == 0) return;
 
-        var now = DateTime.Now;
+        var now = LocalNow;
         var routinesById = Routines.ToDictionary(r => r.Id);
 
         var toRemove = ScheduleItems.Where(i =>
@@ -591,6 +555,7 @@ public partial class MainViewModel
     private void ShowAutoStartNotice(string message)
     {
         AutoStartNotice = message;
+        if (!_isRuntimeActive) return;
 
         _autoStartNoticeTimer ??= new DispatcherTimer { Interval = TimeSpan.FromSeconds(6) };
         _autoStartNoticeTimer.Stop();

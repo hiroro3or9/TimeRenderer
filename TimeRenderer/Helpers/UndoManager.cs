@@ -55,7 +55,6 @@ public sealed class UndoManager
         if (!CanUndo) return false;
 
         var edit = _undo.Last!.Value;
-        _undo.RemoveLast();
 
         IsApplying = true;
         try
@@ -67,6 +66,8 @@ public sealed class UndoManager
             IsApplying = false;
         }
 
+        // 適用に成功したときだけ履歴を移す。例外時は再試行・確認できるよう元に残す。
+        _undo.RemoveLast();
         _redo.Push(edit);
         Changed?.Invoke(this, EventArgs.Empty);
         return true;
@@ -77,7 +78,7 @@ public sealed class UndoManager
     {
         if (!CanRedo) return false;
 
-        var edit = _redo.Pop();
+        var edit = _redo.Peek();
 
         IsApplying = true;
         try
@@ -89,6 +90,8 @@ public sealed class UndoManager
             IsApplying = false;
         }
 
+        // Undo と同じく、適用失敗で履歴そのものまで失わないよう成功後に移す。
+        _redo.Pop();
         _undo.AddLast(edit);
         Changed?.Invoke(this, EventArgs.Empty);
         return true;

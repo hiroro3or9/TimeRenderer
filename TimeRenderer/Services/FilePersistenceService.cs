@@ -20,7 +20,13 @@ public static class FilePersistenceService
     /// <summary>アプリ使用記録の保持日数。裏付け用の補助データなので古いものは自動で捨てる</summary>
     private const int AppUsageRetentionDays = 60;
 
-    public static void SaveData(IEnumerable<ScheduleItem> items) => JsonFileRepository.SaveToFileSync(ScheduleFilePath, items);
+    public static bool SaveData(IEnumerable<ScheduleItem> items) =>
+        Save(ScheduleFilePath, items, dataDirectory: null);
+
+    internal static bool SaveDataToDirectory(
+        string dataDirectory,
+        IEnumerable<ScheduleItem> items) =>
+        Save(ScheduleFilePath, items, dataDirectory);
 
     /// <summary>予定データの読み込み結果</summary>
     /// <param name="Items">読み込めたアイテム（失敗時は空）</param>
@@ -39,9 +45,14 @@ public static class FilePersistenceService
     /// 次の保存で本物の記録がサンプルに上書きされてしまうため、
     /// 失敗は失敗として呼び出し側へ伝える。
     /// </summary>
-    public static ScheduleLoadResult LoadData()
+    public static ScheduleLoadResult LoadData() => LoadDataCore(dataDirectory: null);
+
+    internal static ScheduleLoadResult LoadDataFromDirectory(string dataDirectory) =>
+        LoadDataCore(dataDirectory);
+
+    private static ScheduleLoadResult LoadDataCore(string? dataDirectory)
     {
-        var result = JsonFileRepository.LoadFromFileSync<ObservableCollection<ScheduleItem>>(ScheduleFilePath);
+        var result = Load<ObservableCollection<ScheduleItem>>(ScheduleFilePath, dataDirectory);
 
         return result.Status switch
         {
@@ -58,13 +69,23 @@ public static class FilePersistenceService
     /// 勤務記録（出勤・退勤）を保存する。
     /// 予定データとは別ファイルにして、片方が壊れてももう片方が巻き込まれないようにする。
     /// </summary>
-    public static void SaveWorkDays(IEnumerable<WorkDayLog> logs) =>
-        JsonFileRepository.SaveToFileSync(WorkDaysFilePath, logs);
+    public static bool SaveWorkDays(IEnumerable<WorkDayLog> logs) =>
+        Save(WorkDaysFilePath, logs, dataDirectory: null);
+
+    internal static bool SaveWorkDaysToDirectory(
+        string dataDirectory,
+        IEnumerable<WorkDayLog> logs) =>
+        Save(WorkDaysFilePath, logs, dataDirectory);
 
     /// <summary>勤務記録を読み込む。読めなかった場合は空で始める（記録は日々作り直せるため）</summary>
-    public static List<WorkDayLog> LoadWorkDays()
+    public static List<WorkDayLog> LoadWorkDays() => LoadWorkDaysCore(dataDirectory: null);
+
+    internal static List<WorkDayLog> LoadWorkDaysFromDirectory(string dataDirectory) =>
+        LoadWorkDaysCore(dataDirectory);
+
+    private static List<WorkDayLog> LoadWorkDaysCore(string? dataDirectory)
     {
-        var result = JsonFileRepository.LoadFromFileSync<List<WorkDayLog>>(WorkDaysFilePath);
+        var result = Load<List<WorkDayLog>>(WorkDaysFilePath, dataDirectory);
         var logs = result.Value ?? [];
 
         // 壊れた行（出勤時刻が既定値）は捨て、日付順に整えておく
@@ -77,19 +98,34 @@ public static class FilePersistenceService
     /// アプリ使用記録を保存する。
     /// 補助データなので専用ファイルに分け、予定データの破損に巻き込まれないようにする。
     /// </summary>
-    public static void SaveAppUsage(IEnumerable<AppUsageInterval> intervals) =>
-        JsonFileRepository.SaveToFileSync(AppUsageFilePath, intervals);
+    public static bool SaveAppUsage(IEnumerable<AppUsageInterval> intervals) =>
+        Save(AppUsageFilePath, intervals, dataDirectory: null);
+
+    internal static bool SaveAppUsageToDirectory(
+        string dataDirectory,
+        IEnumerable<AppUsageInterval> intervals) =>
+        Save(AppUsageFilePath, intervals, dataDirectory);
 
     /// <summary>
     /// アプリ使用記録を読み込む。読めなかった場合は空で始める（裏付け用の補助データのため）。
     /// 保持期間を過ぎた古い記録はここで捨てる。
     /// </summary>
-    public static List<AppUsageInterval> LoadAppUsage()
+    public static List<AppUsageInterval> LoadAppUsage() =>
+        LoadAppUsageCore(dataDirectory: null, DateTime.Today);
+
+    internal static List<AppUsageInterval> LoadAppUsageFromDirectory(
+        string dataDirectory,
+        DateTime today) =>
+        LoadAppUsageCore(dataDirectory, today);
+
+    private static List<AppUsageInterval> LoadAppUsageCore(
+        string? dataDirectory,
+        DateTime today)
     {
-        var result = JsonFileRepository.LoadFromFileSync<List<AppUsageInterval>>(AppUsageFilePath);
+        var result = Load<List<AppUsageInterval>>(AppUsageFilePath, dataDirectory);
         var intervals = result.Value ?? [];
 
-        var cutoff = DateTime.Today.AddDays(-AppUsageRetentionDays);
+        var cutoff = today.Date.AddDays(-AppUsageRetentionDays);
         return [.. intervals
             .Where(i => i.End > i.Start && i.End >= cutoff && !string.IsNullOrEmpty(i.ProcessName))
             .OrderBy(i => i.Start)];
@@ -99,19 +135,43 @@ public static class FilePersistenceService
     /// ToDo を保存する。
     /// 予定データとは独立した一覧なので専用ファイルに分け、片方の破損で両方を失わないようにする。
     /// </summary>
-    public static void SaveTodos(IEnumerable<TodoItem> todos) =>
-        JsonFileRepository.SaveToFileSync(TodosFilePath, todos);
+    public static bool SaveTodos(IEnumerable<TodoItem> todos) =>
+        Save(TodosFilePath, todos, dataDirectory: null);
+
+    internal static bool SaveTodosToDirectory(
+        string dataDirectory,
+        IEnumerable<TodoItem> todos) =>
+        Save(TodosFilePath, todos, dataDirectory);
 
     /// <summary>
-    /// ToDo を読み込む。読めなかった場合は空で始める。
+    /// ToDo の読み込み結果。失敗を空一覧と区別し、壊れたデータへの上書きを防ぐ。
+    /// </summary>
+    public record TodoLoadResult(
+        List<TodoItem> Items,
+        LoadStatus Status,
+        string? Message);
+
+    /// <summary>
+    /// ToDo を読み込む。破損時は空一覧と失敗状態を返す。
     /// タイトルの無い行は保存事故の残骸とみなして捨てる（一覧に空行が並ぶのを防ぐ）。
     /// </summary>
-    public static List<TodoItem> LoadTodos()
-    {
-        var result = JsonFileRepository.LoadFromFileSync<List<TodoItem>>(TodosFilePath);
-        var todos = result.Value ?? [];
+    public static TodoLoadResult LoadTodos() => LoadTodosCore(dataDirectory: null);
 
-        return [.. todos.Where(t => !string.IsNullOrWhiteSpace(t.Title))];
+    internal static TodoLoadResult LoadTodosFromDirectory(string dataDirectory) =>
+        LoadTodosCore(dataDirectory);
+
+    private static TodoLoadResult LoadTodosCore(string? dataDirectory)
+    {
+        var result = Load<List<TodoItem>>(TodosFilePath, dataDirectory);
+        var todos = result.Value ?? [];
+        var usableTodos = todos
+            .Where(t => !string.IsNullOrWhiteSpace(t.Title))
+            .ToList();
+
+        return new TodoLoadResult(
+            result.Status == LoadStatus.Failed ? [] : usableTodos,
+            result.Status,
+            result.Message);
     }
 
     /// <summary>
@@ -119,17 +179,41 @@ public static class FilePersistenceService
     /// 現役の一覧（todos.json）から切り離すことで、完了済みが延々と溜まって
     /// 読み書きが重くなるのを防ぐ。見積もりの実績集計にはこちらも使う。
     /// </summary>
-    public static void SaveTodoArchive(IEnumerable<TodoItem> todos) =>
-        JsonFileRepository.SaveToFileSync(TodoArchiveFilePath, todos);
+    public static bool SaveTodoArchive(IEnumerable<TodoItem> todos) =>
+        Save(TodoArchiveFilePath, todos, dataDirectory: null);
+
+    internal static bool SaveTodoArchiveToDirectory(
+        string dataDirectory,
+        IEnumerable<TodoItem> todos) =>
+        Save(TodoArchiveFilePath, todos, dataDirectory);
 
     /// <summary>保管庫を読み込む。読めなかった場合は空で始める（集計の材料でしかないため）</summary>
-    public static List<TodoItem> LoadTodoArchive()
+    public static List<TodoItem> LoadTodoArchive() => LoadTodoArchiveCore(dataDirectory: null);
+
+    internal static List<TodoItem> LoadTodoArchiveFromDirectory(string dataDirectory) =>
+        LoadTodoArchiveCore(dataDirectory);
+
+    private static List<TodoItem> LoadTodoArchiveCore(string? dataDirectory)
     {
-        var result = JsonFileRepository.LoadFromFileSync<List<TodoItem>>(TodoArchiveFilePath);
+        var result = Load<List<TodoItem>>(TodoArchiveFilePath, dataDirectory);
         var todos = result.Value ?? [];
 
         return [.. todos.Where(t => !string.IsNullOrWhiteSpace(t.Title))];
     }
+
+    /// <summary>本番保存先とテスト用保存先を同じ保存契約へ集約する。</summary>
+    private static bool Save<T>(string fileName, T data, string? dataDirectory)
+    {
+        return dataDirectory == null
+            ? JsonFileRepository.SaveToFileSync(fileName, data)
+            : JsonFileRepository.SaveToDirectorySync(dataDirectory, fileName, data);
+    }
+
+    /// <summary>本番保存先とテスト用保存先を同じ復旧契約へ集約する。</summary>
+    private static LoadResult<T> Load<T>(string fileName, string? dataDirectory) =>
+        dataDirectory == null
+            ? JsonFileRepository.LoadFromFileSync<T>(fileName)
+            : JsonFileRepository.LoadFromDirectorySync<T>(dataDirectory, fileName);
 
     private static ObservableCollection<ScheduleItem> LoadSampleData()
     {

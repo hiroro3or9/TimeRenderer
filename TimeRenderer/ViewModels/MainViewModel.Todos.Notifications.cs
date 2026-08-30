@@ -146,7 +146,7 @@ public partial class MainViewModel
     {
         PendingTodoReminders.Remove(todo);
         todo.RemindOffsetDays = null;
-        todo.RemindAt = DateTime.Now.Add(delay);
+        todo.RemindAt = LocalNow.Add(delay);
     }
 
     /// <summary>翌日の既定の通知時刻まで先送りする（「今日はもう見ない」ためのもの）</summary>
@@ -154,7 +154,7 @@ public partial class MainViewModel
     {
         PendingTodoReminders.Remove(todo);
         todo.RemindOffsetDays = null;
-        todo.RemindAt = DateTime.Today.AddDays(1).AddHours(TodoDefaultRemindHour);
+        todo.RemindAt = LocalToday.AddDays(1).AddHours(TodoDefaultRemindHour);
     }
 
     // ===== 見逃した通知 =====
@@ -184,12 +184,7 @@ public partial class MainViewModel
             if (!_missedTodoReminders.Contains(todo)) _missedTodoReminders.Add(todo);
         }
 
-        if (_missedTodoReminders.Count == 0) return;
-
-        var head = _missedTodoReminders[0].Title;
-        TodoMissedNotice = _missedTodoReminders.Count == 1
-            ? $"通知時刻を過ぎた ToDo があります：{head}"
-            : $"通知時刻を過ぎた ToDo が {_missedTodoReminders.Count} 件あります（{head} ほか）";
+        TodoMissedNotice = TodoReminderHelper.BuildMissedNotice(_missedTodoReminders);
     }
 
     private void ClearMissedTodoReminders()
@@ -259,22 +254,14 @@ public partial class MainViewModel
     /// <summary>まとめ通知を最後に出した日。1日に何度も出さないため設定へ保存する</summary>
     private DateTime _lastTodoDigestDate;
 
-    private const string TodoDigestDateFormat = "yyyy-MM-dd";
-
     /// <summary>設定へ書き出す形（未通知なら null）。カルチャに依存しない形式で持つ</summary>
     private string? FormatTodoDigestDate() =>
-        _lastTodoDigestDate == default
-            ? null
-            : _lastTodoDigestDate.ToString(TodoDigestDateFormat, System.Globalization.CultureInfo.InvariantCulture);
+        TodoDigestHelper.FormatLastRunDate(_lastTodoDigestDate);
 
     /// <summary>設定から読み戻す。壊れていれば「未通知」として扱う</summary>
     private void ParseTodoDigestDate(string? value)
     {
-        _lastTodoDigestDate = DateTime.TryParseExact(
-            value, TodoDigestDateFormat, System.Globalization.CultureInfo.InvariantCulture,
-            System.Globalization.DateTimeStyles.None, out var parsed)
-            ? parsed
-            : default;
+        _lastTodoDigestDate = TodoDigestHelper.ParseLastRunDate(value);
     }
 
     private string? _todoDigestNotice;
@@ -300,22 +287,17 @@ public partial class MainViewModel
     /// </summary>
     private void CheckTodoDigest(DateTime now)
     {
-        if (!IsTodoDigestEnabled) return;
-        if (_lastTodoDigestDate.Date == now.Date) return;
-        if (now.Hour < TodoDigestHour) return;
+        if (!TodoDigestHelper.ShouldRun(
+                IsTodoDigestEnabled, _lastTodoDigestDate, now, TodoDigestHour)) return;
 
         _lastTodoDigestDate = now.Date;
         SaveSettings();
 
-        var dueToday = Todos.Count(t => t.IsDueToday);
-        var overdue = TodoOverdueCount;
-        if (dueToday == 0 && overdue == 0) return;
-
-        var parts = new List<string>();
-        if (dueToday > 0) parts.Add($"今日が期限の ToDo が {dueToday} 件");
-        if (overdue > 0) parts.Add($"期限を過ぎた ToDo が {overdue} 件");
-
-        TodoDigestNotice = string.Join("、", parts) + " あります。";
+        var dueToday = Todos.Count(t =>
+            !t.IsCompleted && t.DueDate?.Date == now.Date);
+        var overdue = Todos.Count(t =>
+            !t.IsCompleted && t.DueDate is { } due && due.Date < now.Date);
+        TodoDigestNotice = TodoDigestHelper.BuildNotice(dueToday, overdue);
     }
 
     private DateTime _lastTodoDueRefreshDate = DateTime.MinValue;
@@ -325,7 +307,7 @@ public partial class MainViewModel
     /// 期限に依存する表示（超過・今日・残り日数）は、起動しっぱなしで日をまたぐと
     /// 昨日の「今日」がそのまま残ってしまうため作り直す。
     /// </summary>
-    private void UpdateTodoTick(DateTime now)
+    internal void UpdateTodoTick(DateTime now)
     {
         CheckTodoReminders(now);
         CheckTodoDigest(now);

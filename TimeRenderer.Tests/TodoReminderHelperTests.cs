@@ -68,6 +68,36 @@ public class TodoReminderHelperTests
         await Assert.That(snoozed).IsNotEqualTo(first);
     }
 
+    [Test]
+    public async Task 見逃し通知が一件ならタイトルをそのまま表示する()
+    {
+        var notice = TodoReminderHelper.BuildMissedNotice(
+            [new TodoItem { Title = "レビュー" }]);
+
+        await Assert.That(notice).IsEqualTo("通知時刻を過ぎた ToDo があります：レビュー");
+    }
+
+    [Test]
+    public async Task 見逃し通知が複数なら件数と先頭タイトルへ集約する()
+    {
+        var notice = TodoReminderHelper.BuildMissedNotice(
+            [
+                new TodoItem { Title = "レビュー" },
+                new TodoItem { Title = "実装" },
+            ]);
+
+        await Assert.That(notice).IsEqualTo(
+            "通知時刻を過ぎた ToDo が 2 件あります（レビュー ほか）");
+    }
+
+    [Test]
+    public async Task 見逃し通知が無ければ本文を作らない()
+    {
+        var notice = TodoReminderHelper.BuildMissedNotice([]);
+
+        await Assert.That(notice).IsNull();
+    }
+
     private static TodoReminderState Classify(TodoItem todo) =>
         TodoReminderHelper.Classify(todo, Now, Grace, MissedWindow);
 }

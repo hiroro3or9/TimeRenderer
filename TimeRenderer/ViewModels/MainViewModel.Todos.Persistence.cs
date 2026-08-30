@@ -16,6 +16,16 @@ public partial class MainViewModel
     private DispatcherTimer? _todoSaveTimer;
     private bool _hasPendingTodoSave;
     private bool _isLoadingTodos;
+    private static readonly TimeSpan TodoSaveDebounceInterval = TimeSpan.FromMilliseconds(700);
+    private static readonly TimeSpan TodoSaveRetryInterval = TimeSpan.FromSeconds(30);
+
+    private bool _isTodoLoadFailed;
+    /// <summary>ToDoを読み込めず、破損データを守るため保存を停止しているか。</summary>
+    public bool IsTodoLoadFailed
+    {
+        get => _isTodoLoadFailed;
+        private set => SetProperty(ref _isTodoLoadFailed, value);
+    }
 
     // 完了済みを現役の一覧に残し続けると todos.json が延々と膨らむ。
     // 保持日数を過ぎたものは別ファイルへ移し、見積もりの実績集計にだけ使う。
@@ -53,8 +63,10 @@ public partial class MainViewModel
     /// </summary>
     private void ArchiveOldTodos()
     {
+        if (IsTodoLoadFailed) return;
+
         var targets = TodoArchiveHelper.GetArchiveTargets(
-            Todos, DateTime.Today, TodoArchiveRetentionDays);
+            Todos, LocalToday, TodoArchiveRetentionDays);
 
         if (targets.Count == 0) return;
 
@@ -79,33 +91,45 @@ public partial class MainViewModel
 
     private void ScheduleTodoSave()
     {
-        if (!_isInitialized || _isLoadingTodos) return;
+        if (!_isInitialized || _isLoadingTodos || IsTodoLoadFailed) return;
 
         _hasPendingTodoSave = true;
+        var timer = EnsureTodoSaveTimer();
 
-        if (_todoSaveTimer == null)
-        {
-            _todoSaveTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(700) };
-            _todoSaveTimer.Tick += (_, _) => FlushTodoSave();
-        }
+        timer.Stop();
+        timer.Interval = TodoSaveDebounceInterval;
+        timer.Start();
+    }
 
-        _todoSaveTimer.Stop();
-        _todoSaveTimer.Start();
+    private DispatcherTimer EnsureTodoSaveTimer()
+    {
+        if (_todoSaveTimer != null) return _todoSaveTimer;
+
+        _todoSaveTimer = new DispatcherTimer { Interval = TodoSaveDebounceInterval };
+        _todoSaveTimer.Tick += (_, _) => FlushTodoSave();
+        return _todoSaveTimer;
     }
 
     /// <summary>保留中の ToDo 保存を即時実行する（アプリ終了時などに呼ぶ）</summary>
     public void FlushTodoSave()
     {
         _todoSaveTimer?.Stop();
-        if (!_hasPendingTodoSave) return;
+        if (!_hasPendingTodoSave || IsTodoLoadFailed) return;
 
-        _hasPendingTodoSave = false;
-        Services.FilePersistenceService.SaveTodos(Todos);
+        if (Services.FilePersistenceService.SaveTodos(Todos))
+        {
+            _hasPendingTodoSave = false;
+            return;
+        }
+
+        var timer = EnsureTodoSaveTimer();
+        timer.Interval = TodoSaveRetryInterval;
+        timer.Start();
     }
 
     private void LoadTodos()
     {
-        var loaded = Services.FilePersistenceService.LoadTodos();
+        var result = Services.FilePersistenceService.LoadTodos();
 
         _isLoadingTodos = true;
         try
@@ -119,7 +143,7 @@ public partial class MainViewModel
             _remindedTodoKeys.Clear();
             ClearMissedTodoReminders();
             Todos.Clear();
-            foreach (var todo in loaded)
+            foreach (var todo in result.Items)
             {
                 // 変更の購読は OnTodosChanged がまとめて行う
                 Todos.Add(todo);
@@ -130,15 +154,49 @@ public partial class MainViewModel
             _isLoadingTodos = false;
         }
 
+        ApplyTodoLoadStatus(result);
+
         _archivedTodos = Services.FilePersistenceService.LoadTodoArchive();
         ArchiveOldTodos();
         InvalidateEstimateStats();
 
-        _lastTodoDueRefreshDate = DateTime.Today;
+        _lastTodoDueRefreshDate = LocalToday;
         RebuildVisibleTodos();
         NotifyTodoCountsChanged();
 
         // 起動直後は他に再計算のきっかけが無いため、ここで終日行のチップを作る
         RecalculateLayout();
+    }
+
+    private void ApplyTodoLoadStatus(Services.FilePersistenceService.TodoLoadResult result)
+    {
+        switch (result.Status)
+        {
+            case Services.LoadStatus.RecoveredFromBackup:
+                IsTodoLoadFailed = false;
+                AppendDataNotice(result.Message);
+                break;
+
+            case Services.LoadStatus.Failed:
+                IsTodoLoadFailed = true;
+                AppendDataNotice(
+                    (result.Message ?? "ToDoデータを読み込めませんでした。") +
+                    "\nデータを保護するため、このセッションではToDoの保存を停止しています。" +
+                    "\nデータフォルダのバックアップ（.bak）を確認してください。");
+                break;
+
+            default:
+                IsTodoLoadFailed = false;
+                break;
+        }
+    }
+
+    private void AppendDataNotice(string? message)
+    {
+        if (string.IsNullOrWhiteSpace(message)) return;
+
+        DataNotice = string.IsNullOrWhiteSpace(DataNotice)
+            ? message
+            : DataNotice + "\n\n" + message;
     }
 }
