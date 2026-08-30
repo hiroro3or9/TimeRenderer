@@ -45,7 +45,7 @@ public class CategoryInfo : ObservableObject
 
     private bool _isFilterEnabled = true;
     /// <summary>
-    /// 色フィルタでこのカテゴリを表示するか（セッション内のみの状態・非永続）。
+    /// 表示フィルタでこのカテゴリを表示するか（セッション内のみの状態・非永続）。
     /// </summary>
     [JsonIgnore]
     public bool IsFilterEnabled

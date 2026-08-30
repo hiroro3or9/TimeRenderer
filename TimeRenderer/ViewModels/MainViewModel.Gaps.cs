@@ -93,7 +93,7 @@ public partial class MainViewModel
     ///
     /// 仮想アイテム（まだ消化していない定期予定）は覆いに含めない。
     /// 予定であって実績ではないうえ、「予定はあるのに記録が無い」こそ拾いたい対象のため。
-    /// 色フィルタで隠れているアイテムは含める（隠れていても記録は記録）。
+    /// 表示フィルタで隠れているアイテムは含める（隠れていても記録は記録）。
     /// </summary>
     private List<(DateTime Start, DateTime End)> CollectCoveredRanges(DateTime rangeStart, DateTime rangeEnd)
     {

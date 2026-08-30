@@ -129,7 +129,7 @@ public partial class MainViewModel
 
         var targets = Todos
             .Where(t => !t.IsCompleted && t.DueDate is { } due && due >= rangeStart && due < rangeEnd)
-            .Where(IsTodoVisible) // 色フィルタはビュー上の表示にだけ効かせる（パネルは全件のまま）
+            .Where(IsTodoVisible) // カテゴリフィルタはビュー上の表示にだけ効かせる（パネルは全件のまま）
             .GroupBy(t => t.DueDate!.Value.Date);
 
         var chips = new List<TodoChip>();

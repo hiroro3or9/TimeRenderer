@@ -176,6 +176,56 @@ public class MainViewModelIntegrationTests
     }
 
     [Test]
+    public async Task 表示フィルターはカテゴリとプロジェクトコードをAND条件で予定へ適用する()
+    {
+        var (vm, _) = CreateViewModel();
+        var category = vm.Categories[0];
+        var projectCode = vm.ProjectCodes[0];
+        var item = new ScheduleItem
+        {
+            CategoryId = category.Id,
+            ColorCode = category.ColorCode,
+            ProjectCodeId = projectCode.Id,
+        };
+        var todo = new TodoItem
+        {
+            CategoryId = category.Id,
+            ColorCode = category.ColorCode,
+        };
+
+        await Assert.That(vm.IsItemVisible(item)).IsTrue();
+        await Assert.That(vm.IsTodoVisible(todo)).IsTrue();
+
+        projectCode.IsFilterEnabled = false;
+
+        await Assert.That(vm.IsDisplayFilterActive).IsTrue();
+        await Assert.That(vm.IsItemVisible(item)).IsFalse();
+        await Assert.That(vm.IsTodoVisible(todo)).IsTrue();
+
+        category.IsFilterEnabled = false;
+        await Assert.That(vm.IsTodoVisible(todo)).IsFalse();
+
+        vm.ResetDisplayFilterCommand.Execute(null);
+
+        await Assert.That(vm.IsDisplayFilterActive).IsFalse();
+        await Assert.That(vm.IsItemVisible(item)).IsTrue();
+        await Assert.That(vm.IsTodoVisible(todo)).IsTrue();
+    }
+
+    [Test]
+    public async Task 未設定または不明なプロジェクトコードのデータはフィルター中も表示する()
+    {
+        var (vm, _) = CreateViewModel();
+        vm.ProjectCodes[0].IsFilterEnabled = false;
+
+        var unassigned = new ScheduleItem { ProjectCodeId = null };
+        var unknown = new ScheduleItem { ProjectCodeId = "missing-project" };
+
+        await Assert.That(vm.IsItemVisible(unassigned)).IsTrue();
+        await Assert.That(vm.IsItemVisible(unknown)).IsTrue();
+    }
+
+    [Test]
     public async Task 出勤と退勤は注入した時刻で同じ勤務記録を更新する()
     {
         var (vm, time) = CreateViewModel();
