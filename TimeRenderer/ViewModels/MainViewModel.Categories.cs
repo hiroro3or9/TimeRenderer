@@ -67,7 +67,7 @@ public partial class MainViewModel
             Categories.Add(category);
             SaveSettings();
             UpdateStats();
-            OnPropertyChanged(nameof(IsColorFilterActive));
+            OnPropertyChanged(nameof(IsDisplayFilterActive));
         });
 
         DeleteCategoryCommand = new RelayCommand(
@@ -81,7 +81,7 @@ public partial class MainViewModel
                         category.PropertyChanged -= OnCategoryPropertyChanged;
                         Categories.Remove(category);
                         SaveSettings();
-                        OnPropertyChanged(nameof(IsColorFilterActive));
+                        OnPropertyChanged(nameof(IsDisplayFilterActive));
                         RecalculateLayout(); // 内部で UpdateStats も実行される
                     }
                 }
@@ -112,7 +112,7 @@ public partial class MainViewModel
         // フィルタ表示状態はセッション内のみの状態のため保存せず、表示だけ更新する
         if (e.PropertyName == nameof(CategoryInfo.IsFilterEnabled))
         {
-            OnPropertyChanged(nameof(IsColorFilterActive));
+            OnPropertyChanged(nameof(IsDisplayFilterActive));
             RecalculateLayout();
             return;
         }
@@ -202,17 +202,19 @@ public partial class MainViewModel
     }
 
     /// <summary>
-    /// 色フィルタでこのアイテムを表示するか判定する。
-    /// どのカテゴリにも紐づかないアイテム（未分類）は常に表示する。
+    /// カテゴリとプロジェクトコードの表示フィルタで、このアイテムを表示するか判定する。
+    /// どちらも解決できない未分類・未設定のデータは常に表示する。
     /// </summary>
     public bool IsItemVisible(ScheduleItem item)
     {
-        var category = ResolveCategory(item);
-        return category == null || category.IsFilterEnabled;
+        if (ResolveCategory(item) is { IsFilterEnabled: false }) return false;
+
+        var projectCode = ResolveProjectCode(item.ProjectCodeId);
+        return projectCode == null || projectCode.IsFilterEnabled;
     }
 
     /// <summary>
-    /// 色フィルタでこの ToDo をビューに表示するか。
+    /// カテゴリの表示フィルタで、この ToDo をビューに表示するか。
     ///
     /// 効くのは日/週ビューのチップと月ビューのセルまでで、ToDo パネルには効かせない。
     /// パネルは「やることの全体像」なので、フィルタを付けたことを忘れると

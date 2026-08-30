@@ -71,7 +71,7 @@
                     <TextBlock Text="{Binding DateDisplay}" VerticalAlignment="Center" FontSize="17" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="4,0,0,0"/>
                 </StackPanel>
 
-                <!-- 検索 + 色フィルタ -->
+                <!-- 検索 + 表示フィルタ -->
                 <StackPanel x:Name="ToolbarSearchGroup" Grid.Row="0" Grid.Column="1"
                             Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center"
                             Margin="12,0,0,0" SizeChanged="ToolbarLayout_SizeChanged">
@@ -82,16 +82,16 @@
                                   PreviewMouseLeftButtonDown="SearchToggle_PreviewMouseLeftButtonDown"
                                   VerticalAlignment="Center" Content="&#xE721;"/>
 
-                    <!-- 色フィルタ トグル -->
+                    <!-- 表示フィルタ トグル -->
                     <ToggleButton x:Name="FilterToggle" Margin="2,0,0,0" VerticalAlignment="Center"
                                   PreviewMouseLeftButtonDown="FilterToggle_PreviewMouseLeftButtonDown"
-                                  Style="{StaticResource IconToggleButtonStyle}" ToolTip="カテゴリフィルタ">
+                                  Style="{StaticResource IconToggleButtonStyle}" ToolTip="表示フィルタ">
                         <Grid Width="32" Height="32">
                             <TextBlock Text="&#xE71C;" FontFamily="Segoe MDL2 Assets" FontSize="15"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             <Ellipse Width="7" Height="7" Fill="{DynamicResource PrimaryBrush}"
                                      HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,4,0"
-                                     Visibility="{Binding IsColorFilterActive, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                     Visibility="{Binding IsDisplayFilterActive, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                         </Grid>
                     </ToggleButton>
 
@@ -218,12 +218,12 @@
                         </Border>
                     </Popup>
 
-                    <!-- 色フィルタ ポップアップ（トグル右端に揃えて表示） -->
+                    <!-- 表示フィルタ ポップアップ（トグル右端に揃えて表示） -->
                     <Popup x:Name="FilterPopup" PlacementTarget="{Binding ElementName=FilterToggle}" Placement="Custom"
                            IsOpen="{Binding IsChecked, ElementName=FilterToggle, Mode=TwoWay}" StaysOpen="False" AllowsTransparency="True"
                            PopupAnimation="Fade"
                            Closed="FilterPopup_Closed">
-                        <Border Width="240" MaxHeight="400" Background="{DynamicResource SurfaceBrush}"
+                        <Border Width="280" MaxHeight="440" Background="{DynamicResource SurfaceBrush}"
                                 BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8">
                             <Border.Effect>
                                 <DropShadowEffect Color="Black" BlurRadius="12" ShadowDepth="2" Opacity="0.15"/>
@@ -235,24 +235,45 @@
                                     <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
                                 <Border Grid.Row="0" Padding="12,8" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
-                                    <TextBlock Text="表示するカテゴリ" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="表示フィルタ" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}"/>
                                 </Border>
-                                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" MaxHeight="290">
-                                    <ItemsControl ItemsSource="{Binding Categories}" Margin="6">
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
-                                                <CheckBox IsChecked="{Binding IsFilterEnabled}" Margin="6,4" Cursor="Hand" VerticalContentAlignment="Center">
-                                                    <StackPanel Orientation="Horizontal">
-                                                        <Border Width="14" Height="14" CornerRadius="3" Background="{Binding Brush}"
-                                                                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Margin="2,0,8,0" VerticalAlignment="Center"/>
-                                                        <TextBlock Text="{Binding Name}" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
-                                                    </StackPanel>
-                                                </CheckBox>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
+                                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" MaxHeight="330">
+                                    <StackPanel Margin="6">
+                                        <TextBlock Text="カテゴリ" FontSize="11" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}" Margin="6,4,6,2"/>
+                                        <ItemsControl ItemsSource="{Binding Categories}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <CheckBox IsChecked="{Binding IsFilterEnabled}" Margin="6,4" Cursor="Hand" VerticalContentAlignment="Center">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <Border Width="14" Height="14" CornerRadius="3" Background="{Binding Brush}"
+                                                                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Margin="2,0,8,0" VerticalAlignment="Center"/>
+                                                            <TextBlock Text="{Binding Name}" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                                        </StackPanel>
+                                                    </CheckBox>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+
+                                        <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="6,7"/>
+
+                                        <TextBlock Text="プロジェクトコード" FontSize="11" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}" Margin="6,2,6,2"/>
+                                        <ItemsControl ItemsSource="{Binding ProjectCodes}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <CheckBox IsChecked="{Binding IsFilterEnabled}" Margin="6,4" Cursor="Hand"
+                                                              VerticalContentAlignment="Center" ToolTip="{Binding DisplayName}">
+                                                        <TextBlock Text="{Binding DisplayName}" FontSize="13"
+                                                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                                                   TextTrimming="CharacterEllipsis"/>
+                                                    </CheckBox>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
                                 </ScrollViewer>
-                                <Button Grid.Row="2" Content="すべて表示" Command="{Binding ResetColorFilterCommand}"
+                                <Button Grid.Row="2" Content="すべて表示" Command="{Binding ResetDisplayFilterCommand}"
                                         Style="{StaticResource BaseButtonStyle}" Margin="10" HorizontalAlignment="Stretch"/>
                             </Grid>
                         </Border>

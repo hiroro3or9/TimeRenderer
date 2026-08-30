@@ -53,6 +53,15 @@ public sealed class ProjectCodeInfo : ObservableObject
         }
     }
 
+    private bool _isFilterEnabled = true;
+    /// <summary>表示フィルタでこのプロジェクトコードを表示するか（セッション内のみの状態・非永続）。</summary>
+    [JsonIgnore]
+    public bool IsFilterEnabled
+    {
+        get => _isFilterEnabled;
+        set => SetProperty(ref _isFilterEnabled, value);
+    }
+
     [JsonIgnore]
     public string DisplayName
     {

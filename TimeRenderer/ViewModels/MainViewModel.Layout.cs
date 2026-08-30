@@ -341,7 +341,7 @@ public partial class MainViewModel
 
         var (rangeStart, rangeEnd) = range.Value;
 
-        // 色フィルタで非表示のカテゴリを除き、さらに表示範囲に重なるものだけを描画対象にする
+        // 表示フィルタを通過し、さらに表示範囲に重なるものだけを描画対象にする
         var visibleItems = new List<ScheduleItem>();
         foreach (var item in ScheduleItems)
         {

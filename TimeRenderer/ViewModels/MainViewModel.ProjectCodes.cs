@@ -264,6 +264,7 @@ public partial class MainViewModel
         ProjectCodes.CollectionChanged += (_, _) =>
         {
             NotifyProjectCodeChoicesChanged();
+            OnPropertyChanged(nameof(IsDisplayFilterActive));
             System.Windows.Input.CommandManager.InvalidateRequerySuggested();
         };
 
@@ -381,6 +382,16 @@ public partial class MainViewModel
     private void OnProjectCodePropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(ProjectCodeInfo.DisplayName)) return;
+
+        // 表示フィルタはセッション内だけの状態なので、設定へ保存しない。
+        if (e.PropertyName == nameof(ProjectCodeInfo.IsFilterEnabled))
+        {
+            if (_isLoadingData) return;
+
+            OnPropertyChanged(nameof(IsDisplayFilterActive));
+            RecalculateLayout();
+            return;
+        }
 
         if (e.PropertyName == nameof(ProjectCodeInfo.IsActive))
         {

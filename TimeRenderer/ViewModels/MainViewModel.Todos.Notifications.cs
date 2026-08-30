@@ -194,7 +194,7 @@ public partial class MainViewModel
     }
 
     /// <summary>
-    /// ビューに出す ToDo（未完了・期限あり・色フィルタを通過）を期限日ごとにまとめる。
+    /// ビューに出す ToDo（未完了・期限あり・カテゴリフィルタを通過）を期限日ごとにまとめる。
     /// 月・スプリントビューのセルが日付で引くために使う。
     /// </summary>
     private Dictionary<DateTime, List<TodoItem>> GetVisibleTodosByDueDate()

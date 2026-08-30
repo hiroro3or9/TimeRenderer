@@ -11,7 +11,7 @@ using TimeRenderer.Helpers;
 namespace TimeRenderer.ViewModels;
 
 /// <summary>
-/// 検索（タイトル/内容の部分一致→該当日にジャンプ）と色フィルタ（カテゴリ絞り込み）。
+/// 検索（タイトル/内容の部分一致→該当日にジャンプ）と表示フィルタ。
 /// </summary>
 public partial class MainViewModel
 {
@@ -110,7 +110,7 @@ public partial class MainViewModel
 
     public ICommand ClearSearchCommand { get; private set; } = null!;
     public ICommand JumpToSearchResultCommand { get; private set; } = null!;
-    public ICommand ResetColorFilterCommand { get; private set; } = null!;
+    public ICommand ResetDisplayFilterCommand { get; private set; } = null!;
 
     private void InitializeSearchCommands()
     {
@@ -142,11 +142,16 @@ public partial class MainViewModel
             }
         });
 
-        ResetColorFilterCommand = new RelayCommand(_ =>
+        ResetDisplayFilterCommand = new RelayCommand(_ =>
         {
             foreach (var category in Categories)
             {
                 category.IsFilterEnabled = true;
+            }
+
+            foreach (var projectCode in ProjectCodes)
+            {
+                projectCode.IsFilterEnabled = true;
             }
         });
     }
@@ -277,8 +282,10 @@ public partial class MainViewModel
         CurrentDate = targetDate;
     }
 
-    // ===== 色フィルタ =====
+    // ===== 表示フィルタ =====
 
-    /// <summary>いずれかのカテゴリが非表示になっているか（フィルタ適用中か）。</summary>
-    public bool IsColorFilterActive => Categories.Any(c => !c.IsFilterEnabled);
+    /// <summary>いずれかのカテゴリまたはプロジェクトコードが非表示になっているか。</summary>
+    public bool IsDisplayFilterActive =>
+        Categories.Any(c => !c.IsFilterEnabled) ||
+        ProjectCodes.Any(p => !p.IsFilterEnabled);
 }
