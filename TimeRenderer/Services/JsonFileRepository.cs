@@ -66,18 +66,28 @@ public static class JsonFileRepository
     /// <summary>保存失敗を通知済みのファイル（セッション中1回だけ通知する）</summary>
     private static readonly HashSet<string> NotifiedFailures = [];
 
-    private static string GetFullPath(string fileName) => Path.Combine(DataDirectory, fileName);
-    private static string GetBackupPath(string fileName) => GetFullPath(fileName) + ".bak";
-    private static string GetTempPath(string fileName) => GetFullPath(fileName) + ".tmp";
-    private static string GetDailySnapshotPath(string fileName, DateTime date) =>
-        GetFullPath(fileName) + "." + date.ToString(DailySnapshotDateFormat) + ".bak";
+    private static string GetFullPath(string dataDirectory, string fileName) =>
+        Path.Combine(dataDirectory, fileName);
+
+    private static string GetBackupPath(string dataDirectory, string fileName) =>
+        GetFullPath(dataDirectory, fileName) + ".bak";
+
+    private static string GetTempPath(string dataDirectory, string fileName) =>
+        GetFullPath(dataDirectory, fileName) + ".tmp";
+
+    private static string GetDailySnapshotPath(
+        string dataDirectory,
+        string fileName,
+        DateTime date) =>
+        GetFullPath(dataDirectory, fileName) + "." +
+        date.ToString(DailySnapshotDateFormat) + ".bak";
 
     /// <summary>旧バージョン（exe と同じフォルダ）のデータを AppData へ移行する</summary>
     private static void MigrateLegacyFileIfNeeded(string fileName)
     {
         try
         {
-            var newPath = GetFullPath(fileName);
+            var newPath = GetFullPath(DataDirectory, fileName);
             if (File.Exists(newPath)) return;
 
             var legacyPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, fileName);
@@ -93,16 +103,24 @@ public static class JsonFileRepository
         }
     }
 
-    public static void SaveToFileSync<T>(string fileName, T data)
+    public static bool SaveToFileSync<T>(string fileName, T data) =>
+        SaveToDirectorySync(DataDirectory, fileName, data);
+
+    /// <summary>実データを触らず保存契約を検証するため、保存先を明示できる内部経路。</summary>
+    internal static bool SaveToDirectorySync<T>(
+        string dataDirectory,
+        string fileName,
+        T data,
+        bool notifyOnFailure = true)
     {
         try
         {
-            Directory.CreateDirectory(DataDirectory);
+            Directory.CreateDirectory(dataDirectory);
 
             var jsonString = JsonSerializer.Serialize(data, JsonOptions);
 
-            var target = GetFullPath(fileName);
-            var temp = GetTempPath(fileName);
+            var target = GetFullPath(dataDirectory, fileName);
+            var temp = GetTempPath(dataDirectory, fileName);
 
             // まず一時ファイルへ完全に書き出す。
             // ここで失敗しても本体は無傷のまま残る
@@ -110,20 +128,26 @@ public static class JsonFileRepository
 
             if (File.Exists(target))
             {
-                CreateDailySnapshotIfNeeded(fileName, target);
-                ReplaceFile(temp, target, GetBackupPath(fileName));
+                CreateDailySnapshotIfNeeded(dataDirectory, fileName, target);
+                ReplaceFile(temp, target, GetBackupPath(dataDirectory, fileName));
             }
             else
             {
                 File.Move(temp, target);
             }
+
+            return true;
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"Save failed for {fileName}: {ex.Message}");
-            NotifyOnce(fileName,
-                $"データの保存に失敗しました: {fileName}\n{ex.Message}",
-                "TimeRenderer - 保存エラー");
+            if (notifyOnFailure)
+            {
+                NotifyOnce(fileName,
+                    $"データの保存に失敗しました: {fileName}\n{ex.Message}",
+                    "TimeRenderer - 保存エラー");
+            }
+            return false;
         }
     }
 
@@ -153,15 +177,18 @@ public static class JsonFileRepository
     /// 直前世代（.bak）は保存のたびに上書きされるため、
     /// 「昨日の状態に戻したい」はこちらで救う。
     /// </summary>
-    private static void CreateDailySnapshotIfNeeded(string fileName, string target)
+    private static void CreateDailySnapshotIfNeeded(
+        string dataDirectory,
+        string fileName,
+        string target)
     {
         try
         {
-            var snapshot = GetDailySnapshotPath(fileName, DateTime.Today);
+            var snapshot = GetDailySnapshotPath(dataDirectory, fileName, DateTime.Today);
             if (File.Exists(snapshot)) return;
 
             File.Copy(target, snapshot);
-            CleanupOldSnapshots(fileName);
+            CleanupOldSnapshots(dataDirectory, fileName);
         }
         catch (Exception ex)
         {
@@ -170,9 +197,9 @@ public static class JsonFileRepository
         }
     }
 
-    private static void CleanupOldSnapshots(string fileName)
+    private static void CleanupOldSnapshots(string dataDirectory, string fileName)
     {
-        var old = Directory.GetFiles(DataDirectory, fileName + ".*.bak")
+        var old = Directory.GetFiles(dataDirectory, fileName + ".*.bak")
             .Where(p => TryParseSnapshotDate(fileName, p, out _))
             .OrderByDescending(p => p)   // 日付形式が yyyy-MM-dd なので文字列順＝日付順
             .Skip(DailySnapshotKeepCount)
@@ -214,12 +241,22 @@ public static class JsonFileRepository
     public static LoadResult<T> LoadFromFileSync<T>(string fileName)
     {
         MigrateLegacyFileIfNeeded(fileName);
+        return LoadFromDirectorySync<T>(DataDirectory, fileName);
+    }
 
-        var target = GetFullPath(fileName);
+    /// <summary>実データを触らず復旧契約を検証するため、読込先を明示できる内部経路。</summary>
+    internal static LoadResult<T> LoadFromDirectorySync<T>(
+        string dataDirectory,
+        string fileName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(dataDirectory);
+        ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
+
+        var target = GetFullPath(dataDirectory, fileName);
 
         // 本体も控えも一切ない場合だけ「初回起動」とみなす。
         // 日次スナップショットが残っているなら、そこから復元できる可能性がある
-        if (!File.Exists(target) && !EnumerateBackups(fileName).Any())
+        if (!File.Exists(target) && !EnumerateBackups(dataDirectory, fileName).Any())
         {
             return new LoadResult<T> { Status = LoadStatus.NotFound };
         }
@@ -238,7 +275,7 @@ public static class JsonFileRepository
         var firstError = error;
 
         // 2. 直前世代 → 3. 日次スナップショット（新しい順）
-        foreach (var candidate in EnumerateBackups(fileName))
+        foreach (var candidate in EnumerateBackups(dataDirectory, fileName))
         {
             if (!TryRead<T>(candidate, out var recovered, out _)) continue;
 
@@ -259,15 +296,17 @@ public static class JsonFileRepository
         };
     }
 
-    private static IEnumerable<string> EnumerateBackups(string fileName)
+    private static IEnumerable<string> EnumerateBackups(
+        string dataDirectory,
+        string fileName)
     {
-        var backup = GetBackupPath(fileName);
+        var backup = GetBackupPath(dataDirectory, fileName);
         if (File.Exists(backup)) yield return backup;
 
         string[] snapshots;
         try
         {
-            snapshots = [.. Directory.GetFiles(DataDirectory, fileName + ".*.bak")
+            snapshots = [.. Directory.GetFiles(dataDirectory, fileName + ".*.bak")
                 .Where(p => TryParseSnapshotDate(fileName, p, out _))
                 .OrderByDescending(p => p)];
         }

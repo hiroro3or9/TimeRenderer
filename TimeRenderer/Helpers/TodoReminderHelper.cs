@@ -32,6 +32,19 @@ public static class TodoReminderHelper
         ArgumentNullException.ThrowIfNull(todo);
         return $"{todo.Id}|{todo.RemindAt:O}";
     }
+
+    /// <summary>見逃した通知を1本へ集約した本文。対象が無ければnull。</summary>
+    public static string? BuildMissedNotice(
+        System.Collections.Generic.IReadOnlyList<TodoItem> todos)
+    {
+        ArgumentNullException.ThrowIfNull(todos);
+        if (todos.Count == 0) return null;
+
+        var head = todos[0].Title;
+        return todos.Count == 1
+            ? $"通知時刻を過ぎた ToDo があります：{head}"
+            : $"通知時刻を過ぎた ToDo が {todos.Count} 件あります（{head} ほか）";
+    }
 }
 
 public enum TodoReminderState

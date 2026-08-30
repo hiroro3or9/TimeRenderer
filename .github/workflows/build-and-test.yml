@@ -1,0 +1,39 @@
+name: Build and test
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore TimeRenderer.slnx
+
+      - name: Build
+        run: dotnet build TimeRenderer.slnx --configuration Release --no-restore
+
+      - name: Test
+        run: >-
+          dotnet run
+          --project TimeRenderer.Tests/TimeRenderer.Tests.csproj
+          --configuration Release
+          --no-build
+          --
+          --minimum-expected-tests 239
+          --zero-tests-policy strict
+          --github-reporter-style full

@@ -201,6 +201,8 @@ public partial class MainViewModel
 
     private DispatcherTimer? _dataSaveTimer;
     private bool _hasPendingDataSave;
+    private static readonly TimeSpan DataSaveDebounceInterval = TimeSpan.FromMilliseconds(700);
+    private static readonly TimeSpan DataSaveRetryInterval = TimeSpan.FromSeconds(30);
 
     /// <summary>
     /// 予定データの保存を予約する。
@@ -220,15 +222,20 @@ public partial class MainViewModel
         if (IsDataLoadFailed) return;
 
         _hasPendingDataSave = true;
+        var timer = EnsureDataSaveTimer();
 
-        if (_dataSaveTimer == null)
-        {
-            _dataSaveTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(700) };
-            _dataSaveTimer.Tick += (_, _) => FlushDataSave();
-        }
+        timer.Stop();
+        timer.Interval = DataSaveDebounceInterval;
+        timer.Start();
+    }
 
-        _dataSaveTimer.Stop();
-        _dataSaveTimer.Start();
+    private DispatcherTimer EnsureDataSaveTimer()
+    {
+        if (_dataSaveTimer != null) return _dataSaveTimer;
+
+        _dataSaveTimer = new DispatcherTimer { Interval = DataSaveDebounceInterval };
+        _dataSaveTimer.Tick += (_, _) => FlushDataSave();
+        return _dataSaveTimer;
     }
 
     /// <summary>保留中の予定データ保存を即時実行する（アプリ終了時などに呼ぶ）</summary>
@@ -237,9 +244,17 @@ public partial class MainViewModel
         _dataSaveTimer?.Stop();
         if (!_hasPendingDataSave) return;
 
-        _hasPendingDataSave = false;
         // 仮想アイテム（定期予定の表示用）は保存しない。毎回テンプレートから再生成される
-        Services.FilePersistenceService.SaveData(ScheduleItems.Where(i => !i.IsVirtual));
+        if (Services.FilePersistenceService.SaveData(ScheduleItems.Where(i => !i.IsVirtual)))
+        {
+            _hasPendingDataSave = false;
+            return;
+        }
+
+        // 一時的なディスク不足などは変更を保留したまま、過剰なI/Oを避けて再試行する。
+        var timer = EnsureDataSaveTimer();
+        timer.Interval = DataSaveRetryInterval;
+        timer.Start();
     }
 
     private bool _isDataLoadFailed;

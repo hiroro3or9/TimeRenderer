@@ -50,7 +50,7 @@ public partial class MainViewModel
 
         ClearRecordingMetadata();
         _recordingProjectCodeId = DefaultProjectCode?.Id;
-        RecordingTitle = $"作業ログ {DateTime.Now:HH:mm}";
+        RecordingTitle = $"作業ログ {LocalNow:HH:mm}";
         BeginRecording(useSelectedTimer: false);
     }
 
@@ -69,7 +69,7 @@ public partial class MainViewModel
     {
         ClearRecordingMetadata();
 
-        string defaultTitle = $"作業ログ {DateTime.Now:HH:mm}";
+        string defaultTitle = $"作業ログ {LocalNow:HH:mm}";
         var result = _dialogService.ShowRecordingStartDialog(
             defaultTitle,
             TimerOptions,
@@ -92,7 +92,7 @@ public partial class MainViewModel
     {
         ClearAwayState();
         IsRecording = true;
-        RecordingStartTime = DateTime.Now;
+        RecordingStartTime = LocalNow;
         RecordingDuration = TimeSpan.Zero;
 
         IsCountdownMode = useSelectedTimer && SelectedTimerOption.Minutes > 0;
@@ -110,7 +110,7 @@ public partial class MainViewModel
         {
             if (RecordingStartTime is { } startTime)
             {
-                var endTime = DateTime.Now;
+                var endTime = LocalNow;
                 var title = string.IsNullOrWhiteSpace(RecordingTitle)
                     ? $"作業ログ {startTime:HH:mm}"
                     : RecordingTitle;

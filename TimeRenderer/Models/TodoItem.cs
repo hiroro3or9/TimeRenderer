@@ -653,16 +653,45 @@ public class TodoItem : ObservableObject
     {
         if (HasRecurrenceDays) return FindNextWeekday(baseDate, notBefore);
 
-        var next = AddRecurrenceInterval(baseDate);
-        if (RecurrenceFromCompletion) return next;
+        if (RecurrenceFromCompletion) return AddRecurrenceIntervals(baseDate, 1);
 
-        // 間隔が 0 日になることは無いので必ず抜けるが、壊れたデータ対策に上限も置く
-        var guard = 0;
-        while (next <= notBefore && guard++ < 500)
-        {
-            next = AddRecurrenceInterval(next);
-        }
-        return next;
+        return Recurrence == TodoRecurrenceUnit.Month
+            ? FindNextMonthlyOccurrence(baseDate, notBefore)
+            : FindNextDayBasedOccurrence(baseDate, notBefore);
+    }
+
+    /// <summary>
+    /// 日・週単位の繰り返しを、期限からの経過日数で直接求める。
+    /// 1回ずつ進めないため、何年放置されていても過去日を返さない。
+    /// </summary>
+    private DateTime FindNextDayBasedOccurrence(DateTime baseDate, DateTime notBefore)
+    {
+        var intervalDays = Recurrence == TodoRecurrenceUnit.Day
+            ? RecurrenceInterval
+            : 7 * RecurrenceInterval;
+        var elapsedDays = Math.Max(0, (notBefore - baseDate).Days);
+        var occurrenceCount = Math.Max(1, elapsedDays / intervalDays);
+        var next = baseDate.AddDays((long)occurrenceCount * intervalDays);
+
+        return next <= notBefore
+            ? next.AddDays(intervalDays)
+            : next;
+    }
+
+    /// <summary>
+    /// 月次は元の期限日をアンカーにする。
+    /// 1月31日→2月28日となっても、次を3月28日へずらさない。
+    /// </summary>
+    private DateTime FindNextMonthlyOccurrence(DateTime baseDate, DateTime notBefore)
+    {
+        var elapsedMonths = Math.Max(0,
+            (notBefore.Year - baseDate.Year) * 12 + notBefore.Month - baseDate.Month);
+        var occurrenceCount = Math.Max(1, elapsedMonths / RecurrenceInterval);
+        var next = AddRecurrenceIntervals(baseDate, occurrenceCount);
+
+        return next <= notBefore
+            ? AddRecurrenceIntervals(baseDate, occurrenceCount + 1)
+            : next;
     }
 
     /// <summary>
@@ -687,19 +716,39 @@ public class TodoItem : ObservableObject
             return day;
         }
 
-        return AddRecurrenceInterval(baseDate);
+        return AddRecurrenceIntervals(baseDate, 1);
     }
 
     /// <summary>週の始まり（月曜日）を返す</summary>
     private static DateTime StartOfWeek(DateTime date) =>
         date.Date.AddDays(-(((int)date.DayOfWeek + 6) % 7));
 
-    private DateTime AddRecurrenceInterval(DateTime date) => Recurrence switch
+    private DateTime AddRecurrenceIntervals(DateTime baseDate, int occurrenceCount)
     {
-        TodoRecurrenceUnit.Day => date.AddDays(RecurrenceInterval),
-        TodoRecurrenceUnit.Month => date.AddMonths(RecurrenceInterval),
-        _ => date.AddDays(7 * RecurrenceInterval),
-    };
+        if (Recurrence == TodoRecurrenceUnit.Month)
+        {
+            var monthOffset = checked(RecurrenceInterval * occurrenceCount);
+            var firstOfTargetMonth = new DateTime(baseDate.Year, baseDate.Month, 1)
+                .AddMonths(monthOffset);
+            var targetDay = Math.Min(
+                baseDate.Day,
+                DateTime.DaysInMonth(firstOfTargetMonth.Year, firstOfTargetMonth.Month));
+            return new DateTime(
+                firstOfTargetMonth.Year,
+                firstOfTargetMonth.Month,
+                targetDay,
+                baseDate.Hour,
+                baseDate.Minute,
+                baseDate.Second,
+                baseDate.Millisecond,
+                baseDate.Kind);
+        }
+
+        var intervalDays = Recurrence == TodoRecurrenceUnit.Day
+            ? RecurrenceInterval
+            : 7 * RecurrenceInterval;
+        return baseDate.AddDays((long)intervalDays * occurrenceCount);
+    }
 
     /// <summary>
     /// 次回分の通知日時。期限日との関係（「2日前の9:00」など）をそのまま引き継ぐ。

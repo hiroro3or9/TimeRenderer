@@ -37,6 +37,14 @@ namespace TimeRenderer.ViewModels;
 public partial class MainViewModel : ObservableObject
 {
     private readonly bool _isInitialized = false;
+    private readonly TimeProvider _timeProvider;
+    private readonly bool _isRuntimeActive;
+
+    /// <summary>テストで差し替え可能なローカル現在時刻。</summary>
+    private DateTime LocalNow => _timeProvider.GetLocalNow().DateTime;
+
+    /// <summary>テストで差し替え可能なローカル当日。</summary>
+    private DateTime LocalToday => LocalNow.Date;
 
     /// <summary>LoadData 実行中フラグ（再計算・保存の抑止用）</summary>
     private bool _isLoadingData;
@@ -405,7 +413,7 @@ public partial class MainViewModel : ObservableObject
         {
             if (CurrentViewMode == ViewMode.Today)
             {
-                return $"今日  {DateTime.Today:yyyy年M月d日 (ddd)}";
+                return $"今日  {LocalToday:yyyy年M月d日 (ddd)}";
             }
             else if (CurrentViewMode == ViewMode.Day)
             {
@@ -455,8 +463,25 @@ public partial class MainViewModel : ObservableObject
     }
 
     public MainViewModel(Services.IDialogService dialogService)
+        : this(dialogService, TimeProvider.System, startRuntime: true)
     {
+    }
+
+    /// <summary>
+    /// OS監視、実データ読み込み、時計タイマーを起動せずにコマンド経路を組み立てられる入口。
+    /// 本番は公開コンストラクタから同じ初期化を通し、テストだけが時刻と起動範囲を差し替える。
+    /// </summary>
+    internal MainViewModel(
+        Services.IDialogService dialogService,
+        TimeProvider timeProvider,
+        bool startRuntime)
+    {
+        ArgumentNullException.ThrowIfNull(dialogService);
+        ArgumentNullException.ThrowIfNull(timeProvider);
+
         _dialogService = dialogService;
+        _timeProvider = timeProvider;
+        _isRuntimeActive = startRuntime;
         InitializeCommands();
         InitializeCategoryCommands();
         InitializeProjectCodeCommands();
@@ -468,8 +493,11 @@ public partial class MainViewModel : ObservableObject
         InitializeTodoCommands();
         InitializeWorkDayCommands();
         InitializeUndo();
-        InitializeAwayDetection();
-        InitializeAppUsageTracking();
+        if (startRuntime)
+        {
+            InitializeAwayDetection();
+            InitializeAppUsageTracking();
+        }
         LoadCategories(null); // 既定カテゴリで初期化（LoadSettings で上書きされる）
         LoadProjectCodes(null); // 既定プロジェクトコードで初期化（LoadSettings で上書きされる）
         LoadPinnedTitles(null); // 既定の定型タイトルで初期化（LoadSettings で上書きされる）
@@ -479,10 +507,12 @@ public partial class MainViewModel : ObservableObject
 
         _selectedTimerOption = TimerOptions[0];
 
-        CurrentDate = DateTime.Today;
+        CurrentDate = LocalToday;
 
         InitializeTimeLabels();
         UpdateVisibleDays();
+        if (!startRuntime) return;
+
         LoadData();
         LoadSettings();
         LoadWorkDays(); // 予定データの読み込み後（未退勤の自動締めが作業記録を参照するため）
@@ -507,14 +537,14 @@ public partial class MainViewModel : ObservableObject
 
     private void StartClock()
     {
-        CurrentTime = DateTime.Now;
+        CurrentTime = LocalNow;
         DispatcherTimer timer = new()
         {
             Interval = TimeSpan.FromMilliseconds(500)
         };
         timer.Tick += (s, e) =>
         {
-            CurrentTime = DateTime.Now;
+            CurrentTime = LocalNow;
 
             // タイムラインの現在時刻ライン（内部で1分程度に間引かれる）
             UpdateTimelineNowLine(CurrentTime);
