@@ -243,7 +243,7 @@ public partial class MainViewModel
             StartTime = gap.StartTime,
             EndTime = gap.EndTime,
             CategoryId = category?.Id,
-            ProjectCodeId = result.ProjectCode?.Id ?? DefaultProjectCode?.Id,
+            ProjectCodeId = result.ProjectCode?.Id,
             Content = BuildGapFillContent(gap, commits),
         };
 

@@ -16,14 +16,24 @@ public partial class MainViewModel
     public IReadOnlyList<ProjectCodeInfo> ActiveProjectCodes => [.. ProjectCodes.Where(p => p.IsActive)];
 
     /// <summary>
-    /// 期間割り当ての行で選べるコード。
+    /// 「（未設定）」を先頭に足した選択肢。
+    /// コードを付けない選び方を、既定値・リポジトリの割り当てなど画面側からも取れるようにする。
+    /// </summary>
+    public IReadOnlyList<ProjectCodeInfo> SelectableProjectCodes =>
+        [ProjectCodeInfo.Unassigned, .. ActiveProjectCodes];
+
+    /// <summary>
+    /// 期間割り当ての行で選べるコード。先頭の「（未設定）」はその期間を加算しない指定になる。
     /// 既に割り当てで使われている無効なコードも残す（選択肢に無いと
     /// ComboBox が選択を外し、触っただけで指定が消えてしまうため）。
     /// </summary>
     public IReadOnlyList<ProjectCodeInfo> AssignmentProjectCodeChoices =>
-        [.. ProjectCodes.Where(p =>
+    [
+        ProjectCodeInfo.Unassigned,
+        .. ProjectCodes.Where(p =>
             p.IsActive ||
-            UnrecordedTimeAssignments.Any(a => a.ProjectCodeId == p.Id))];
+            UnrecordedTimeAssignments.Any(a => a.ProjectCodeId == p.Id))
+    ];
 
     public ICommand AddProjectCodeCommand { get; private set; } = null!;
     public ICommand DeleteProjectCodeCommand { get; private set; } = null!;
@@ -40,21 +50,43 @@ public partial class MainViewModel
     /// </summary>
     private List<UnrecordedTimeProjectAssignment>? _loadedUnrecordedTimeAssignments;
 
-    /// <summary>新しい予定・実績と、通常の記録開始で使用する既定のプロジェクトコード。</summary>
+    /// <summary>先頭の有効なコード。既定値を決められないときの受け皿。</summary>
+    private ProjectCodeInfo? FirstActiveProjectCode => ProjectCodes.FirstOrDefault(p => p.IsActive);
+
+    /// <summary>
+    /// 既定のプロジェクトコードとして「（未設定）」を選んでいるか。
+    /// 保存値が空文字なら明示的な未設定、null なら未指定（先頭の有効コードへ倒す）。
+    /// </summary>
+    private bool IsDefaultProjectCodeUnassigned =>
+        _defaultProjectCodeId == ProjectCodeInfo.UnassignedId;
+
+    /// <summary>
+    /// 新しい予定・実績と、通常の記録開始で使用する既定のプロジェクトコード。
+    /// 「（未設定）」を選んでいるときは null を返し、ダイアログを開かない作成経路も
+    /// コードを付けずに始める。
+    /// </summary>
     public ProjectCodeInfo? DefaultProjectCode =>
-        ResolveProjectCode(_defaultProjectCodeId) is { IsActive: true } selected
-            ? selected
-            : ProjectCodes.FirstOrDefault(p => p.IsActive);
+        IsDefaultProjectCodeUnassigned
+            ? null
+            : ResolveProjectCode(_defaultProjectCodeId) is { IsActive: true } selected
+                ? selected
+                : FirstActiveProjectCode;
 
     /// <summary>設定パネルの既定値コンボボックス用。</summary>
     public ProjectCodeInfo? SelectedDefaultProjectCode
     {
-        get => DefaultProjectCode;
+        get => IsDefaultProjectCodeUnassigned ? ProjectCodeInfo.Unassigned : DefaultProjectCode;
         set
         {
-            if (value is not { IsActive: true } || value.Id == _defaultProjectCodeId) return;
+            // 選択肢の入れ替えで一時的に null が入ることがあるため、選択解除は無視する
+            if (value == null) return;
 
-            _defaultProjectCodeId = value.Id;
+            var id = value.Id.Length == 0
+                ? ProjectCodeInfo.UnassignedId
+                : value.IsActive ? value.Id : null;
+            if (id == null || id == _defaultProjectCodeId) return;
+
+            _defaultProjectCodeId = id;
             NotifyDefaultProjectCodeChanged();
             SaveSettings();
         }
@@ -82,7 +114,7 @@ public partial class MainViewModel
     {
         get => ResolveProjectCode(_unrecordedTimeProjectCodeId) is { IsActive: true } selected
             ? selected
-            : DefaultProjectCode;
+            : DefaultProjectCode ?? FirstActiveProjectCode;
         set
         {
             if (value is not { IsActive: true } || value.Id == _unrecordedTimeProjectCodeId) return;
@@ -98,6 +130,7 @@ public partial class MainViewModel
     /// 指定日の未記録時間を加算するコード。機能が無効なら null。
     /// 割り当ては開始日の昇順に整えてあるので、その日以前で最後の行を採る。
     /// どの行にも掛からない（最初の行より前の）日は既定コードを使う。
+    /// 行のコードを「（未設定）」にした期間は、加算先が無い＝加算しない。
     /// </summary>
     private ProjectCodeInfo? ResolveUnrecordedTimeProjectCode(DateTime date)
     {
@@ -137,8 +170,9 @@ public partial class MainViewModel
 
             var assignment = new UnrecordedTimeProjectAssignment
             {
-                StartDate = start,
-                ProjectCodeId = last?.ProjectCodeId ?? DefaultProjectCode?.Id
+                // 直前の行があればその指定（未設定も含めて）を引き継ぐ
+                ProjectCodeId = last != null ? last.ProjectCodeId : DefaultProjectCode?.Id,
+                StartDate = start
             };
 
             AttachUnrecordedTimeAssignment(assignment);
@@ -321,7 +355,7 @@ public partial class MainViewModel
 
                 if (_defaultProjectCodeId == projectCode.Id)
                 {
-                    _defaultProjectCodeId = ProjectCodes.FirstOrDefault(p => p.IsActive)?.Id;
+                    _defaultProjectCodeId = FirstActiveProjectCode?.Id;
                 }
 
                 ClearAssignmentProjectCodeReferences(projectCode.Id);
@@ -357,17 +391,21 @@ public partial class MainViewModel
 
     private void LoadDefaultProjectCodeId(string? id)
     {
-        _defaultProjectCodeId = ResolveProjectCode(id) is { IsActive: true } selected
-            ? selected.Id
-            : ProjectCodes.FirstOrDefault(p => p.IsActive)?.Id;
+        // 空文字は「（未設定）」を選んだ状態。null（未指定）だけを先頭の有効コードへ倒す
+        _defaultProjectCodeId = id == ProjectCodeInfo.UnassignedId
+            ? ProjectCodeInfo.UnassignedId
+            : ResolveProjectCode(id) is { IsActive: true } selected
+                ? selected.Id
+                : FirstActiveProjectCode?.Id;
         NotifyProjectCodeChoicesChanged();
     }
 
     private void LoadUnrecordedTimeProjectAggregation(bool isEnabled, string? projectCodeId)
     {
+        // 加算先は集計の宛先そのものなので、既定が未設定でも具体的なコードを残す
         _unrecordedTimeProjectCodeId = ResolveProjectCode(projectCodeId) is { IsActive: true } selected
             ? selected.Id
-            : DefaultProjectCode?.Id;
+            : (DefaultProjectCode ?? FirstActiveProjectCode)?.Id;
         _isUnrecordedTimeProjectAggregationEnabled = isEnabled && _unrecordedTimeProjectCodeId != null;
         OnPropertyChanged(nameof(IsUnrecordedTimeProjectAggregationEnabled));
         OnPropertyChanged(nameof(SelectedUnrecordedTimeProjectCode));
@@ -398,7 +436,7 @@ public partial class MainViewModel
             if (sender is ProjectCodeInfo { IsActive: false } projectCode &&
                 _defaultProjectCodeId == projectCode.Id)
             {
-                _defaultProjectCodeId = ProjectCodes.FirstOrDefault(p => p.IsActive)?.Id;
+                _defaultProjectCodeId = FirstActiveProjectCode?.Id;
             }
             EnsureUnrecordedTimeProjectCode();
             NotifyProjectCodeChoicesChanged();
@@ -428,6 +466,7 @@ public partial class MainViewModel
     private void NotifyProjectCodeChoicesChanged()
     {
         OnPropertyChanged(nameof(ActiveProjectCodes));
+        OnPropertyChanged(nameof(SelectableProjectCodes));
         OnPropertyChanged(nameof(AssignmentProjectCodeChoices));
         OnPropertyChanged(nameof(SelectedUnrecordedTimeProjectCode));
         NotifyDefaultProjectCodeChanged();
@@ -437,7 +476,7 @@ public partial class MainViewModel
     {
         if (ResolveProjectCode(_unrecordedTimeProjectCodeId) is { IsActive: true }) return;
 
-        _unrecordedTimeProjectCodeId = DefaultProjectCode?.Id;
+        _unrecordedTimeProjectCodeId = (DefaultProjectCode ?? FirstActiveProjectCode)?.Id;
         OnPropertyChanged(nameof(SelectedUnrecordedTimeProjectCode));
     }
 }

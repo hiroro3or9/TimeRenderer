@@ -69,7 +69,12 @@ namespace TimeRenderer.Views.Dialogs
             _colorOptions = [.. source.Select(c => new ColorOption(c.Name, c.Brush, c.Id))];
             ColorCombo.ItemsSource = _colorOptions;
 
-            var projectCodeOptions = projectCodes ?? [];
+            // 先頭に「（未設定）」を置き、コードを付けない定期予定も作れるようにする
+            List<ProjectCodeInfo> projectCodeOptions =
+            [
+                ProjectCodeInfo.Unassigned,
+                .. (projectCodes ?? [])
+            ];
             ProjectCodeCombo.ItemsSource = projectCodeOptions;
 
             // 繰り返し種別・間隔・日付の選択肢を初期化
@@ -141,10 +146,10 @@ namespace TimeRenderer.Views.Dialogs
                     ?? _colorOptions.FirstOrDefault(c => c.Brush.ToString() == existingRoutine.ColorCode);
                 ColorCombo.SelectedItem = matchingColor ?? _colorOptions[0];
 
+                // 既存の指定が無ければ「（未設定）」のまま開く（開き直しただけで既定が付かないように）
                 ProjectCodeCombo.SelectedItem = projectCodeOptions.FirstOrDefault(
                     p => p.Id == existingRoutine.ProjectCodeId)
-                    ?? defaultProjectCode
-                    ?? projectCodeOptions.FirstOrDefault();
+                    ?? ProjectCodeInfo.Unassigned;
 
                 AutoStartCheckBox.IsChecked = existingRoutine.IsAutoStart;
                 ForceStartCheckBox.IsChecked = existingRoutine.IsForceStart;
@@ -170,7 +175,7 @@ namespace TimeRenderer.Views.Dialogs
                 EndHourCombo.SelectedItem = endHour.ToString("D2");
                 EndMinuteCombo.SelectedItem = (now.Minute / 5 * 5).ToString("D2");
                 ColorCombo.SelectedItem = _colorOptions[0];
-                ProjectCodeCombo.SelectedItem = defaultProjectCode ?? projectCodeOptions.FirstOrDefault();
+                ProjectCodeCombo.SelectedItem = defaultProjectCode ?? ProjectCodeInfo.Unassigned;
                 EnabledCheckBox.IsChecked = true;
             }
 
@@ -360,7 +365,7 @@ namespace TimeRenderer.Views.Dialogs
                 EndTime = endTime,
                 ColorCode = selectedColor?.Brush.ToString() ?? Brushes.Lavender.ToString(),
                 CategoryId = selectedColor?.CategoryId,
-                ProjectCodeId = (ProjectCodeCombo.SelectedItem as ProjectCodeInfo)?.Id,
+                ProjectCodeId = ProjectCodeInfo.ToStoredId(ProjectCodeCombo.SelectedItem as ProjectCodeInfo),
                 IsAutoStart = AutoStartCheckBox.IsChecked ?? false,
                 IsForceStart = (AutoStartCheckBox.IsChecked ?? false) && (ForceStartCheckBox.IsChecked ?? false),
                 IsEnabled = EnabledCheckBox.IsChecked ?? true

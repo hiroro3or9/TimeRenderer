@@ -925,6 +925,7 @@
     <conv:DateToBackgroundBrushConverter x:Key="DateToBackgroundBrushConverter"/>
     <conv:BrushToContrastTextConverter x:Key="BrushToContrastTextConverter"/>
     <conv:BrushToSubtleBackgroundConverter x:Key="BrushToSubtleBackgroundConverter"/>
+    <conv:ProjectCodeIdConverter x:Key="ProjectCodeIdConverter"/>
 
     <!-- 検索結果1行分のボタン（行全体がクリック可能・ホバーで強調） -->
     <Style x:Key="SearchResultButtonStyle" TargetType="Button">

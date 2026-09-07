@@ -87,7 +87,10 @@ public class AppSettings
     public string? RecordingCategoryId { get; set; }
     /// <summary>プロジェクトコードのマスター（空の場合は既定値を使用）</summary>
     public System.Collections.Generic.List<ProjectCodeInfo> ProjectCodes { get; set; } = [];
-    /// <summary>新しい予定・実績と記録開始時に使う既定プロジェクトコードのID</summary>
+    /// <summary>
+    /// 新しい予定・実績と記録開始時に使う既定プロジェクトコードのID。
+    /// 空文字は「未設定」を選んだ状態、null は未指定（先頭の有効コードを使う）
+    /// </summary>
     public string? DefaultProjectCodeId { get; set; }
     /// <summary>勤務時間内の未記録時間を、指定したプロジェクトコードの集計へ加算するか</summary>
     public bool IsUnrecordedTimeProjectAggregationEnabled { get; set; } = false;

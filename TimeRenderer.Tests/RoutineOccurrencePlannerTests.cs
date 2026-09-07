@@ -22,14 +22,13 @@ public class RoutineOccurrencePlannerTests
         var routine = DailyRoutine("daily", Around);
 
         var items = RoutineOccurrencePlanner.BuildVirtualItems(
-            [routine], [], [], "default-project", Around);
+            [routine], [], [], Around);
 
         await Assert.That(items.Count).IsEqualTo(61);
         await Assert.That(items[0].StartTime).IsEqualTo(Around.AddHours(9));
         await Assert.That(items[^1].StartTime).IsEqualTo(Around.AddDays(60).AddHours(9));
         await Assert.That(items.All(i => i.IsVirtual)).IsTrue();
         await Assert.That(items.All(i => i.IsPlanned)).IsTrue();
-        await Assert.That(items.All(i => i.ProjectCodeId == "default-project")).IsTrue();
     }
 
     [Test]
@@ -46,7 +45,7 @@ public class RoutineOccurrencePlannerTests
         };
 
         var items = RoutineOccurrencePlanner.BuildVirtualItems(
-            [routine], [existing], [], null, Around);
+            [routine], [existing], [], Around);
 
         await Assert.That(items.Any(i => i.StartTime.Date == Around.AddDays(1))).IsFalse();
         await Assert.That(items.Any(i => i.StartTime.Date == Around.AddDays(2))).IsFalse();
@@ -62,9 +61,21 @@ public class RoutineOccurrencePlannerTests
         invalid.EndTime = invalid.StartTime;
 
         var items = RoutineOccurrencePlanner.BuildVirtualItems(
-            [disabled, invalid], [], [], null, Around);
+            [disabled, invalid], [], [], Around);
 
         await Assert.That(items).IsEmpty();
+    }
+
+    [Test]
+    public async Task コードを指定しない定期予定は未設定のまま生成する()
+    {
+        var routine = DailyRoutine("unassigned", Around);
+        routine.ProjectCodeId = null;
+
+        var item = RoutineOccurrencePlanner.BuildVirtualItems(
+            [routine], [], [], Around)[0];
+
+        await Assert.That(item.ProjectCodeId).IsNull();
     }
 
     [Test]
@@ -80,7 +91,7 @@ public class RoutineOccurrencePlannerTests
         };
 
         var item = RoutineOccurrencePlanner.BuildVirtualItems(
-            [routine], [], categories, "default-project", Around)[0];
+            [routine], [], categories, Around)[0];
 
         await Assert.That(item.ColorCode).IsEqualTo("#FFABCDEF");
         await Assert.That(item.CategoryId).IsEqualTo("category-1");

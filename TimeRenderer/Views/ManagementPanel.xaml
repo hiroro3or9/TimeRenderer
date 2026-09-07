@@ -181,9 +181,12 @@
                                             Style="{StaticResource BaseButtonStyle}" HorizontalAlignment="Stretch"/>
                                     <TextBlock Text="既定のプロジェクトコード" Style="{StaticResource FieldLabelStyle}"
                                                Margin="0,14,0,6"/>
-                                    <ComboBox ItemsSource="{Binding ActiveProjectCodes}"
+                                    <ComboBox ItemsSource="{Binding SelectableProjectCodes}"
                                               SelectedItem="{Binding SelectedDefaultProjectCode}"
                                               DisplayMemberPath="DisplayName" Height="32"/>
+                                    <TextBlock Text="「（未設定）」にすると、新しい予定・実績と記録開始はコードを付けずに始まります"
+                                               FontSize="10" TextWrapping="Wrap" Margin="0,6,0,0"
+                                               Foreground="{DynamicResource TextMutedBrush}"/>
                                     <Grid Margin="0,14,0,0">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
@@ -234,7 +237,7 @@
                                                                 <ComboBox Grid.Column="2" Height="30"
                                                                           VerticalAlignment="Center"
                                                                           ItemsSource="{Binding DataContext.AssignmentProjectCodeChoices, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                                          SelectedValue="{Binding ProjectCodeId}"
+                                                                          SelectedValue="{Binding ProjectCodeId, Converter={StaticResource ProjectCodeIdConverter}}"
                                                                           SelectedValuePath="Id"
                                                                           DisplayMemberPath="DisplayName"/>
                                                             </Grid>
@@ -254,7 +257,7 @@
                                             Command="{Binding AddUnrecordedTimeAssignmentCommand}"
                                             IsEnabled="{Binding IsUnrecordedTimeProjectAggregationEnabled}"
                                             Style="{StaticResource BaseButtonStyle}" HorizontalAlignment="Stretch"/>
-                                    <TextBlock Text="案件が変わる日を足していくと、その日から次の行の前日までがそのコードになります。行が無い期間と最初の行より前は、上の既定を使います"
+                                    <TextBlock Text="案件が変わる日を足していくと、その日から次の行の前日までがそのコードになります。「（未設定）」にした期間は加算しません。行が無い期間と最初の行より前は、上の既定を使います"
                                                FontSize="10" TextWrapping="Wrap" Margin="0,6,0,0"
                                                Foreground="{DynamicResource TextMutedBrush}"/>
                                 </StackPanel>

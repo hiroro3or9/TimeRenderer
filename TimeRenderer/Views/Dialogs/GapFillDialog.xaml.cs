@@ -77,10 +77,14 @@ namespace TimeRenderer.Views.Dialogs
                 ? categories.FirstOrDefault(c => c.Id == guessed.Id)
                 : null;
 
-            ProjectCodeCombo.ItemsSource = projectCodes;
-            ProjectCodeCombo.SelectedItem = suggestion.ProjectCode is { } selectedProject
-                ? projectCodes.FirstOrDefault(p => p.Id == selectedProject.Id)
-                : projectCodes.FirstOrDefault();
+            // 先頭に「（未設定）」を置き、コードを決めずに記録だけ作れるようにする
+            List<ProjectCodeInfo> projectCodeOptions = [ProjectCodeInfo.Unassigned, .. projectCodes];
+            ProjectCodeCombo.ItemsSource = projectCodeOptions;
+            ProjectCodeCombo.SelectedItem =
+                (suggestion.ProjectCode is { } selectedProject
+                    ? projectCodes.FirstOrDefault(p => p.Id == selectedProject.Id)
+                    : null)
+                ?? ProjectCodeInfo.Unassigned;
 
             Loaded += (_, _) =>
             {
@@ -108,7 +112,7 @@ namespace TimeRenderer.Views.Dialogs
             Result = new GapFillResult(
                 title,
                 CategoryCombo.SelectedItem as CategoryInfo,
-                ProjectCodeCombo.SelectedItem as ProjectCodeInfo);
+                ProjectCodeInfo.Normalize(ProjectCodeCombo.SelectedItem as ProjectCodeInfo));
             DialogResult = true;
         }
 
