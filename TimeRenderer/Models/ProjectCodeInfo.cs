@@ -11,6 +11,29 @@ namespace TimeRenderer.Models;
 /// </summary>
 public sealed class ProjectCodeInfo : ObservableObject
 {
+    /// <summary>「（未設定）」の選択肢が持つ Id。マスターのコードは必ず非空なので衝突しない。</summary>
+    public const string UnassignedId = "";
+
+    /// <summary>プロジェクトコードを持たない状態の表示名。</summary>
+    public const string UnassignedLabel = "（未設定）";
+
+    /// <summary>
+    /// コンボボックスの先頭へ並べる「（未設定）」の選択肢。
+    /// マスター（<see cref="AppSettings.ProjectCodes"/>）には入れず、保存時は null へ戻す。
+    /// </summary>
+    public static ProjectCodeInfo Unassigned { get; } = new()
+    {
+        Id = UnassignedId,
+        Name = UnassignedLabel
+    };
+
+    /// <summary>選択結果を保存値へ直す。「（未設定）」と未選択はどちらも null。</summary>
+    public static string? ToStoredId(ProjectCodeInfo? selected) => Normalize(selected)?.Id;
+
+    /// <summary>「（未設定）」の選択肢を null に均す。</summary>
+    public static ProjectCodeInfo? Normalize(ProjectCodeInfo? selected) =>
+        selected is { Id.Length: > 0 } ? selected : null;
+
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
 
     private string _code = string.Empty;

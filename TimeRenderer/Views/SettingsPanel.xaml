@@ -427,11 +427,11 @@
                                                            ToolTip="{Binding Path}"
                                                            Foreground="{DynamicResource TextMutedBrush}"/>
                                                 <ComboBox Margin="0,6,0,0" Height="26" FontSize="11"
-                                                          ItemsSource="{Binding DataContext.ActiveProjectCodes, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                          ItemsSource="{Binding DataContext.SelectableProjectCodes, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                           DisplayMemberPath="DisplayName"
                                                           SelectedValuePath="Id"
-                                                          SelectedValue="{Binding ProjectCodeId}"
-                                                          ToolTip="このリポジトリの作業に割り当てるプロジェクトコード"/>
+                                                          SelectedValue="{Binding ProjectCodeId, Converter={StaticResource ProjectCodeIdConverter}}"
+                                                          ToolTip="このリポジトリの作業に割り当てるプロジェクトコード（未設定にすると推測に使いません）"/>
                                             </StackPanel>
                                         </Border>
                                     </DataTemplate>

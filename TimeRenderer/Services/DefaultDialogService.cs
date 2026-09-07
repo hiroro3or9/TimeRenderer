@@ -95,7 +95,7 @@ public class DefaultDialogService(Window owner) : IDialogService
             return (
                 dialog.InputText,
                 dialog.SelectedTimerOption ?? defaultOption,
-                dialog.SelectedProjectCode?.Id);
+                ProjectCodeInfo.ToStoredId(dialog.SelectedProjectCode));
         }
         return null;
     }

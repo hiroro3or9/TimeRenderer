@@ -22,7 +22,6 @@ public static class RoutineOccurrencePlanner
         IReadOnlyList<RoutineScheduleItem> routines,
         IEnumerable<ScheduleItem> existingItems,
         IReadOnlyList<CategoryInfo> categories,
-        string? defaultProjectCodeId,
         DateTime aroundDate)
     {
         ArgumentNullException.ThrowIfNull(routines);
@@ -72,7 +71,7 @@ public static class RoutineOccurrencePlanner
                     EndTime = date.Add(routine.EndTime),
                     ColorCode = colorCode,
                     CategoryId = routine.CategoryId,
-                    ProjectCodeId = routine.ProjectCodeId ?? defaultProjectCodeId,
+                    ProjectCodeId = routine.ProjectCodeId,
                     RoutineId = routine.Id,
                     IsVirtual = true,
                 });

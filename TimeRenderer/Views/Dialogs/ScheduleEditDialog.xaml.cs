@@ -95,7 +95,7 @@ namespace TimeRenderer.Views.Dialogs
 
             _projectCodeOptions =
             [
-                new("（未設定）", null),
+                new(ProjectCodeInfo.UnassignedLabel, null),
                 .. (projectCodes ?? []).Select(p => new ProjectCodeOption(p.DisplayName, p.Id))
             ];
             if (existingItem?.ProjectCodeId is { Length: > 0 } existingProjectCodeId &&

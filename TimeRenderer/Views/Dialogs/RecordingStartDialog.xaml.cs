@@ -24,6 +24,7 @@ namespace TimeRenderer.Views.Dialogs
         // タイトル入力欄のドロップダウン候補（定型タイトル＋直近1か月のタイトル）
         public IReadOnlyList<string> TitleSuggestions { get; } = [];
 
+        /// <summary>「（未設定）」を先頭に置いた選択肢。コードを付けずに記録を始められるようにする。</summary>
         public IReadOnlyList<ProjectCodeInfo> ProjectCodes { get; } = [];
         public ProjectCodeInfo? SelectedProjectCode { get; set; }
 
@@ -41,8 +42,8 @@ namespace TimeRenderer.Views.Dialogs
             TimerOptions = timerOptions;
             SelectedTimerOption = defaultOption;
             TitleSuggestions = titleSuggestions ?? [];
-            ProjectCodes = projectCodes ?? [];
-            SelectedProjectCode = defaultProjectCode ?? ProjectCodes.FirstOrDefault();
+            ProjectCodes = [ProjectCodeInfo.Unassigned, .. (projectCodes ?? [])];
+            SelectedProjectCode = defaultProjectCode ?? ProjectCodeInfo.Unassigned;
 
             DataContext = this;
 

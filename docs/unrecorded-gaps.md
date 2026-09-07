@@ -241,7 +241,8 @@ public static IReadOnlyList<UnrecordedGap> Detect(
 ある日の加算先は次の順で決まる。
 
 1. その日以前で最後の割り当て（`UnrecordedTimeAssignmentHelper.Resolve`）。
-   割り当てたコードが無効化されていてもそのまま使う（過去の集計先を勝手に動かさない）
+   割り当てたコードが無効化されていてもそのまま使う（過去の集計先を勝手に動かさない）。
+   行のコードを「（未設定）」にした期間は加算先が無い＝その期間は加算しない
 2. 最初の割り当てより前の日は `AppSettings.UnrecordedTimeProjectCodeId`
 
 集計期間が複数の割り当てにまたがっても分かれるよう、未記録時間は日単位に割ってから

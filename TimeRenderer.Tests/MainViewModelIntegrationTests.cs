@@ -226,6 +226,56 @@ public class MainViewModelIntegrationTests
     }
 
     [Test]
+    public async Task 既定のプロジェクトコードを未設定にできる()
+    {
+        var (vm, _) = CreateViewModel();
+
+        await Assert.That(vm.SelectableProjectCodes[0]).IsEqualTo(ProjectCodeInfo.Unassigned);
+        await Assert.That(vm.DefaultProjectCode).IsNotNull();
+
+        vm.SelectedDefaultProjectCode = ProjectCodeInfo.Unassigned;
+
+        await Assert.That(vm.DefaultProjectCode).IsNull();
+        await Assert.That(vm.SelectedDefaultProjectCode).IsEqualTo(ProjectCodeInfo.Unassigned);
+    }
+
+    [Test]
+    public async Task 既定が未設定なら記録もプロジェクトコードを持たない()
+    {
+        var (vm, time) = CreateViewModel();
+        vm.SelectedDefaultProjectCode = ProjectCodeInfo.Unassigned;
+
+        vm.QuickToggleRecording();
+        time.Advance(TimeSpan.FromMinutes(30));
+        vm.QuickToggleRecording();
+
+        var recorded = vm.ScheduleItems.Single(i => i.Kind == ScheduleItemKind.Recorded);
+        await Assert.That(recorded.ProjectCodeId).IsNull();
+    }
+
+    [Test]
+    public async Task 未設定の予定から始めた記録に既定コードを付けない()
+    {
+        var (vm, time) = CreateViewModel();
+        var item = new ScheduleItem
+        {
+            Kind = ScheduleItemKind.Planned,
+            Title = "未設定の予定",
+            StartTime = Now,
+            EndTime = Now.AddHours(1),
+            ProjectCodeId = null,
+        };
+        vm.ScheduleItems.Add(item);
+
+        vm.StartRecordingFromItemCommand.Execute(item);
+        time.Advance(TimeSpan.FromMinutes(30));
+        vm.QuickToggleRecording();
+
+        await Assert.That(item.Kind).IsEqualTo(ScheduleItemKind.Recorded);
+        await Assert.That(item.ProjectCodeId).IsNull();
+    }
+
+    [Test]
     public async Task 出勤と退勤は注入した時刻で同じ勤務記録を更新する()
     {
         var (vm, time) = CreateViewModel();

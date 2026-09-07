@@ -30,9 +30,8 @@ public partial class MainViewModel
         RecordingTitle = item.Title;
         _recordingColorCode = item.ColorCode;
         _recordingCategoryId = item.CategoryId ?? ResolveCategory(item)?.Id;
-        _recordingProjectCodeId = ResolveProjectCode(item.ProjectCodeId) is { IsActive: true } selectedProjectCode
-            ? selectedProjectCode.Id
-            : DefaultProjectCode?.Id;
+        // 予定に付いていたコードをそのまま引き継ぐ（未設定の予定は未設定のまま記録する）
+        _recordingProjectCodeId = item.ProjectCodeId;
         _recordingSourceItem = item.IsPlanned ? item : null;
         _recordingTodo = FindTodoById(item.TodoId);
 
@@ -83,7 +82,7 @@ public partial class MainViewModel
             ? defaultTitle
             : result.Value.Title;
         SelectedTimerOption = result.Value.SelectedOption;
-        _recordingProjectCodeId = result.Value.ProjectCodeId ?? DefaultProjectCode?.Id;
+        _recordingProjectCodeId = result.Value.ProjectCodeId;
         BeginRecording(useSelectedTimer: true);
     }
 

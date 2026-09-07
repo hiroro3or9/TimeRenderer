@@ -127,9 +127,8 @@ public partial class MainViewModel
                 ?? RecordingCategory?.ColorCode
                 ?? CategoryInfo.CreateBrush("DarkOrange").ToString(),
             _recordingCategoryId ?? RecordingCategory?.Id,
-            _recordingProjectCodeId
-                ?? source?.ProjectCodeId
-                ?? DefaultProjectCode?.Id,
+            // 開始時に決めたコードをそのまま使う（未設定で始めた記録に既定を付けない）
+            _recordingProjectCodeId,
             todo?.Id ?? source?.TodoId,
             source?.RoutineId,
             source?.Id);

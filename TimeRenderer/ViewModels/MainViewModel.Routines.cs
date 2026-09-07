@@ -158,7 +158,6 @@ public partial class MainViewModel
             Routines,
             ScheduleItems,
             Categories,
-            DefaultProjectCode?.Id,
             aroundDate);
 
         if (toAdd.Count == 0) return;
