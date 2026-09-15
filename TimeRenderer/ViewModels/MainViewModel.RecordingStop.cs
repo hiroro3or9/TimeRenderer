@@ -15,10 +15,9 @@ public partial class MainViewModel
     private List<(DateTime Start, DateTime End)> ResolveRecordingSegments(
         string title,
         DateTime start,
-        DateTime end)
+        DateTime end,
+        List<AwayPeriod> periods)
     {
-        var periods = TakeAwayPeriodsForRecording(start, end);
-
         if (!IsAwayDetectionEnabled || periods.Count == 0)
         {
             return RecordingStopHelper.BuildSegments(
@@ -57,6 +56,7 @@ public partial class MainViewModel
         string title,
         ScheduleItem? source,
         List<(DateTime Start, DateTime End)> segments,
+        RecordingItemMetadata metadata,
         TodoItem? todo = null)
     {
         var edits = new List<IUndoableEdit>();
@@ -73,8 +73,8 @@ public partial class MainViewModel
                 continue;
             }
 
-            var newItem = CreateRecordedItem(
-                title, start, end, source, todo);
+            var newItem = RecordingItemHelper.CreateRecordedItem(
+                title, start, end, metadata);
             ScheduleItems.Add(newItem);
             edits.Add(new AddItemEdit(newItem));
         }
@@ -115,14 +115,11 @@ public partial class MainViewModel
         }
     }
 
-    private ScheduleItem CreateRecordedItem(
-        string title,
-        DateTime start,
-        DateTime end,
+    private RecordingItemMetadata CaptureRecordingMetadata(
         ScheduleItem? source,
         TodoItem? todo)
     {
-        var metadata = new RecordingItemMetadata(
+        return new RecordingItemMetadata(
             _recordingColorCode
                 ?? RecordingCategory?.ColorCode
                 ?? CategoryInfo.CreateBrush("DarkOrange").ToString(),
@@ -132,8 +129,6 @@ public partial class MainViewModel
             todo?.Id ?? source?.TodoId,
             source?.RoutineId,
             source?.Id);
-
-        return RecordingItemHelper.CreateRecordedItem(title, start, end, metadata);
     }
 
     private void AddTodoRecordedTimeEdit(

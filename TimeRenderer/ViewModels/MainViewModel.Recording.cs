@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 using TimeRenderer.Models;
 
@@ -22,7 +23,11 @@ public partial class MainViewModel
     /// <summary>選択した予定と同じ内容で記録を開始する。</summary>
     private void StartRecordingFromItem(ScheduleItem item)
     {
-        if (IsRecording) StopRecording();
+        if (IsRecording)
+        {
+            StopRecording(() => StartRecordingFromItem(item));
+            return;
+        }
 
         // 仮想の定期予定を先に実体化し、停止時の変換対象を見失わないようにする。
         if (item.IsPlanned && item.IsVirtual) MaterializeOccurrence(item);
@@ -100,36 +105,46 @@ public partial class MainViewModel
             : null;
     }
 
-    /// <summary>現在の記録を確定し、セッション状態を必ず終了状態へ戻す。</summary>
-    private void StopRecording()
+    /// <summary>計測を先に終了し、次の記録を開始してから停止した記録を確定する。</summary>
+    private void StopRecording(Action? startNextRecording = null)
     {
         if (!IsRecording) return;
 
+        var startTime = RecordingStartTime;
+        var endTime = LocalNow;
+        var title = string.IsNullOrWhiteSpace(RecordingTitle)
+            ? $"作業ログ {startTime:HH:mm}"
+            : RecordingTitle;
+        var source = _recordingSourceItem;
+        var todo = _recordingTodo;
+        var metadata = CaptureRecordingMetadata(source, todo);
+        List<AwayPeriod> periods;
+
         try
         {
-            if (RecordingStartTime is { } startTime)
-            {
-                var endTime = LocalNow;
-                var title = string.IsNullOrWhiteSpace(RecordingTitle)
-                    ? $"作業ログ {startTime:HH:mm}"
-                    : RecordingTitle;
-                var source = _recordingSourceItem;
-                var todo = _recordingTodo;
-
-                var segments = ResolveRecordingSegments(title, startTime, endTime);
-                if (segments.Count == 0)
-                {
-                    ShowAutoStartNotice($"「{title}」は全体が離席だったため、記録しませんでした");
-                }
-                else
-                {
-                    SaveRecordingSegments(title, source, segments, todo);
-                }
-            }
+            // FlushPendingAway は記録中の状態を参照するので、リセット前に取り出す。
+            periods = startTime.HasValue
+                ? TakeAwayPeriodsForRecording(startTime.Value, endTime)
+                : [];
         }
         finally
         {
             ResetRecordingSession();
+        }
+
+        // 確認ダイアログの応答待ちを、停止表示や次の計測の開始に含めない。
+        // 以降は退避した情報だけで保存し、確認中に始まった記録をリセットしない。
+        startNextRecording?.Invoke();
+        if (!startTime.HasValue) return;
+
+        var segments = ResolveRecordingSegments(title, startTime.Value, endTime, periods);
+        if (segments.Count == 0)
+        {
+            ShowAutoStartNotice($"「{title}」は全体が離席だったため、記録しませんでした");
+        }
+        else
+        {
+            SaveRecordingSegments(title, source, segments, metadata, todo);
         }
     }
 

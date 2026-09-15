@@ -12,6 +12,7 @@ internal sealed class TestDialogService : IDialogService
 {
     public bool ConfirmationResult { get; set; } = true;
     public bool AwayReviewResult { get; set; }
+    public Action? OnAwayReview { get; set; }
     public List<(string Message, string Title)> Messages { get; } = [];
 
     public ScheduleItem? ShowScheduleEditDialog(
@@ -73,7 +74,11 @@ internal sealed class TestDialogService : IDialogService
         string recordTitle,
         DateTime recordStart,
         DateTime recordEnd,
-        IReadOnlyList<AwayPeriod> awayPeriods) => AwayReviewResult;
+        IReadOnlyList<AwayPeriod> awayPeriods)
+    {
+        OnAwayReview?.Invoke();
+        return AwayReviewResult;
+    }
 
     public void ShowAppUsageDialog(
         string itemTitle,

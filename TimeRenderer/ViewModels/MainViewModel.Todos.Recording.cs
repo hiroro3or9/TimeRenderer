@@ -15,14 +15,15 @@ public partial class MainViewModel
     private TodoItem? _recordingTodo;
 
     /// <summary>
-    /// ToDo のタイトル・色で記録を開始する。記録中だった場合は現在の記録を保存してから始める。
+    /// ToDo のタイトル・色で記録を開始する。記録中だった場合は計測を切り替えてから前の記録を保存する。
     /// 停止時には実績として通常の記録アイテムが作られ、あわせて ToDo に時間が積算される。
     /// </summary>
     private void StartRecordingFromTodo(TodoItem todo)
     {
         if (IsRecording)
         {
-            ToggleRecording(); // 現在の記録を停止・保存（この中で _recordingTodo も精算される）
+            StopRecording(() => StartRecordingFromTodo(todo));
+            return;
         }
 
         RecordingTitle = todo.Title;
