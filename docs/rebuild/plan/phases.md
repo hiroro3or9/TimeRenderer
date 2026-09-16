@@ -1,11 +1,11 @@
 ﻿# 実装計画（18フェーズ）
 
 - 1フェーズ＝1コミットを目安にする。各フェーズの終わりで**ビルドが通り、テストが全件成功し、アプリが起動する**
-- 各節は単独で読めるように書いてある。AIには **AGENT_RULES.md ＋ この節 ＋「読む設計書」に挙げた節だけ**を渡す
+- 各節は単独で読めるように書いてある。AIには **AGENT_RULES.md ＋ この節 ＋「読むガイド」に挙げたファイル**だけを渡す
 - 「ステップ」はセッションを分けるときの区切り。ステップの終わりでもビルドが通るようにしてある
-- 「スタブ」は後のフェーズで中身を入れる空実装。**名前とシグネチャは設計書どおり**にしておく（後で差し替えるだけにするため）
-- 設定項目（`AppSettings`）は `design/02` §17 の「導入」列のフェーズで binding に追加する
-- テストのメソッド名は日本語の文（例：`クイック追加をコマンドから実行してUndoとRedoできる`）
+- 「スタブ」は後のフェーズで中身を入れる空実装。**名前とシグネチャは後で差し替えるだけで済む形**にしておく
+- 設定項目は、その機能を作るフェーズで `AppSettings` と設定バインディングの一覧の**両方**に足す（契約テストが漏れを検出する）
+- テストのメソッド名は日本語の文にする（例：`クイック追加をコマンドから実行してUndoとRedoできる`）
 
 ## 依存関係の早見表
 
@@ -25,226 +25,203 @@ P1 土台 → P2 モデル → P3 保存 → P4 VM骨格・メインウィンド
 
 **目的**：空のメインウィンドウがライト配色で起動し、共通スタイルとコンバーターが揃っている。
 
-**読む設計書**：`01` §1〜3 ／ `03` 全体
+**読むガイド**：`01`、`03`
 
-**作るファイル**
-- `TimeRenderer.sln`、`TimeRenderer/TimeRenderer.csproj`、`TimeRenderer.Tests/TimeRenderer.Tests.csproj`
-- `App.xaml(.cs)`（例外ハンドラ・`ApplyTheme`。CrashLogService はこのフェーズでは空の static クラスでよい）
-- `AssemblyInfo.cs`、`Properties/AssemblyInfo.cs`（InternalsVisibleTo）、`Assets/AppIcon.ico`
-- `Infrastructure/ObservableObject.cs`、`Helpers/RelayCommand.cs`、`Helpers/LayoutConstants.cs`、`Helpers/ThemeHelper.cs`、`Helpers/DayOfWeekHelper.cs`、`Converters/DateTimeHelper.cs`
-- `Themes/Colors.xaml`、`Themes/DarkColors.xaml`、`Themes/Styles.xaml`、`Themes/Generic.xaml`
-- `Converters/*`（`03` §4 のうち、モデルに依存しないもの：`BrushToContrastTextConverter`, `BrushToSubtleBackgroundConverter`, `InvertedBooleanToVisibilityConverter`, `DayOfWeekToBrushConverter`, `LShapeGeometryConverter`, `IndexToTopMarginConverter`, `DurationToHeightConverter`, `TimeToPositionConverter`, `ConverterIndices`）
-- `Controls/TransitioningContentControl.cs`、`Helpers/ScrollViewerHelper.cs`
-- `Views/MainWindow.xaml(.cs)`（`01` §3 の Window 設定のみ。中身は空の Grid）
+**作るもの**
+- 本体とテストの2プロジェクト（本体は NuGet なし、テストは TUnit のみ）
+- `App`（例外ハンドラとテーマ切り替え）、アセンブリ属性、アプリアイコン
+- `ObservableObject`、`RelayCommand`、レイアウト定数、曜日ヘルパー、テーマヘルパー、日付ヘルパー
+- 配色トークン（ライト／ダーク）と共通スタイル一式
+- モデルに依存しないコンバーター、スライド遷移コントロール、中ボタンスクロールの添付プロパティ
+- 空のメインウィンドウ
 
 **ステップ**
-1. csproj 2つ・App・Infrastructure・RelayCommand → 起動して空ウィンドウ
-2. Colors / DarkColors / Styles / Generic → スタイルを全部定義（使う画面はまだ無くてよい）
-3. コンバーター・TransitioningContentControl・ScrollViewerHelper
+1. プロジェクト2つ・App・基盤クラス → 起動して空ウィンドウ
+2. 配色とスタイルを一式定義（使う画面はまだ無くてよい）
+3. コンバーターと補助コントロール
 
-**テスト**：`ObservableObjectTests`（SetProperty が同値で通知しない・戻り値）
+**テスト**：`ObservableObject`（同値なら通知しない、戻り値）
 
 **手動確認**
 - 起動してウィンドウが出る（タイトル・最小サイズ・アイコン）
-- 一時的に `App.ApplyTheme(true)` を呼ぶと背景がダーク配色になる（確認後に戻す）
-
-**完了条件**：ビルド警告0、テスト成功、`Styles.xaml` のキーが `03` §3 の一覧と一致
+- 一時的にダークテーマを適用すると配色が入れ替わる（確認後に戻す）
 
 ---
 
 ## P2. データモデル
 
-**目的**：保存対象・表示用のモデルクラスが揃い、単体で振る舞いを確認できる。
+**目的**：保存対象・表示用のモデルが揃い、振る舞いを単体で確認できる。
 
-**読む設計書**：`02` §1〜16、§19
+**読むガイド**：`02`
 
-**作るファイル**
-- `Models/`：`ScheduleItem`, `ScheduleItemKind`, `ScheduleSegment`, `ItemSnapshot`, `CategoryInfo`, `ProjectCodeInfo`, `RoutineScheduleItem`(+`RecurrenceType`), `SprintInfo`, `TodoItem`(+enum), `TodoSubtask`, `TodoSnapshot`, `WorkDayLog`(+`WorkEndSource`), `WorkDayEditResult`, `AwayPeriod`(+`AwayReason`), `AppUsageInterval`, `UnrecordedGap`, `UnrecordedTimeProjectAssignment`, `GitRepositoryInfo`, `GitCommit`
-- `ViewModels/`：`ViewMode`, `TimerOption`, `TodoSortMode`, `AwayHandlingMode`
+**作るもの**
+- 予定/実績、セグメント、スナップショット、カテゴリ、プロジェクトコード、定期予定テンプレート、スプリント
+- ToDo（サブタスク・スナップショット含む）、勤務記録、離席、使用アプリ期間、未記録の帯、期間割り当て、Git リポジトリとコミット
+- 表示モードやタイマー選択肢などの小さな enum / record
 
 **ステップ**
-1. ScheduleItem 系・CategoryInfo・ProjectCodeInfo・SprintInfo・WorkDayLog・AwayPeriod
-2. RoutineScheduleItem（`11` §2 の発生判定も含めて**ここで全部**書く）
-3. TodoItem 系（`09` §1 の派生プロパティ・繰り返しも**ここで全部**書く）、残りのモデル
+1. 予定/実績まわりとマスター系
+2. 定期予定テンプレート（発生判定まで**ここで全部**書く）
+3. ToDo（派生プロパティと繰り返しの計算まで全部）、残りのモデル
 
-**テスト**：`DayOfWeekOutputTests`、`TodoRecurrenceTests`（`09` §14）、RoutineScheduleItem の `OccursOn`（隔週・月末・第N曜日・休み）
+**テスト**：ToDo の繰り返し（日/週/月・完了日基準・曜日指定・月末・長期放置）、定期予定の発生判定（隔週・第N曜日・第5週が無い月・休みの回）、曜日の表記
 
 **手動確認**：なし（UI なし）
 
-**完了条件**：JSON 化したときのプロパティ名・enum 数値が `02` と一致（`[JsonIgnore]` の付け漏れがない）
+**完了条件**：JSON に出るプロパティ名と enum の数値が意図どおり（派生プロパティが混ざっていない）
 
 ---
 
-## P3. 永続化・設定の読み書き・ログ
+## P3. 保存・設定・ログ
 
-**目的**：データファイルを安全に保存・復旧でき、設定を読み書きできる。
+**目的**：データを安全に保存・復旧でき、設定を読み書きできる。
 
-**読む設計書**：`15` 全体 ／ `02` §17（表のみ）
+**読むガイド**：`15`、`02`（設定の節）
 
-**作るファイル**
-- `Services/JsonFileRepository.cs`、`FilePersistenceService.cs`、`SettingsService.cs`、`CrashLogService.cs`（中身を実装）
-- `Models/AppSettings.cs`（**46項目すべて**定義してよい）、`Services/AppSettingsNormalizer.cs`（全項目）
-- `Services/IDialogService.cs`、`DefaultDialogService.cs`（このフェーズでは `ShowMessage` / `ShowConfirmationDialog` のみ実装し、他のメソッドは後のフェーズで追加）、`TimeRenderer.Tests/TestDialogService.cs`
+**作るもの**
+- アトミック保存＋`.bak`＋日次スナップショット＋多段復旧の仕組み
+- 各データファイルの読み書き、設定の保存/読込、設定の正規化、クラッシュログ
+- ダイアログサービスの抽象（このフェーズではメッセージと確認だけ）とテスト用の差し替え実装
+- 初回起動時のサンプルデータ
 
 **ステップ**
-1. JsonFileRepository（アトミック保存・.bak・日次スナップショット7世代・多段復旧・LoadStatus）
-2. FilePersistenceService（各ファイル・サンプルデータ）・SettingsService・Normalizer
-3. CrashLogService、App の例外ハンドラをログ出力につなぐ
+1. 保存・復旧の中核
+2. 各ファイルの入出力と設定
+3. ログと、App の例外ハンドラからの書き出し
 
-**テスト**：`JsonFileRepositoryTests`、`FilePersistenceServiceTests`、`AppSettingsTests`（`15` §7、`02` §17 の補正）
+**テスト**：保存で `.bak` とスナップショットができる、壊れたファイルから順に復旧する、全滅したら失敗状態になる、設定の正規化（範囲外・未定義値・null）
 
-**手動確認**
-- 起動 → `%APPDATA%\TimeRenderer\Logs` に起動ログが出る
-- 一時ディレクトリで保存を2回 → `.bak` とスナップショットができる（テストで代替可）
-
-**完了条件**：壊れた JSON を読ませたとき `.bak` → スナップショットの順に復旧し、全滅なら `Failed` になる
+**手動確認**：起動するとデータフォルダとログができる
 
 ---
 
-## P4. MainViewModel の骨格・メインウィンドウ・ナビゲーション
+## P4. ViewModel の骨格・メインウィンドウ
 
-**目的**：ツールバーとナビから表示モードと日付を切り替えられ、設定パネル／管理パネルの枠が開閉し、ダークモードが切り替わる。予定データを読み込み・保存できる。
+**目的**：ツールバーとナビから表示モードと日付を切り替えられ、パネルが開閉し、ダークモードが切り替わる。予定データを読み書きできる。
 
-**読む設計書**：`01` §4〜7 ／ `02` §18 ／ `04` §1〜5（§5 は継続通知＝データ保全通知のみ） ／ `13` 冒頭の外枠と §1.1・§1.2①、§2.1 ／ `15` §5
+**読むガイド**：`01`、`04`（通知はデータ保全の警告だけ）、`13`（外枠と「外観」だけ）
 
-**作るファイル**
-- `ViewModels/MainViewModel.cs`（コンストラクタ・時計・主要プロパティ・`DateDisplay`・ScheduleItems 監視）
-- `MainViewModel.Commands.cs`（前へ/次へ/今日/モード変更のみ）、`.Data.cs`（パネル開閉・ダーク・データ保存読込）、`.SettingsMapping.cs`
-- `Views/MainWindow.xaml(.cs)`（ツールバー3グループ・2段化・ViewNavigation 配置・パネル配置）、`Views/ViewNavigation.xaml`、`Views/NotificationHost.xaml`（データ保全通知のみ）
-- `Views/SettingsPanel.xaml`（外枠・ヘッダー・「外観」セクションのみ）、`Views/ManagementPanel.xaml`（外枠・ヘッダー・空のタブ3つ）
+**作るもの**
+- `MainViewModel` 本体（初期化順序・時計・表示モードと日付・変更監視）、設定バインディングの一覧
+- メインウィンドウ（ツールバー3グループ・2段化・ナビゲーション・パネルの置き場）
+- 設定パネルの外枠と「外観」、管理パネルの外枠と空のタブ
+- データ保全の警告表示
 
-**設定の binding**：#1, #2, #14, #17
+**設定**：パネルの開閉状態、表示モード、ダークモード
 
-**スタブ**：`01` §4 のコンストラクタが呼ぶ `Initialize*` / `Load*` / `RebuildTodayOverview` / `RecalculateLayout` / `UpdateStats` などは空メソッド。ツールバーの記録・出退勤・ToDo・検索ボタンは置くが Command は未設定（または何もしないコマンド）。各ビュー領域はモード名を出すだけの仮 TextBlock
+**スタブ**：初期化で呼ぶ各種 `Initialize*` / `Load*` / 再計算 / 統計更新は空メソッド。記録・出退勤・ToDo・検索のボタンは置くがコマンドは空。各ビュー領域はモード名を出す仮表示
 
-**ステップ**
-1. MainViewModel.cs / Data.cs / SettingsMapping.cs（起動時の読込と保存まで）
-2. MainWindow のツールバー・ViewNavigation・パネル枠
-3. NotificationHost のデータ保全通知、ダークモード切替
-
-**テスト**：`MainViewModelIntegrationTests` の「軽量起動経路は…初期化する」（`TestDialogService`・`startRuntime:false`）、`AppSettingsMappingContractTests`（**導入済みの項目だけ**を検査する形か、フェーズ18まで Skip）
+**テスト**：テスト用コンストラクタで起動できる（実データもOS監視も無し）、設定バインディングの契約テスト（導入済みの項目だけ、または最終フェーズまで Skip）
 
 **手動確認**
-- ナビの各ボタンで表示モードが切り替わり、ツールバーの日付表示が `01` §5 の書式になる
-- 前へ/次へ/今日で日付が動く。ウィンドウ幅を狭めるとツールバーが2段になる
-- 設定パネルと管理パネルが排他的に開閉し、幅のアニメーションが 0.15 秒
-- ダークモードを切り替え、再起動後も保持される
-
-**完了条件**：`appsettings.json` と予定データファイルが作られ、再起動で状態が戻る
+- ナビで表示モードが切り替わり、日付表示が変わる
+- 前へ/次へ/今日が効く。幅を狭めるとツールバーが2段になる
+- 設定と管理のパネルが排他で開閉する
+- ダークモードが切り替わり、再起動後も保持される
 
 ---
 
 ## P5. 日/週ビューの表示
 
-**目的**：予定・実績が日/週ビューに正しい位置・重なり・色で表示される（編集はまだ）。
+**目的**：予定・実績が正しい位置・重なり・色で表示される（編集はまだ）。
 
-**読む設計書**：`05` §1〜3（§3.5 は後のフェーズ） ／ `03` §4（残りのコンバーター） ／ `13` §1.2②（表示時間範囲・表示曜日のみ） ／ `13` §3.1 のうち `LoadCategories` / `ResolveCategory` / `IsItemVisible`
+**読むガイド**：`05`（レイアウトと画面構成まで）、`03`（コンバーター）
 
-**作るファイル**
-- `Converters/`：`DateToPagePositionConverter`, `DateToPageVisibilityConverter`, `DateToVisibleDaysConverter`, `DateToBackgroundBrushConverter`
-- `Helpers/ScheduleLayoutHelper.cs`
-- `ViewModels/MainViewModel.Layout.cs`（表示時間範囲・VisibleDays（日/週のみ）・RecalculateLayoutCore・遅延再計算）
-- `MainViewModel.Categories.cs`（読込・解決・表示判定のみ）、`MainViewModel.ProjectCodes.cs`（`LoadProjectCodes` / `ResolveProjectCode` のみ）
-- `Views/DayWeekView.xaml(.cs)`（描画のみ）
+**作るもの**
+- 座標変換のコンバーター、重なりの列割り当て（純粋関数）
+- レイアウト計算（表示日・セグメント・終日行・遅延再計算）
+- カテゴリとプロジェクトコードの読み込みと解決（管理 UI は P7）
+- 日/週ビュー本体（時間グリッド・曜日ヘッダー・終日行・予定バー）
+- 設定パネルの「表示設定」から表示時間範囲と表示曜日
 
-**設定の binding**：#15, #16, #46（`EnabledDaysOfWeek`）
+**設定**：表示開始/終了時刻、表示する曜日
 
-**ステップ**
-1. ScheduleLayoutHelper と Layout.cs（セグメント・終日行の計算）
-2. DayWeekView の時間グリッド・曜日ヘッダー・予定バー・終日行
-3. 設定パネル「表示設定」の表示時間範囲・表示曜日、日付送りのスライド遷移
-
-**テスト**：`ScheduleLayoutHelperTests`
+**テスト**：重なりの列割り当て（入れ子・連鎖・同時刻）
 
 **手動確認**
 - サンプルデータが週ビューに並び、重なる予定が列に分かれる
-- 予定（枠線・薄い塗り）と実績（塗り）の見分け、日跨ぎのL字表示、終日行
-- 表示時間範囲・表示曜日を変えると即座に反映され、再起動後も保持
+- 予定と実績の見分け、日跨ぎのL字、終日行
+- 表示時間範囲・表示曜日の変更が即反映され、再起動後も保持される
 
 ---
 
-## P6. 日/週ビューの編集・取り消し・選択・複製
+## P6. 日/週ビューの編集・取り消し
 
-**目的**：ドラッグ・インライン入力・ダイアログで予定を作成/編集/削除でき、すべて Ctrl+Z / Ctrl+Y で戻せる。
+**目的**：ドラッグ・インライン入力・ダイアログで予定を作成/編集/削除でき、すべて Ctrl+Z で戻せる。
 
-**読む設計書**：`05` §4〜6 ／ `14` §1〜3 ／ `04` §8 ／ `13` §1.2②（刻み幅・吸着）
+**読むガイド**：`05`（操作と編集ダイアログ）、`14`（取り消し・選択・コピー）
 
-**作るファイル**
-- `Helpers/MagnetSnapHelper.cs`、`Helpers/UndoManager.cs`、`Helpers/UndoableEdits.cs`
-- `MainViewModel.Commands.cs`（追加/編集/削除）、`.Snapping.cs`、`.InlineEdit.cs`、`.Selection.cs`、`.Clipboard.cs`、`.Undo.cs`
-- `Views/DayWeekView.Drag.cs`、`.Schedule.cs`、`.InlineEdit.cs`、`Views/ScheduleItemMenu.cs`、`Views/MainWindow.Undo.cs`
-- `Views/Dialogs/ScheduleEditDialog.xaml(.cs)`、`IDialogService` に `ShowScheduleEditDialog` を追加
-- `MainViewModel.Titles.cs`（`LoadPinnedTitles` と `GetTitleSuggestions` のみ。管理 UI は P7）
+**作るもの**
+- 取り消し履歴の仕組みと、予定に対する各操作の履歴項目
+- 追加/編集/削除コマンド、吸着、インライン作成、選択、複製・コピー・貼り付け
+- ドラッグ・キーボード・コンテキストメニュー
+- 予定/実績の編集ダイアログ
 
-**設定の binding**：#34, #35
+**設定**：時刻の刻み幅、隣の予定への吸着
 
-**スタブ**：定期予定の仮想アイテム分岐（`IsVirtual`）は条件だけ書いて中身は P12。ToDo のドロップは P13
+**スタブ**：定期予定の仮想アイテム分岐（条件だけ書いて中身は P12）、ToDo のドロップ（P13）
 
 **ステップ**
-1. UndoManager・UndoableEdits・Undo.cs・Commands（ダイアログ経由の追加/編集/削除）
-2. ドラッグ（移動・伸縮・Alt 複製）・吸着・範囲作成・ダブルクリック・インライン入力
-3. 選択・キーボード操作・複製/コピー/貼り付け・コンテキストメニュー
+1. 履歴の仕組みとダイアログ経由の追加/編集/削除
+2. ドラッグ（移動・伸縮・複製）・吸着・範囲作成・インライン入力
+3. 選択・キーボード・複製/コピー/貼り付け
 
-**テスト**：`MagnetSnapHelperTests`、`UndoManagerTests`、統合テスト（ダイアログ追加→Undo→Redo、ドラッグ確定が1回で戻る）
+**テスト**：吸着候補の選び方、履歴（上限・分岐・まとめて1件）、統合テスト（追加→Undo→Redo、ドラッグ確定が1回で戻る）
 
 **手動確認**
-- 空白ドラッグで作成、端で伸縮、中央で移動、Alt+ドラッグで複製、隣の予定に吸い付く細線
-- Enter でインライン確定、Esc で取り消し
-- 削除・編集・ドラッグ・貼り付けがそれぞれ Ctrl+Z で1操作ずつ戻る。ツールチップに「元に戻す: …」
-- 編集後 700ms で保存され、再起動しても残る
+- 空白ドラッグで作成、端で伸縮、中央で移動、Alt+ドラッグで複製、吸い付いたときのガイド線
+- Enter で確定、Esc で取り消し
+- 各操作が Ctrl+Z で1回ずつ戻り、ツールチップに戻る内容が出る
+- 編集後しばらくで保存され、再起動しても残る
 
 ---
 
-## P7. 分類マスター・管理パネル（分類タブ）・検索・表示フィルタ
+## P7. 分類マスター・検索・表示フィルタ
 
 **目的**：カテゴリ・プロジェクトコード・定型タイトルを管理でき、検索と表示フィルタが効く。
 
-**読む設計書**：`13` §2.1〜2.2（未記録時間の加算部分を除く）、§3.1〜3.3 ／ `14` §4〜5 ／ `04` §2.2・§2.5（検索フライアウト・フィルタポップアップ）
+**読むガイド**：`13`（管理パネルの分類タブとマスターの扱い）、`14`（検索・表示フィルタ）、`04`（検索フライアウトとフィルタのポップアップ）
 
-**作るファイル**
-- `MainViewModel.Categories.cs`（コマンド・既定カテゴリ・フィルタ）、`.ProjectCodes.cs`（期間割り当て以外）、`.Titles.cs`（コマンド）
-- `MainViewModel.Search.cs`
-- `Views/ManagementPanel.xaml` の「分類」タブ（カテゴリ・プロジェクトコード（未記録時間の3項目を除く）・定型タイトル）
-- `Converters/ProjectCodeIdConverter.cs`
-- MainWindow の検索フライアウト・フィルタポップアップ
+**作るもの**
+- カテゴリ・プロジェクトコード・定型タイトルのコマンドと制約（最後の1件は消せない、使用中は消せない等）
+- 管理パネルの「分類」タブ（未記録時間の項目を除く）
+- 検索と表示フィルタ
 
-**設定の binding**：#37, #38, #39, #40, #44
+**設定**：カテゴリ一覧、既定カテゴリ、プロジェクトコード一覧、既定コード、定型タイトル
 
-**スタブ**：検索結果の ToDo・ふりかえり種別は P13 / P18 で追加（種別の enum だけ先に定義）
+**スタブ**：検索結果の ToDo・ふりかえり種別は P13 / P18 で追加
 
-**テスト**：統合テスト（カテゴリ追加→削除確認→Undo 対象外であること、プロジェクトコードの削除ガード）
+**テスト**：統合テスト（カテゴリ追加・削除の制約、プロジェクトコード削除のガード）
 
 **手動確認**
-- カテゴリの色・名前変更が日/週ビューの色に即反映、最後の1件は削除ボタンが無効
-- 使用中のプロジェクトコードは削除できずメッセージ、最後の有効コードは無効化できない
-- 検索で予定がヒットし、結果クリックでその日へ移動・選択。フィルタでカテゴリを外すと非表示（再起動で元に戻る）
+- 色や名前の変更が日/週ビューに即反映される
+- 使用中のコードは削除できず、その旨が出る
+- 検索でヒットした予定に飛べる。フィルタで外すと非表示になり、再起動で元に戻る
 
 ---
 
-## P8. 記録（タイマー）・トレイ・ホットキー・ミニバー
+## P8. 記録・トレイ・ホットキー・ミニバー
 
 **目的**：記録の開始/停止で実績が作られ、トレイ・ホットキー・ミニバーから操作できる。
 
-**読む設計書**：`10` §1〜3 ／ `04` §5.2（一時通知）・§6・§7・§10
+**読むガイド**：`10`（記録の節まで）、`04`（一時通知・トレイ・ホットキー・ミニバー）
 
-**作るファイル**
-- `Helpers/RecordingStopHelper.cs`、`RecordingItemHelper.cs`、`AppIconHelper.cs`
-- `MainViewModel.Recording.cs`、`.RecordingStop.cs`、`.MiniBar.cs`、`.Routines.cs` のうち `AutoStartNotice` / `ShowAutoStartNotice` のみ
-- `Views/Dialogs/RecordingStartDialog.xaml(.cs)`、`Views/MiniRecordingBar.xaml(.cs)`、`Views/MainWindow.Hotkey.cs`
-- MainWindow のトレイ（NotifyIcon）・状態アイコン・最小化/閉じる、NotificationHost の一時通知
-- `SettingsPanel` の「記録中のミニバー」セクション
+**作るもの**
+- 記録セッションと停止処理（区間の分割、予定の実績化）、トレイ用の状態アイコン
+- 記録開始ダイアログ、ミニ記録バー、グローバルホットキー
+- トレイアイコンとメニュー、最小化/閉じるの扱い、一時通知の表示
 
-**設定の binding**：#29, #30, #31
+**設定**：ミニバーを出すか、ミニバーの位置
 
-**スタブ**：`TakeAwayPeriodsForRecording` は空リストを返す（P9）。`_recordingTodo` の積算は P14。`ClearAwayState` は空
+**スタブ**：離席の取り出しは空（P9）、ToDo への積算は空（P14）
 
-**テスト**：`RecordingStopHelperTests`、`RecordingItemHelperTests`、`RecordingTransitionTests`（停止中に次の記録を開始しても前の記録が保存される）
+**テスト**：停止時の区間分割と実績の作り方、記録の切り替え（停止中に次を開始しても前が保存される）
 
 **手動確認**
-- ツールバーの記録ボタン → ダイアログ → 開始、経過時間とタスクトレイのアイコンが記録中表示
-- タイマー（カウントダウン）が0で自動停止し実績ができる
-- 予定を右クリック「この内容で記録開始」→ 停止で予定が実績に変わり、Ctrl+Z で予定に戻る
-- ホットキー（`04` §7）で開始/停止、ミニバーが最前面・ドラッグ位置が次回も保持・クリックで入力先を奪わない
+- 記録開始 → 経過時間とトレイの見た目が変わる → 停止で実績ができる
+- タイマー（カウントダウン）が0で自動停止する
+- 予定から記録を始めて停止すると、その予定が実績になり Ctrl+Z で戻る
+- ホットキーで開始/停止できる。ミニバーが最前面に出て、位置を覚え、クリックしても入力先を奪わない
 
 ---
 
@@ -252,191 +229,188 @@ P1 土台 → P2 モデル → P3 保存 → P4 VM骨格・メインウィンド
 
 **目的**：記録中の無操作・スリープ・ロックを検知し、停止時に除外できる。
 
-**読む設計書**：`10` §4〜6 ／ `13` §1.2④ ／ `04` §5.2（離席バナー）
+**読むガイド**：`10`（離席の節）、`13`（離席の設定）
 
-**作るファイル**：`Services/AwayDetector.cs`、`MainViewModel.Away.cs`、`Views/Dialogs/AwayReviewDialog.xaml(.cs)`、NotificationHost の離席バナー、設定「離席・中断の検知」
+**作るもの**：離席検知サービス、検知の受け取りとバナー、確認ダイアログ、設定セクション
 
-**設定の binding**：#21, #22, #23
+**設定**：検知するか、離席とみなす時間、検知したときの扱い
 
-**スタブ**：`HandleAwayForWorkDay` は空（P10）
+**スタブ**：勤務終了の判定は空（P10）
 
-**テスト**：`RecordingStopHelperTests` に離席分割のケースを追加、統合テスト（`AlwaysExclude` で分割され1回の Undo で全部消える）
+**テスト**：離席を含む停止の区間分割（末尾・途中・重複・全体離席）
 
 **手動確認**
-- 閾値を3分にして記録 → 3分放置でバナー → 操作再開 → 停止で確認ダイアログ、「離席時間を除く」で2件に分割
-- 「常に除外する」で通知が出て、Ctrl+Z でまとめて消える
-- スリープ・画面ロックから復帰した分も同様に扱われる
+- 閾値を短くして記録 → 放置 → バナー → 復帰 → 停止で確認ダイアログ、除くと記録が分割される
+- 「常に除外する」で通知が出て、Ctrl+Z でまとめて戻る
+- スリープ・画面ロックからの復帰でも同じ扱いになる
 
 ---
 
-## P10. 出退勤・勤務マーカー
+## P10. 出退勤
 
 **目的**：出勤/退勤を記録し、日/週ビューに線で表示・編集でき、押し忘れを救済する。
 
-**読む設計書**：`10` §7〜8 ／ `05` §3.5（出退勤マーカーのみ） ／ `13` §1.2⑧（「退勤時にふりかえる」を除く）
+**読むガイド**：`10`（出退勤の節）、`13`（勤務の設定のうち終了検知まで）
 
-**作るファイル**：`Helpers/WorkDayPolicy.cs`、`MainViewModel.WorkDay.cs`、`ViewModels/WorkDayMarker.cs`、`Views/Dialogs/WorkDayEditDialog.xaml(.cs)`、DayWeekView のマーカー、ツールバーの出退勤ボタン、設定「勤務の記録」
+**作るもの**：出退勤の状態管理と自動締め、マーカー表示、勤務時間の編集ダイアログ、ツールバーのボタン、設定セクション
 
-**設定の binding**：#24, #25, #26
+**設定**：終了を検知するか、終了とみなす時間、確認する時間帯
 
-**スタブ**：`ShowWorkEndReview` は空（P16）、`NotifyWorkDayNotesChanged` は空（P16/P18）、`ApplyAppUsageTrackingState` は空（P17）、`RebuildUnrecordedGaps` は空（P17）、`RebuildTodayWorkload` は空（P14）
+**スタブ**：退勤時のふりかえりは空（P16）、ふりかえり一覧の更新は空（P18）、使用アプリの収集切り替えは空（P17）、未記録の帯の再計算は空（P17）、今日の負荷は空（P14）
 
-**テスト**：`WorkDayPolicyTests`、統合テスト（出勤→退勤→同日再出勤で同じ記録が再開）
+**テスト**：自動締めの条件と締める時刻、退勤確認を出す条件
 
 **手動確認**
-- 出勤/退勤ボタンとホットキー、日ビューの横線とラベル、ラベルクリックで編集ダイアログ
-- 前日を未退勤のまま翌日に起動 → 最終記録の時刻で自動締め＋通知、マーカーに「（自動）」
-- 終了検知：閾値以上離席して「確認する時間帯」以降に戻ると退勤確認
+- 出勤/退勤ボタンとホットキー、日ビューの線とラベル、ラベルから編集できる
+- 未退勤のまま翌日に起動すると自動で締まり、通知と「（自動）」表示が出る
+- 長い離席から戻ると退勤の確認が出る（勝手には確定しない）
 
 ---
 
-## P11. 月/スプリントカレンダー・スプリント管理・今日ホーム
+## P11. 月/スプリントカレンダー・今日ホーム
 
-**目的**：月・スプリントのカレンダーと今日ホームが表示され、手動スプリントを登録できる。
+**目的**：月とスプリントのカレンダー、今日ホームが表示され、手動スプリントを登録できる。
 
-**読む設計書**：`06` §1〜5 ／ `11` §1 ／ `13` §2.4 ／ `04` §9（月セルのイベント）
+**読むガイド**：`06`（カレンダーと今日ホーム）、`11`（スプリントの節）、`13`（スプリントタブ）
 
-**作るファイル**：`Helpers/SprintHelper.cs`、`Controls/CalendarMonthCellControl.cs`、`ViewModels/CalendarCellViewModel.cs`、`Views/CalendarGridView.xaml(.cs)`、`MainViewModel.Layout.cs`（月/スプリントの表示日・`UpdateCalendarCells`）、`MainViewModel.Commands.cs`（スプリントフォーム）、`MainViewModel.Today.cs`、`Views/TodayView.xaml`、管理パネル「スプリント」タブ
+**作るもの**：スプリントの自動分割、自前描画のカレンダーセル、共通のカレンダーグリッド、今日ホーム、スプリントの登録フォーム
 
-**設定の binding**：#36
+**設定**：手動スプリント一覧
 
-**スタブ**：`GetVisibleTodosByDueDate` は空の辞書（P13）、今日ホームの `Todos` 部分は空（P13）、`UnrecordedGaps` は空（P17）、`TodayWorkload` は null（P14）
+**スタブ**：セルに出す ToDo は空（P13）、今日ホームの ToDo・未記録・負荷は空表示（P13/P14/P17）
 
-**テスト**：`SprintHelperTests`
+**テスト**：スプリントの自動分割（手動なし・隙間・過去方向・名前の付け方）
 
 **手動確認**
-- 月ビュー：6週×有効曜日、他月のセルが薄い背景、今日のセルが強調、「+N 件」、ダブルクリックで編集/新規
-- スプリントを手動登録するとスプリントビューの行数が週数に合い、隙間は14日単位の自動スプリント
-- 今日ホーム：記録中/次の予定/予定なしの3状態、4指標、「日ビューで詳しく確認」
+- 月ビューの他月セル・今日の強調・「+N 件」・ダブルクリックでの編集/新規
+- スプリントを登録すると表示範囲と行数が変わり、隙間は自動で埋まる
+- 今日ホームの3状態（記録中／次の予定／予定なし）と4指標
 
 ---
 
 ## P12. 定期予定
 
-**目的**：定期予定から仮想の予定が生成され、この日のみ/全体の編集・削除・時間変更と、開始時刻の通知・自動記録開始ができる。
+**目的**：定期予定から予定が自動生成され、範囲を選んで編集・削除でき、開始時刻に通知・自動開始ができる。
 
-**読む設計書**：`11` §3〜6 ／ `13` §2.3 ／ `04` §5.2（リマインダーカード）
+**読むガイド**：`11`（定期予定の節）、`13`（定期予定タブ）、`04`（リマインダーのカード）
 
-**作るファイル**：`Helpers/RoutineOccurrencePlanner.cs`、`MainViewModel.Routines.cs`（全体）、`Views/Dialogs/RoutineEditDialog.xaml(.cs)`、`RoutineScopeDialog.xaml(.cs)`、管理パネル「定期予定」タブ、NotificationHost のリマインダー
+**作るもの**：仮想アイテムの生成、実体化と除外日、範囲確認のダイアログ、編集ダイアログ、通知と自動開始、管理パネルのタブ
 
-**設定の binding**：#45
+**設定**：定期予定一覧
 
-**テスト**：`RoutineOccurrencePlannerTests`、統合テスト（仮想アイテムの「この日のみ」削除で除外日が増え、再生成で復活しない）
+**テスト**：生成（除外日・既存の実体・開始日前を作らない）、統合テスト（この日のみ削除して再生成で復活しない）
 
 **手動確認**
-- 毎週・隔週・毎月（末日）・第N曜日・休みの予定が期待どおりの日に出る
-- 仮想予定のドラッグで範囲確認、「定期予定全体」で他の日も動く、日跨ぎはエラー
-- 開始時刻でリマインダー（音）→「記録開始」、自動開始・強制開始の挙動
+- 毎週・隔週・毎月（末日）・第N曜日・休みが期待どおりの日に出る
+- 仮想予定をドラッグすると範囲を聞かれ、「全体」で他の日も動く
+- 開始時刻に通知が出て、自動開始・強制開始が効く
 
 ---
 
 ## P13. ToDo の基本
 
-**目的**：ToDo パネルで追加（記法つき）・編集・完了・並べ替え・サブタスクができ、日/週の終日行と月セルに期限の ToDo が出る。
+**目的**：ToDo パネルで追加（記法つき）・編集・完了・並べ替え・サブタスクができ、期限の ToDo が日/週と月に出る。
 
-**読む設計書**：`09` §2〜5、§7、§8（保存のみ）、§11〜12 ／ `14` §1（ToDo の Undo）
+**読むガイド**：`09`（通知と連携を除く）、`14`（ToDo の取り消し）
 
-**作るファイル**：`Helpers/TodoQuickParser.cs`、`TodoOrderHelper.cs`、`TodoSubtaskHelper.cs`、`MainViewModel.Todos.cs`、`.Todos.Sorting.cs`、`.Todos.Subtasks.cs`、`.Todos.Persistence.cs`（読込・保存）、`ViewModels/TodoChip.cs`、`Views/TodoPanel.xaml(.cs)`、`Views/Dialogs/TodoEditDialog.xaml(.cs)`、DayWeekView の ToDo チップ、月セルへの ToDo 供給、検索への ToDo 追加、設定「ToDo」の記法の項目
+**作るもの**：クイック追加の解釈、並べ替え、サブタスク操作、ToDo パネル、編集ダイアログ、チップ表示、保存とアーカイブの土台、検索への追加
 
-**設定の binding**：#3, #4, #5, #10
+**設定**：ToDo パネルの表示、完了済みも表示、並べ替えモード、記法を使うか
 
-**スタブ**：通知・まとめ・アーカイブ・見積もり傾向（`EstimateStats` は null を返す）は P14。`StartRecordingFromTodo` は P14
+**スタブ**：通知・まとめ・見積もり傾向・記録連携は P14
 
-**テスト**：`TodoQuickParserTests`、`TodoOrderHelperTests`、`TodoSubtaskHelperTests`、統合テスト（クイック追加→Undo/Redo、完了＋次回分生成が1回で戻る）
+**テスト**：記法の解釈（各記号・全角・行頭か空白の直後・解釈できない記号は本文に残る）、並べ替え、サブタスク、統合テスト（クイック追加→Undo/Redo、完了と次回分が1回で戻る）
 
 **手動確認**
-- 「資料作成 @明日 !高 #開発 ~30m」でプレビュー表示 → Enter で属性つき追加
-- 完了で取り消し線、繰り返し ToDo は次回分が作られ通知が出る
-- 手動並べ替え（ドラッグ・Ctrl+↑↓）、サブタスク全完了で親が完了
-- 週ビューの終日行にピル型チップ、期限超過は赤枠、月セルにも表示
+- 記法つきで打つとプレビューが出て、Enter で属性つきで追加される
+- 完了で取り消し線、繰り返しは次回分が作られる
+- 手動並べ替え、サブタスク全完了で親が完了
+- 週ビューの終日行と月セルに ToDo が出る（超過は赤）
 
 ---
 
-## P14. ToDo の通知・アーカイブ・見積もり・記録連携
+## P14. ToDo の通知・見積もり・記録連携
 
-**目的**：ToDo の通知・見逃し・朝のまとめ・アーカイブ・見積もり傾向・時間ブロック・記録からの積算・積みすぎ検知が動く。
+**目的**：通知・見逃し・朝のまとめ・アーカイブ・見積もり傾向・時間ブロック・記録からの積算・積みすぎ検知が動く。
 
-**読む設計書**：`09` §6、§8（アーカイブ・見積もり）、§9、§10、§12（見積もり傾向表示）、§13 ／ `04` §5.2（ToDo 通知カード・スヌーズメニュー） ／ `13` §1.2⑦（記法以外）
+**読むガイド**：`09`（通知・見積もり・連動の節）、`04`（ToDo の通知カード）、`13`（ToDo の設定）
 
-**作るファイル**：`Helpers/TodoReminderHelper.cs`、`TodoDigestHelper.cs`、`TodoArchiveHelper.cs`、`TodoTimeBlockHelper.cs`、`ViewModels/TodoEstimateStats.cs`、`MainViewModel.Todos.Notifications.cs`、`.Todos.Recording.cs`、`.Todos.TimeBlocking.cs`、`.Workload.cs`、`Views/Dialogs/TodoPickerDialog.xaml(.cs)`、NotificationHost の ToDo 通知
+**作るもの**：通知の判定とスヌーズ、朝のまとめ、アーカイブ、見積もり傾向、時間ブロック、ToDo から記録、ToDo を選ぶダイアログ、今日の負荷
 
-**設定の binding**：#6, #7, #8, #9, #11, #12, #13
+**設定**：朝のまとめの有無と時刻、最後に出した日、アーカイブの日数、既定の通知時刻、通知音、「あとで」の時間
 
-**スタブ**：`FillGapFromTodoPicker` の呼び出し元（未記録の帯）は P17
-
-**テスト**：`TodoReminderHelperTests`、`TodoDigestHelperTests`、`TodoArchiveHelperTests`、`TodoTimeBlockHelperTests`、統合テスト（ToDo の時間ブロックを追加して Undo、ToDo から記録→停止で実績と積算が同じ Undo 単位）
+**テスト**：通知の分類（遅れの閾値・見逃しの窓）、まとめを出す条件、アーカイブ対象、時間ブロックの作成
 
 **手動確認**
-- 通知時刻にカード＋音、スヌーズ（▾メニュー）、15分超の遅れは「見逃した通知」1本
+- 通知時刻にカードと音、スヌーズ、遅れた通知は1本にまとまる
 - 設定時刻以降の起動で1日1回のまとめ
-- ToDo を週ビューへドラッグで時間ブロック、ToDo パネルの▶で記録開始→停止で実績時間が増える
-- 見積もり5件以上＋手動退勤5回以上で「見込み H:MM ・ 退勤まで H:MM」が出る
+- ToDo をドラッグして時間ブロック、ToDo から記録開始 → 停止で積算される
+- 材料がたまると「今日の負荷」が出る
 
 ---
 
 ## P15. スプリントタイムライン
 
-**目的**：タイムラインビューでズーム・スクロール・レーン表示・ドラッグ編集ができ、大量データでも軽い。
+**目的**：ズーム・スクロール・行の詰め方・ドラッグ編集ができ、広い範囲でも軽い。
 
-**読む設計書**：`07` 全体
+**読むガイド**：`07`
 
-**作るファイル**：`Helpers/TimelineScale.cs`、`TimelineLaneHelper.cs`、`ViewModels/TimelineBar.cs`、`TimelineTick.cs`、`TimelineLaneGroup.cs`、`TimelineViewOptions.cs`、`MainViewModel.Timeline.cs`、`.TimelineDecorations.cs`、`.TimelineViewport.cs`、`Views/TimelineView.xaml(.cs)`
+**作るもの**：時間軸スケール、行の割り当て、バー・目盛り・背景・密度バー、仮想化、タイムラインビュー
 
-**設定の binding**：#18, #19, #20
+**設定**：ズーム倍率、行のまとめ方、表示するスプリント数
 
-**スタブ**：「この時間の使用アプリ」メニューの `ShowAppUsageCommand` は P17（それまでメニュー項目は無効）
+**スタブ**：「この時間の使用アプリ」は P17（それまで無効）
 
-**テスト**：`TimelineLaneHelperTests`、TimelineScale の往復
+**テスト**：行の割り当て（重ならないものを同じ行に、細いバー＋長いラベルで分かれる）、スケールの変換
 
 **手動確認**
-- Ctrl+ホイールでカーソル位置を固定したままズーム、Shift+ホイールで横移動、プリセット4種
-- 詰める/カテゴリ別/1件1行、カテゴリ別の左ラベル列と交互の帯
-- バーの移動・伸縮（ズームに応じたスナップ）、空白の横ドラッグで作成、←→ Enter Delete F T
-- 25スプリント表示で最大ズームにしてもスクロールが引っかからない
+- Ctrl+ホイールでカーソル位置を保ったままズーム、Shift+ホイールで横移動
+- 3つの行モードとカテゴリ別の固定ラベル列
+- バーの移動・伸縮、空白ドラッグで作成、キーボード操作
+- 広い範囲＋最大ズームでもスクロールが引っかからない
 
 ---
 
-## P16. 統計・月次タイムシート・退勤時ふりかえり
+## P16. 統計・退勤時のふりかえり
 
-**目的**：統計ビューで期間別の集計とタイムシートのコピーができ、退勤時にふりかえりと繰り越しができる。
+**目的**：期間別の集計とタイムシートのコピーができ、退勤時にふりかえりと繰り越しができる。
 
-**読む設計書**：`08` 全体（§4 はスタブ） ／ `10` §9 ／ `06` §6.1 のうち `WorkDayNote` と `ToWorkDayNote` ／ `06` §6.2 ／ `13` §1.2⑧（退勤時にふりかえる）
+**読むガイド**：`08`（未記録の加算を除く）、`10`（退勤時のふりかえり）、`06`（ふりかえりの1件分の作り方）
 
-**作るファイル**：`Helpers/StatsAggregationHelper.cs`、`ViewModels/StatsTimesheetBuilder.cs`、`MainViewModel.Stats.cs`、`Views/StatsView.xaml(.cs)`、`Helpers/NoteTagParser.cs`、`MainViewModel.Notes.cs`（record と `ToWorkDayNote`・`NotifyWorkDayNotesChanged` の `UpdateStats` 呼び出しまで）、`MainViewModel.WorkEndReview.cs`、`ViewModels/WorkEndCarryOver.cs`、`WorkEndReviewResult.cs`、`Views/Dialogs/WorkEndReviewDialog.xaml(.cs)`
+**作るもの**：集計の純粋ロジック、月次タイムシート、統計ビュー、タグの抽出、退勤時のふりかえりダイアログと繰り越し
 
-**設定の binding**：#27
+**設定**：退勤時にふりかえるか
 
-**スタブ**：`AddUnrecordedTimeToProjectStats` は何もしない（P17）。`GetCommitsBetween` は空を返す（P17。コミット欄は出ない）
+**スタブ**：未記録時間の加算は何もしない（P17）、コミットの取得は空を返す（P17）
 
-**テスト**：`StatsAggregationHelperTests`、`StatsTimesheetBuilderTests`、`NoteTagParserTests`
+**テスト**：集計（期間の切り取り・日跨ぎの按分・未分類/未設定の扱い）、タイムシート（合算してから丸める）、タグの抽出
 
 **手動確認**
-- 週/月/スプリントの切替、プロジェクトコード別・カテゴリ別の棒、日別積み上げ（ツールチップ）
-- 月のタイムシート：セルクリックで「1.25 をコピーしました」、コード列クリックでコードをコピー
-- 退勤 → ふりかえりダイアログ：数字・一言・片付かなかった ToDo → 「N 件を明日へ」→ 通知と Undo
-- 一言が統計の「ふりかえり」に出て、クリックで勤務編集が開く
+- 週/月/スプリントの切り替えと各グラフ
+- タイムシートのセルとコードのコピー、ツールチップの元の値
+- 退勤 → 数字・ひとこと・繰り越し → 通知と Ctrl+Z
+- 書いたひとことが統計に出て、押すと勤務記録の編集が開く
 
 ---
 
-## P17. 記録漏れの帯・使用アプリ・Git・未記録時間の加算
+## P17. 記録漏れ・使用アプリ・Git
 
-**目的**：勤務中の記録が無い時間が帯で見え、使用アプリ・コミット・ToDo・自由入力から埋められる。
+**目的**：勤務中の記録が無い時間が見え、使用アプリ・コミット・ToDo・自由入力から埋められる。
 
-**読む設計書**：`12` 全体 ／ `08` §4 ／ `13` §1.2⑤⑥、§2.2（未記録時間の3項目） ／ `05` §3.5（未記録の帯）
+**読むガイド**：`12`、`08`（未記録の加算）、`13`（使用アプリと Git の設定、未記録時間の項目）
 
-**作るファイル**：`Helpers/UnrecordedGapHelper.cs`、`UnrecordedTimeAssignmentHelper.cs`、`Services/ActiveWindowTracker.cs`、`GitCommitReader.cs`、`ViewModels/GapFillSuggestion.cs`、`MainViewModel.Gaps.cs`、`.GapFill.cs`、`.AppUsage.cs`、`.Git.cs`、`.ProjectCodes.cs`（期間割り当て）、`Views/Dialogs/AppUsageDialog.xaml(.cs)`、`GapFillDialog.xaml(.cs)`、DayWeekView の未記録の帯、統計の未記録加算、設定「使用アプリの記録」「Git のコミット履歴」、管理パネルの未記録時間の項目、`IDialogService.ShowFolderPicker`
+**作るもの**：未記録の帯の検出と表示、前面アプリの収集、git の読み出し、穴埋めのダイアログ、統計への加算、期間ごとの加算先、設定と管理パネルの項目
 
-**設定の binding**：#28, #32, #33, #41, #42, #43
+**設定**：使用アプリを記録するか、コミット履歴を使うか、リポジトリ一覧、未記録時間の加算とその加算先・期間割り当て
 
-**テスト**：`UnrecordedGapHelperTests`、`UnrecordedTimeAssignmentHelperTests`
+**テスト**：帯の検出（重なり・入れ子・勤務外にはみ出す記録・最小長・日跨ぎ）、期間割り当ての解決と表示
 
 **手動確認**
-- 出勤中に15分以上記録しない → 破線の帯「未記録 N分」、左ドラッグはそのまま作成、右クリックに3つの埋め方
-- 記録中にブラウザのタブを切り替え → 予定の右クリック「この時間の使用アプリ」でタイトル別の内訳
-- UWP アプリ（電卓など）が ApplicationFrameHost ではなく実アプリ名で出る
-- リポジトリ登録 → 帯の「使用アプリから埋める」にコミットが出て、タイトル候補の先頭になる
-- 未記録時間の加算を有効にすると統計のプロジェクト別と月次表だけが増える（カテゴリ別は増えない）
-- 今日ホームの「未記録」指標が「H:MM・N件」になる
+- 出勤中に記録しない時間ができると破線の帯が出て、左ドラッグはそのまま作成、右クリックで3つの埋め方
+- 記録中のタブ切り替えがタイトル別に分かれて残る
+- ストアアプリがホストプロセスではなく実アプリ名で出る
+- リポジトリを登録すると穴埋めの候補にコミットが出る
+- 未記録の加算を有効にすると、プロジェクト別と月次表だけが増える
 
 ---
 
@@ -444,20 +418,20 @@ P1 土台 → P2 モデル → P3 保存 → P4 VM骨格・メインウィンド
 
 **目的**：ふりかえり一覧と設定の検索を仕上げ、全機能を通しで確認する。
 
-**読む設計書**：`06` §6（全体） ／ `13` §1.3 ／ `14` §4（ふりかえりの検索） ／ `02` §18（契約テスト）
+**読むガイド**：`06`（ふりかえり一覧）、`13`（設定の検索）、`14`（ふりかえりの検索）
 
-**作るファイル**：`MainViewModel.Notes.cs`（一覧・タグ絞り込み）、`Views/NotesView.xaml(.cs)`、`SettingsPanel.xaml.cs`（検索）、検索へのふりかえり追加、`AppSettingsMappingContractTests` を全46項目で有効化
+**作るもの**：ふりかえり一覧とタグ絞り込み、設定パネルの検索、検索へのふりかえり追加、設定バインディングの契約テストを全項目で有効化
 
-**テスト**：全テスト（元アプリは 239 件以上）。`dotnet run --project TimeRenderer.Tests -- --minimum-expected-tests <件数>`
+**テスト**：全テスト（元アプリは 239 件以上）
 
 **手動確認（通しの回帰）**
-1. 初回起動（データフォルダ無し）→ サンプルデータ、今日ホームが表示
-2. 予定作成 → ドラッグ → 編集 → 削除 → Ctrl+Z を5回 → Ctrl+Y
+1. 初回起動（データフォルダ無し）→ サンプルデータと今日ホーム
+2. 予定を作る → ドラッグ → 編集 → 削除 → Ctrl+Z を5回 → Ctrl+Y
 3. 記録開始 → 離席 → 停止（除外）→ 出勤/退勤 → ふりかえり → 繰り越し
 4. 定期予定・ToDo（記法・繰り返し・通知）・時間ブロック
-5. 月/スプリント/タイムライン/統計/ふりかえり の各ビュー、ダークモードで全ビューの配色崩れが無い
-6. 設定検索「通知」で ToDo セクションだけが開き、「該当なし」表示も確認
-7. アプリ終了 → データファイルを壊して起動 → バックアップから復旧の通知
+5. 全ビューを一巡し、ダークモードで配色の崩れが無いことを確認
+6. 設定検索で目的のセクションだけが開き、該当なしの表示も出る
+7. 終了 → データファイルを壊して起動 → バックアップから復旧の通知
 8. 高 DPI（150%）で月セルのクリック位置がずれない
 
-**完了条件**：`design/02` §17 の46項目すべてが binding に1回ずつ、ビルド警告0、全テスト成功、上記回帰がすべて期待どおり
+**完了条件**：設定項目がすべてバインディング一覧に1回ずつ、ビルド警告0、全テスト成功、上記の回帰がすべて期待どおり

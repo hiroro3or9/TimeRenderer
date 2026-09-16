@@ -1,4 +1,4 @@
-# タイムラインビュー 再設計案
+﻿# タイムラインビュー 再設計案
 
 対象: `ViewMode.SprintTimeline`
 
