@@ -12,9 +12,9 @@
 
 ## 技術スタック
 
-.NET 10 / C# / WPF で、本体に NuGet パッケージを一切入れません。MVVM のための `ObservableObject` と `RelayCommand` は自作します（数十行で足ります）。タスクトレイのアイコンとフォルダ選択ダイアログに WinForms を使うので `UseWindowsForms` を有効にし、Win32 コールバックを関数ポインタで受けるために `AllowUnsafeBlocks` を有効にします。
+.NET 10 / C# / WPF で、本体に NuGet パッケージを一切入れません。MVVM のための `ObservableObject` と `RelayCommand` は自作します（数十行で足ります）。タスクトレイのアイコンとフォルダ選択ダイアログに WinForms を使うので `UseWindowsForms` を有効にし、`LibraryImport` の生成コードと、Win32 コールバックを関数ポインタで受けるコードが unsafe を使うので `AllowUnsafeBlocks` を有効にします。
 
-テストは別プロジェクト（TUnit のみ）で、`Microsoft.NET.Test.Sdk` は入れず `OutputType=Exe` で実行します。本体には `InternalsVisibleTo` を書いて、テストから内部コンストラクタを呼べるようにします。
+テストは別プロジェクト（TUnit のみ）で、`Microsoft.NET.Test.Sdk` は入れず `OutputType=Exe` で実行します。この構成を `dotnet test` から動かすには、ソリューション直下の `global.json` でテストランナーを `Microsoft.Testing.Platform` に指定する必要があります（無いと従来の VSTest 前提で探しに行き、テストが見つかりません）。本体には `InternalsVisibleTo` を書いて、テストから内部コンストラクタを呼べるようにします。
 
 ## フォルダの分け方
 
